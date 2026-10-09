@@ -53,6 +53,14 @@
       return this.players[POSITIONS.findIndex((slot) => slot.code === position && slot.depth === occurrence + 1)];
     }
 
+    participants(play) {
+      return {
+        carrier: this.player(...play.carrier),
+        passer: this.player(...play.passer),
+        blocker: this.player('OL'),
+      };
+    }
+
     rating(position) {
       if (position === 'WR' || position === 'DL')
         return Math.round(

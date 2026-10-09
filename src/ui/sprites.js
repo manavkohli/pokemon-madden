@@ -26,6 +26,10 @@
     static handleError(event) {
       if (event.target.matches('img[data-sprite]')) event.target.hidden = true;
     }
+
+    static handleLoad(event) {
+      if (event.target.matches('img[data-sprite]')) event.target.classList.add('sprite-loaded');
+    }
   }
 
   if (typeof module !== 'undefined') module.exports = { SpriteArt };

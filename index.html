@@ -131,10 +131,7 @@
             </div>
             <div class="field" id="field">
               <div class="endzone">POKÉ</div>
-              <div class="yard-labels">
-                <span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>40</span><span>30</span
-                ><span>20</span><span>10</span>
-              </div>
+              <div id="fieldMarkings" aria-hidden="true"></div>
               <div id="firstDownLine" class="first-down-line"></div>
               <div id="scrimmageLine" class="scrimmage-line"></div>
               <div id="fieldPlayers" class="field-players"></div>
@@ -220,15 +217,15 @@
       </div>
     </section>
 
-    <div id="pauseOverlay" class="overlay hidden">
+    <dialog id="pauseOverlay" class="overlay" aria-labelledby="pauseTitle">
       <div class="overlay-card">
         <span class="overlay-icon">Ⅱ</span>
-        <h2>Game paused</h2>
+        <h2 id="pauseTitle">Game paused</h2>
         <p>The clock only moves when a play resolves.</p>
         <button id="resumeButton" class="button primary" type="button">Resume ▶</button>
       </div>
-    </div>
-    <div id="finalOverlay" class="overlay hidden">
+    </dialog>
+    <dialog id="finalOverlay" class="overlay" aria-labelledby="finalTitle" aria-describedby="finalScore">
       <div class="overlay-card">
         <span class="overlay-icon">🏆</span>
         <h2 id="finalTitle">Final whistle</h2>
@@ -238,7 +235,7 @@
           ><button id="redraftButton" class="button ghost" type="button">Redraft</button>
         </div>
       </div>
-    </div>
+    </dialog>
     <script src="pokemon_gen1_2.js"></script>
     <script src="src/game/playbook.js"></script>
     <script src="src/game/roster.js"></script>
@@ -247,6 +244,7 @@
     <script src="src/ui/battle/motion.js"></script>
     <script src="src/ui/battle/stage.js"></script>
     <script src="src/ui/diagram.js"></script>
+    <script src="src/ui/field.js"></script>
     <script src="src/ui/app.js"></script>
   </body>
 </html>

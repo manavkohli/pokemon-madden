@@ -245,7 +245,7 @@ input {
 .pixel-frame span {
   font-size: 23px;
 }
-.pixel-frame:has(img:not([hidden])) > span {
+.pixel-frame:has(img.sprite-loaded:not([hidden])) > span {
   visibility: hidden;
 }
 .pixel-frame.big {
@@ -599,11 +599,11 @@ input {
   background: repeating-linear-gradient(90deg, #34744e 0 8%, #397952 8% 16%);
   image-rendering: pixelated;
 }
-.field:before {
-  content: '';
+.yard-line {
   position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), #d8e7ca72 calc(10% - 2px) 10%);
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid #d8e7ca72;
   opacity: 0.65;
 }
 .field:after {
@@ -631,13 +631,10 @@ input {
     monospace;
   z-index: 2;
 }
-.yard-labels {
+.yard-line span {
   position: absolute;
   top: 17px;
-  left: 2%;
-  right: 9%;
-  display: flex;
-  justify-content: space-around;
+  transform: translateX(-50%);
   font:
     8px 'Press Start 2P',
     monospace;
@@ -849,6 +846,16 @@ input {
   display: grid;
   place-items: center;
   padding: 18px;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: var(--ink);
+}
+.overlay:not([open]) {
+  display: none;
 }
 .overlay-card {
   width: min(410px, 100%);

@@ -34,12 +34,20 @@
 
     offenseStrength(play) {
       const team = this.rosters[this.possession];
+      const { carrier, passer } = team.participants(play);
       const rating = (role) => this.unitRating(team, 'offense', play, role);
       if (play.kind === 'run')
-        return rating('RB') * 0.5 + rating('OL') * 0.3 + (rating('TE') || rating('WR')) * 0.1 + rating('QB') * 0.1;
-      if (play.kind === 'trick') return rating('QB') * 0.35 + rating('RB') * 0.27 + rating('WR') * 0.38;
-      if (play.kind === 'deep') return rating('QB') * 0.48 + rating('WR') * 0.42 + rating('OL') * 0.1;
-      return rating('QB') * 0.4 + rating('WR') * 0.34 + (rating('TE') || rating('RB')) * 0.16 + rating('OL') * 0.1;
+        return (
+          Roster.rating(carrier, 'RB') * 0.5 +
+          rating('OL') * 0.3 +
+          (rating('TE') || rating('WR')) * 0.1 +
+          rating('QB') * 0.1
+        );
+      const receiver = Roster.rating(carrier, play.carrier[0]);
+      const quarterback = Roster.rating(passer, 'QB');
+      if (play.kind === 'trick') return quarterback * 0.35 + rating('RB') * 0.27 + receiver * 0.38;
+      if (play.kind === 'deep') return quarterback * 0.48 + receiver * 0.42 + rating('OL') * 0.1;
+      return quarterback * 0.4 + receiver * 0.34 + (rating('TE') || rating('RB')) * 0.16 + rating('OL') * 0.1;
     }
 
     defenseStrength(offense, defense) {
@@ -179,8 +187,7 @@
           : offense.kind === 'kick'
             ? this.fieldGoal()
             : this.scrimmage(offense, defense);
-      if (!['punt', 'kick'].includes(offense.kind))
-        result.defender = this.featuredDefender(side, offense, defense, result);
+      result.participants = this.playParticipants(side, offense, defense, result);
       this.history.push({ side, id: offense.id, kind: offense.kind, defenseId: defense.id });
       this.advanceClock(result.seconds);
       if (wasOvertime && this.score.home + this.score.away > priorScore) this.over = true;
@@ -199,6 +206,17 @@
       const candidates = lineup.filter((slot) => roles.includes(slot.role));
       candidates.sort((a, b) => Roster.rating(b.mon, b.role) - Roster.rating(a.mon, a.role));
       return candidates[0].mon;
+    }
+
+    playParticipants(side, offense, defense, result) {
+      const { carrier, passer, blocker } = this.rosters[side].participants(offense);
+      const sacked = result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run');
+      const defender = this.featuredDefender(side, offense, defense, result);
+      const support = sacked || ['run', 'kick', 'punt'].includes(offense.kind) ? blocker : passer;
+      const help = this.rosters[this.opponent(side)]
+        .lineup('defense', defense)
+        .find((slot) => ['S', 'LB', 'CB'].includes(slot.role) && slot.mon.id !== defender.id).mon;
+      return { carrier: sacked ? passer : carrier, support, defender, help };
     }
 
     matchupScore(offense, defense) {

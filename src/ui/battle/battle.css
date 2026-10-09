@@ -132,7 +132,7 @@
   color: var(--lime);
   text-shadow: 3px 4px #152939;
 }
-.battle-body:has(img:not([hidden])) .battle-fallback {
+.battle-body:has(img.sprite-loaded:not([hidden])) .battle-fallback {
   visibility: hidden;
 }
 .stopper .battle-fallback,

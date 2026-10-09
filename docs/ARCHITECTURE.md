@@ -5,8 +5,8 @@
 Consider an Inside Zone run:
 
 1. `GameApp` reads the selected call and asks `FootballGame` for the CPU's coverage.
-2. `FootballGame.snap()` resolves the play once, updating possession, down, spot, score, clock, and drive log. It returns the yards, duration, outcome, message, and actual featured defender.
-3. `BattleStage` selects the runner and supporting players, using the result's defender. `SpriteArt` supplies the same sprite sources and fallback behavior used elsewhere in the UI.
+2. Each offensive call declares its carrier or receiver and passer. `Roster` selects those players, and `FootballGame` uses their ratings when resolving the play. `FootballGame.snap()` updates possession, down, spot, score, clock, and drive log, returning the yards, duration, outcome, message, and participants. A sack features the passer rather than the intended receiver.
+3. `BattleStage` displays the participants returned by the engine. `SpriteArt` supplies the same sprite sources and fallback behavior used elsewhere in the UI; symbols stay visible until each image loads successfully.
 4. `BattleMotion.sample()` produces poses, ball position, contact effects, and captions from normalized progress. A stuffed run recoils; a successful run advances past the defender. Passes, interceptions, incomplete passes, sacks, fumbles, and kicks have distinct ball paths.
 5. `BattleStage` draws those poses from one `requestAnimationFrame` loop. `GameApp` displays the elapsed football time through `onProgress`. Once playback finishes, the UI renders the authoritative game state and unlocks the next call after the result banner.
 
@@ -21,6 +21,7 @@ The animation never computes a football result. Changing animation duration ther
 | `src/game/football.js` | CPU decisions, play resolution, possession, scoring, and clock |
 | `src/ui/app.js` | Drafting, play selection, scoreboard, and application lifecycle |
 | `src/ui/diagram.js` | Route and coverage SVGs |
+| `src/ui/field.js` | One yardage projection for field markings, ball position, and first-down markers |
 | `src/ui/sprites.js` | Sprite URLs, markup, and missing-image handling |
 | `src/ui/battle/motion.js` | Pure choreography and captions |
 | `src/ui/battle/stage.js` | Battle DOM, scheduling, and playback lifecycle |
@@ -31,6 +32,8 @@ The animation never computes a football result. Changing animation duration ther
 Pause freezes both poses and progress callbacks. Resume starts from the held position. Skip completes progress exactly once and releases the scheduler. Cancellation resolves the old playback without completing its clock; a token prevents an already queued frame from touching a replacement play. Returning to drafting or starting a rematch also clears the pending result timer.
 
 The OS/browser `prefers-reduced-motion` setting is read when each play begins. Reduced playback uses fixed poses, a shorter readable timeline, and captions without projectiles, shake, or particles. Missing sprite images reveal a local symbol; no image failure changes the game result. Drawing errors reject playback, and the application displays an error while retaining the resolved result in the drive log.
+
+Pause and final results use native modal dialogs so keyboard focus stays inside and background controls are inert. Escape resumes a paused game. The final dialog stays open until the player chooses a rematch or redraft.
 
 ## Browser checklist
 

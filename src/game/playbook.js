@@ -59,6 +59,7 @@
     },
     {
       id: 'qb-sneak',
+      carrier: ['QB', 0],
       name: 'QB Sneak',
       icon: '🐾',
       group: 'run',
@@ -80,6 +81,7 @@
     },
     {
       id: 'read-option',
+      carrier: ['QB', 0],
       name: 'Read Option',
       icon: '🔀',
       group: 'run',
@@ -141,6 +143,7 @@
     },
     {
       id: 'screen-pass',
+      carrier: ['RB', 0],
       name: 'Screen Pass',
       icon: '🫧',
       group: 'pass',
@@ -181,6 +184,7 @@
     },
     {
       id: 'shovel-pass',
+      carrier: ['TE', 0],
       name: 'Shovel Pass',
       icon: '🥄',
       group: 'pass',
@@ -191,6 +195,7 @@
     },
     {
       id: 'te-seam',
+      carrier: ['TE', 0],
       name: 'TE Seam',
       icon: '🪡',
       group: 'pass',
@@ -221,6 +226,7 @@
     },
     {
       id: 'wheel-route',
+      carrier: ['RB', 1],
       name: 'Wheel Route',
       icon: '🎡',
       group: 'pass',
@@ -294,6 +300,7 @@
     },
     {
       id: 'jet-sweep',
+      carrier: ['WR', 0],
       name: 'Jet Sweep',
       icon: '🌪️',
       group: 'trick',
@@ -304,10 +311,11 @@
     },
     {
       id: 'reverse',
+      carrier: ['WR', 0],
       name: 'Reverse',
       icon: '🔄',
       group: 'trick',
-      kind: 'trick',
+      kind: 'run',
       base: 10,
       spread: 21,
       detail: 'Send pursuit the wrong way',
@@ -324,6 +332,7 @@
     },
     {
       id: 'qb-scramble',
+      carrier: ['QB', 0],
       name: 'QB Scramble',
       icon: '🏃',
       group: 'trick',
@@ -334,6 +343,7 @@
     },
     {
       id: 'end-around',
+      carrier: ['WR', 0],
       name: 'End Around',
       icon: '🌀',
       group: 'trick',
@@ -365,6 +375,7 @@
     },
     {
       id: 'double-pass',
+      passer: ['QB', 1],
       name: 'Double Pass',
       icon: '🎲',
       group: 'trick',
@@ -405,7 +416,11 @@
       spread: 0,
       detail: 'Three points if it is good',
     },
-  ];
+  ].map((play) => ({
+    carrier: play.kind === 'run' ? ['RB', 0] : ['kick', 'punt'].includes(play.kind) ? ['QB', 0] : ['WR', 0],
+    passer: ['QB', 0],
+    ...play,
+  }));
 
   const DEFENSE = [
     {

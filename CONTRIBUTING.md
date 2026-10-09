@@ -7,9 +7,10 @@ npm ci
 npm run lint
 npm run format:check
 npm test
+python3 -m unittest discover -s tests -p 'test_pokedex.py'
 ```
 
-Run `npm run format` after editing source, styles, or HTML. The checks also run on pull requests. For a focused change, run `node tests/test_game.cjs` or `node tests/test_battle.cjs` while iterating.
+Run `npm run format` after editing source, styles, or HTML. The checks also run on pull requests. For a focused change, run `node tests/test_game.cjs`, `node tests/test_battle.cjs`, or `node tests/test_field.cjs` while iterating. The Python check verifies that reordered source rows still generate synchronized catalogs in Pokédex order without making a network request.
 
 Read [the architecture walkthrough](docs/ARCHITECTURE.md) for ownership and the browser checklist. Include the behavior changed, relevant checks, and screenshots of visual changes in a pull request. Keep football results independent of animation timing and preserve offline fallback behavior.
 

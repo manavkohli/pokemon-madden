@@ -2,6 +2,22 @@
 
 Open `index.html` in a browser to play. No server or install is required. Internet access adds Pokémon sprites; the game falls back to local symbols when sprites are unavailable.
 
+## Screenshots
+
+Scout the Pokédex and build a 31-player depth chart.
+
+![Team builder with a depth chart, Pokémon catalog, salary cap, and Mewtwo's player card](docs/screenshots/draft.jpg)
+
+Choose a call, inspect its routes and personnel, and follow the drive.
+
+![Exhibition game with the scoreboard, field, playbook, Inside Zone diagram, and drive log](docs/screenshots/playbook.jpg)
+
+Watch each snap unfold in a Pokémon battle scene.
+
+![A live Jet Sweep battle with Lapras carrying the football against Pinsir, supported by Miltank](docs/screenshots/battle.jpg)
+
+## Playing
+
 Build a 31-Pokémon depth chart from the first 251 Pokédex entries. Click a slot, inspect candidates in the right sidebar, and assign one. Randomize both teams or disable the 26,000-credit cap for testing. Choose a quarter length before kickoff. Each call fields 11 Pokémon from the chart; packages include two tight ends, four wide receivers, two backs, and two quarterbacks.
 
 During a game, click an offensive or defensive call to see its route or coverage diagram, matchup notes, and personnel. The CPU reveals its call at the snap. A short battle scene features the ball carrier or target and the defender most likely to make the play. Skip advances directly to the result; Pause freezes the scene. The quarter clock deducts play time as the battle animates and does not run between turns.
@@ -21,6 +37,7 @@ npm ci
 npm run lint
 npm run format:check
 npm test
+python3 -m unittest discover -s tests -p 'test_pokedex.py'
 ```
 
 No build step is needed. Any static host can serve the repository. For a local preview, run `python3 -m http.server 8000 --bind 127.0.0.1` and visit `http://127.0.0.1:8000`.
@@ -35,4 +52,4 @@ Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github
 
 ## License
 
-Original project code is available under the [MIT license](LICENSE). This is an unofficial Pokémon fan project, unaffiliated with Nintendo, Game Freak, or The Pokémon Company. Pokémon names, characters, and sprites remain the property of their respective rights holders and are not licensed by this repository's MIT license. Third-party data and fonts retain their own terms.
+Original project code is available under the [MIT license](LICENSE). This is an unofficial Pokémon fan project, unaffiliated with Nintendo, Game Freak, or The Pokémon Company. Pokémon names, characters, and sprites, including those shown in the screenshots, remain the property of their respective rights holders and are not licensed by this repository's MIT license. See the sprite source's [licensing notice](https://github.com/PokeAPI/sprites/blob/master/LICENCE.txt). Third-party data and fonts retain their own terms.

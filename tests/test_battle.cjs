@@ -5,6 +5,7 @@ const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 const { BattleStage } = require('../src/ui/battle/stage.js');
 const { BattleMotion } = require('../src/ui/battle/motion.js');
 const { SpriteArt } = require('../src/ui/sprites.js');
+const { FootballGame } = require('../src/game/football.js');
 
 class Element {
   constructor() {
@@ -67,20 +68,22 @@ class BattleChecks {
       data,
       Array.from({ length: POSITIONS.length }, (_, i) => i + 1),
     );
+    const offense = OFFENSE.find((play) => play.id === 'inside-zone');
+    const defense = DEFENSE.find((play) => play.id === 'run-stuff');
     return {
       attack: roster,
       defend: roster,
-      offense: OFFENSE.find((play) => play.id === 'inside-zone'),
-      defense: DEFENSE.find((play) => play.id === 'run-stuff'),
-      result: { yards: -2, message: 'STUFFED!', outcome: 'stuff', seconds: 23 },
+      offense,
+      defense,
+      result: new FootballGame(roster, roster, 300, () => 0).snap(offense, defense),
     };
   }
 
   static motion(stage, context) {
-    const featured = stage.featured(context.attack, context.defend, context.offense, context.result);
+    const featured = stage.featured(context.result);
     const chosenDefender = data[66];
     assert.equal(
-      stage.featured(context.attack, context.defend, context.offense, { ...context.result, defender: chosenDefender })
+      stage.featured({ ...context.result, participants: { ...context.result.participants, defender: chosenDefender } })
         .stopper,
       chosenDefender,
     );
@@ -106,16 +109,32 @@ class BattleChecks {
     assert.equal(gain.sample(0.65, true).shake, 0);
     assert.deepEqual(gain.sample(0.2, true).actors, gain.sample(0.8, true).actors, 'reduced motion holds poses');
     for (const play of OFFENSE) {
-      const cast = stage.featured(context.attack, context.defend, play);
+      const result = new FootballGame(context.attack, context.defend, 300, () => 0.5).snap(play, context.defense);
+      const cast = stage.featured(result);
+      assert.equal(cast.lead, result.participants.carrier, play.id);
+      assert.equal(cast.support, result.participants.support, play.id);
       assert.equal(new Set([cast.lead.id, cast.support.id]).size, 2, play.id);
       assert.equal(new Set([cast.stopper.id, cast.help.id]).size, 2, play.id);
     }
-    const sackCast = stage.featured(context.attack, context.defend, pass, { outcome: 'sack' });
+    const sackRolls = [0.99, 0.99, 0, 0];
+    const sackResult = new FootballGame(context.attack, context.defend, 300, () => sackRolls.shift()).snap(
+      pass,
+      context.defense,
+    );
+    assert.equal(sackResult.outcome, 'sack');
+    const sackCast = stage.featured(sackResult);
     assert.equal(sackCast.lead.id, context.attack.player('QB').id);
     assert.match(SpriteArt.fighter({ ...data[0], name: '<img onerror="oops">' }, true), /&lt;img/);
     const missing = { matches: (selector) => selector === 'img[data-sprite]' };
     SpriteArt.handleError({ target: missing });
     assert.equal(missing.hidden, true);
+    const loaded = new Element();
+    loaded.matches = (selector) => selector === 'img[data-sprite]';
+    assert.equal(loaded.classList.contains('sprite-loaded'), false, 'pending sprite keeps fallback');
+    SpriteArt.handleLoad({ target: loaded });
+    assert.equal(loaded.classList.contains('sprite-loaded'), true);
+    SpriteArt.handleError({ target: loaded });
+    assert.equal(loaded.hidden, true, 'failed sprite reveals fallback even after a prior load');
   }
 
   static async run() {

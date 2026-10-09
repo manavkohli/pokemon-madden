@@ -27,42 +27,14 @@
       element.querySelector('#skipBattle').addEventListener('click', () => this.skip());
     }
 
-    featured(attack, defend, offense, result = {}) {
-      const [role, depth, support] = this.attackingRoles(offense, result);
-      const lead = attack.player(role, depth);
-      const helper = attack.player(support);
-      const stopperRole = offense.kind === 'run' ? 'LB' : offense.kind === 'deep' ? 'S' : 'CB';
-      const stopper = result.defender || defend.player(stopperRole);
-      const help = ['S', 'LB', 'CB'].map((position) => defend.player(position)).find((mon) => mon.id !== stopper.id);
-      return { lead, support: helper.id === lead.id ? attack.player('OL') : helper, stopper, help };
+    featured(result) {
+      const { carrier, support, defender, help } = result.participants;
+      return { lead: carrier, support, stopper: defender, help };
     }
 
-    static ROLE_OVERRIDES = {
-      'double-pass': ['QB', 1, 'QB'],
-      'qb-sneak': ['QB', 0, 'RB'],
-      'qb-scramble': ['QB', 0, 'RB'],
-      'read-option': ['QB', 0, 'RB'],
-      'jet-sweep': ['WR', 0, 'RB'],
-      'end-around': ['WR', 0, 'RB'],
-      reverse: ['WR', 0, 'RB'],
-      'screen-pass': ['RB', 0, 'QB'],
-      'wheel-route': ['RB', 1, 'QB'],
-      'te-seam': ['TE', 0, 'QB'],
-      'shovel-pass': ['TE', 0, 'QB'],
-    };
-
-    attackingRoles(offense, result) {
-      if (result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run')) return ['QB', 0, 'OL'];
-      const override = BattleStage.ROLE_OVERRIDES[offense.id];
-      if (override) return override;
-      if (offense.kind === 'run') return ['RB', 0, 'OL'];
-      if (['kick', 'punt'].includes(offense.kind)) return ['QB', 0, 'OL'];
-      return ['WR', 0, 'QB'];
-    }
-
-    play({ attack, defend, offense, defense, result, onProgress = () => {} }) {
+    play({ offense, defense, result, onProgress = () => {} }) {
       this.cancel();
-      const featured = this.featured(attack, defend, offense, result);
+      const featured = this.featured(result);
       const motion = new BattleMotion(offense, result, featured);
       this.element.classList.remove('hidden');
       this.element.classList.toggle('scoring', motion.scoring);

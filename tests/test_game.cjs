@@ -4,6 +4,63 @@ const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
 const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 
+class ParticipantChecks {
+  static stronger(roster, role, depth) {
+    const player = roster.player(role, depth);
+    const stronger = new Roster(data, []);
+    stronger.players = roster.players.map((mon) =>
+      mon.id === player.id
+        ? {
+            ...mon,
+            base_stats: { ...Object.fromEntries(Object.keys(mon.base_stats).map((stat) => [stat, 150])), total: 900 },
+          }
+        : mon,
+    );
+    return stronger;
+  }
+
+  static run(roster, rival) {
+    for (const [id, role, depth] of [
+      ['qb-sneak', 'QB', 0],
+      ['qb-scramble', 'QB', 0],
+      ['jet-sweep', 'WR', 0],
+      ['reverse', 'WR', 0],
+      ['te-seam', 'TE', 0],
+      ['screen-pass', 'RB', 0],
+      ['wheel-route', 'RB', 1],
+    ]) {
+      const play = OFFENSE.find((call) => call.id === id);
+      const roll = () => (play.kind === 'run' ? 0.5 : 0.1);
+      const normal = new FootballGame(roster, rival, 300, roll);
+      const improved = new FootballGame(this.stronger(roster, role, depth), rival, 300, roll);
+      assert.ok(improved.offenseStrength(play) > normal.offenseStrength(play), `${id} uses its carrier's rating`);
+      const defense = DEFENSE.find((call) => call.id === 'run-stuff');
+      assert.ok(improved.snap(play, defense).yards > normal.snap(play, defense).yards, id);
+    }
+    const doublePass = OFFENSE.find((play) => play.id === 'double-pass');
+    const normal = new FootballGame(roster, rival, 300, () => 0.5);
+    const improved = new FootballGame(this.stronger(roster, 'QB', 1), rival, 300, () => 0.5);
+    assert.ok(improved.offenseStrength(doublePass) > normal.offenseStrength(doublePass), 'second QB throws');
+
+    for (const play of OFFENSE) {
+      const game = new FootballGame(roster, rival, 300, () => 0.5);
+      const result = game.snap(play, DEFENSE[0]);
+      const offenseIds = roster.lineup('offense', play).map((slot) => slot.mon.id);
+      const defenseIds = rival.lineup('defense', DEFENSE[0]).map((slot) => slot.mon.id);
+      assert.ok(offenseIds.includes(result.participants.carrier.id), play.id);
+      assert.ok(offenseIds.includes(result.participants.support.id), play.id);
+      assert.ok(defenseIds.includes(result.participants.defender.id), play.id);
+      assert.ok(defenseIds.includes(result.participants.help.id), play.id);
+    }
+    const reverse = OFFENSE.find((play) => play.id === 'reverse');
+    const rolls = [0.99, 0.5, 0];
+    const fumble = new FootballGame(roster, rival, 300, () => rolls.shift()).snap(reverse, DEFENSE[0]);
+    assert.equal(reverse.group, 'trick');
+    assert.equal(reverse.kind, 'run');
+    assert.equal(fumble.outcome, 'fumble', 'reverse uses run turnovers');
+  }
+}
+
 assert.equal(data.length, 251);
 assert.ok(OFFENSE.length >= 35);
 assert.ok(DEFENSE.length >= 25);
@@ -154,4 +211,11 @@ const slant = OFFENSE.find((play) => play.id === 'quick-slant');
 const cover = DEFENSE.find((play) => play.id === 'cover-3');
 assert.ok(repeatedCall.snap(slant, cover).yards < freshCall.snap(slant, cover).yards);
 
-console.log('Game data and turn rules passed.');
+ParticipantChecks.run(
+  home,
+  new Roster(
+    data,
+    ids.map((id) => id + 100),
+  ),
+);
+console.log('Game data, participants, and turn rules passed.');

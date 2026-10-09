@@ -111,12 +111,12 @@ class PokedexScraper:
             }
         if sorted(entries) != list(range(1, 252)):
             raise ValueError(f"Expected National Dex #1–251; found {len(entries)} entries")
-        return list(entries.values())
+        return [entries[dex] for dex in sorted(entries)]
 
     def save(self, entries: list[dict]) -> None:
         data = {"source": SOURCE, "pokemon": entries}
-        (ROOT / "pokemon_gen1_2.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-        (ROOT / "pokemon_gen1_2.js").write_text("window.POKEMON_DATA = " + json.dumps(entries, ensure_ascii=False, separators=(",", ":")) + ";\n")
+        (ROOT / "pokemon_gen1_2.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (ROOT / "pokemon_gen1_2.js").write_text("window.POKEMON_DATA = " + json.dumps(entries, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

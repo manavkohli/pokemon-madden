@@ -10,6 +10,7 @@
     BattleStage,
     SpriteArt,
     PlayDiagram,
+    FootballField,
   } = window.Pokeballers;
 
   class GameApp {
@@ -30,6 +31,8 @@
       this.battle = new BattleStage(this.el('battleStage'));
 
       document.addEventListener('error', (event) => SpriteArt.handleError(event), true);
+      document.addEventListener('load', (event) => SpriteArt.handleLoad(event), true);
+      this.el('fieldMarkings').innerHTML = FootballField.markings();
       this.bind();
       this.renderDraft();
     }
@@ -78,6 +81,11 @@
       this.el('snapButton').addEventListener('click', () => this.snap().catch((error) => this.showError(error)));
       this.el('pauseButton').addEventListener('click', () => this.pause());
       this.el('resumeButton').addEventListener('click', () => this.resume());
+      this.el('pauseOverlay').addEventListener('cancel', (event) => {
+        event.preventDefault();
+        this.resume();
+      });
+      this.el('finalOverlay').addEventListener('cancel', (event) => event.preventDefault());
       this.el('editTeamButton').addEventListener('click', () => this.openDraft());
       this.el('rematchButton').addEventListener('click', () => this.start());
       this.el('redraftButton').addEventListener('click', () => this.openDraft());
@@ -187,8 +195,8 @@
       this.el('snapButton').disabled = false;
       this.el('draftScreen').classList.add('hidden');
       this.el('gameScreen').classList.remove('hidden');
-      this.el('pauseOverlay').classList.add('hidden');
-      this.el('finalOverlay').classList.add('hidden');
+      this.el('pauseOverlay').close();
+      this.el('finalOverlay').close();
       this.renderGame();
     }
 
@@ -201,8 +209,8 @@
       this.pendingSnap = null;
       this.el('draftScreen').classList.remove('hidden');
       this.el('gameScreen').classList.add('hidden');
-      this.el('finalOverlay').classList.add('hidden');
-      this.el('pauseOverlay').classList.add('hidden');
+      this.el('finalOverlay').close();
+      this.el('pauseOverlay').close();
       this.paused = false;
       this.renderDraft();
     }
@@ -211,13 +219,13 @@
       if (!this.game || (this.game.over && !this.locked) || this.el('gameScreen').classList.contains('hidden')) return;
       this.paused = true;
       this.battle.setPaused(true);
-      this.el('pauseOverlay').classList.remove('hidden');
+      this.el('pauseOverlay').showModal();
     }
 
     resume() {
       this.paused = false;
       this.battle.setPaused(false);
-      this.el('pauseOverlay').classList.add('hidden');
+      this.el('pauseOverlay').close();
       if (this.pendingSnap) {
         const finish = this.pendingSnap;
         this.pendingSnap = null;
@@ -303,16 +311,11 @@
       this.el('field').scrollIntoView({ block: 'center', behavior: 'auto' });
       const sequence = this.sequence;
       const game = this.game;
-      const side = game.possession;
       const offense = this.game.possession === 'home' ? this.selectedOffense : this.game.chooseCpuOffense();
       const defense = this.game.possession === 'home' ? this.game.chooseCpuDefense() : this.selectedDefense;
-      const attack = game.rosters[side];
-      const defend = game.rosters[game.opponent(side)];
       const beforeSeconds = game.seconds;
       const result = game.snap(offense, defense);
       await this.battle.play({
-        attack,
-        defend,
         offense,
         defense,
         result,
@@ -376,9 +379,9 @@
 
     renderField() {
       const game = this.game;
-      const x = 7 + game.spot * 0.85;
+      const x = FootballField.position(game.spot);
       this.el('scrimmageLine').style.left = `${x}%`;
-      this.el('firstDownLine').style.left = `${Math.min(92, x + game.toGo * 0.85)}%`;
+      this.el('firstDownLine').style.left = `${FootballField.position(game.spot + game.toGo)}%`;
       this.el('football').style.left = `${x}%`;
       const offenseCall = game.possession === 'home' ? this.selectedOffense : OFFENSE[0];
       const defenseCall = game.possession === 'away' ? this.selectedDefense : DEFENSE[0];
@@ -416,7 +419,7 @@
       ];
       this.el('fieldPlayers').innerHTML = formation
         .map((unit) => {
-          const room = unit.dx < 0 ? x - 4 : 92 - x;
+          const room = unit.dx < 0 ? x - FootballField.START : FootballField.END - x;
           const left = x + unit.dx * Math.min(1, room / 22);
           const label = `${unit.role}${unit.depth}`;
           return `<div class="field-player ${unit.side}" data-role="${unit.role}" style="left:${left}%;top:${unit.y}%" title="${unit.mon.name} · ${label}">${SpriteArt.frame(unit.mon)}<small>${label}</small></div>`;
@@ -433,7 +436,8 @@
             : 'Final whistle';
       this.el('finalScore').textContent =
         `Viridian Volts ${this.game.score.home} · Cerulean Surf ${this.game.score.away}`;
-      this.el('finalOverlay').classList.remove('hidden');
+      this.el('pauseOverlay').close();
+      this.el('finalOverlay').showModal();
     }
   }
 
