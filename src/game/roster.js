@@ -155,11 +155,16 @@
         [second, first],
       ].find(([from, to]) => to < from && this.has(this.players[slots[from].index], 'benched'));
       if (rising) throw new RangeError(`${this.players[slots[rising[0]].index].name} is benched`);
-      const trapped = [first, second].find((index) => this.has(this.players[slots[index].index], 'trap'));
+      const trapped = [first, second].find((index) => !this.canLeave(this.players[slots[index].index]));
       if (trapped !== undefined) throw new RangeError(`${this.players[slots[trapped].index].name} is trapped`);
       const a = slots[first].index;
       const b = slots[second].index;
       [this.players[a], this.players[b]] = [this.players[b], this.players[a]];
+    }
+
+    // A trapped player cannot change depth slots, so every swap path asks this one check.
+    canLeave(mon) {
+      return !this.has(mon, 'trap');
     }
 
     // The best-rested same-role player outside the unit who is free to enter it.
@@ -172,14 +177,14 @@
             entry.code === own.code &&
             !taken.has(entry.mon.id) &&
             !this.has(entry.mon, 'benched') &&
-            !this.has(entry.mon, 'trap'),
+            this.canLeave(entry.mon),
         )
         .sort((a, b) => this.energy(b.mon) - this.energy(a.mon))[0];
     }
 
     // Swaps the target with its backup and benches it; false when the target is trapped, benched, or has no backup.
     sendToBench(mon, side, play) {
-      if (this.has(mon, 'trap') || this.has(mon, 'benched')) return false;
+      if (!this.canLeave(mon) || this.has(mon, 'benched')) return false;
       const backup = this.backupFor(mon, side, play);
       if (!backup) return false;
       this.substitute(backup.code, POSITIONS[this.players.indexOf(mon)].depth - 1, backup.depth - 1);
@@ -189,7 +194,7 @@
     // A bigger formation can reach a benched player's depth, so a free backup takes that slot before the snap.
     seatBenched(side, play) {
       for (const slot of this.lineup(side, play)) {
-        if (!this.has(slot.mon, 'benched') || this.has(slot.mon, 'trap')) continue;
+        if (!this.has(slot.mon, 'benched') || !this.canLeave(slot.mon)) continue;
         const backup = this.backupFor(slot.mon, side, play);
         if (backup) this.substitute(slot.role, slot.depth - 1, backup.depth - 1);
       }
@@ -215,7 +220,7 @@
       const active = this.lineup(side, play);
       const activeIds = new Set(active.map((slot) => slot.mon.id));
       for (const slot of active) {
-        if (this.has(slot.mon, 'trap') || this.has(slot.mon, 'benched') || !this.needsRest(slot.mon)) continue;
+        if (!this.canLeave(slot.mon) || this.has(slot.mon, 'benched') || !this.needsRest(slot.mon)) continue;
         const bench = POSITIONS.map((position) => ({
           ...position,
           mon: this.player(position.code, position.depth - 1),
@@ -224,7 +229,7 @@
             (candidate) =>
               candidate.code === slot.role &&
               !activeIds.has(candidate.mon.id) &&
-              !this.has(candidate.mon, 'trap') &&
+              this.canLeave(candidate.mon) &&
               !this.has(candidate.mon, 'benched') &&
               !this.hasMajor(candidate.mon),
           )

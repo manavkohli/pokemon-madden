@@ -237,10 +237,17 @@
       this.settleUnit(side, kind, kind === 'offense' ? offense : defense);
     }
 
-    // Every call and audible seats benched players before auto-rotation, so the shown unit is the unit that plays.
+    // Seating undoes a Roar's effect rather than sending a player in, so it never pays Spikes.
     settleUnit(side, kind, play) {
-      this.changeUnit(side, kind, play, () => this.rosters[side].seatBenched(kind, play));
+      this.rosters[side].seatBenched(kind, play);
       if (this.autoRotate[side]) this.rotateUnit(side, kind, play);
+    }
+
+    seatUnits(offense, defense) {
+      for (const side of ['home', 'away']) {
+        const kind = side === this.possession ? 'offense' : 'defense';
+        this.rosters[side].seatBenched(kind, kind === 'offense' ? offense : defense);
+      }
     }
 
     setAutoRotate(side, enabled) {
@@ -374,7 +381,7 @@
     }
 
     commitChoices(resolved, defense) {
-      if (DEAD_KINDS.includes(resolved.kind)) return this.dropDeadPicks();
+      if (DEAD_KINDS.includes(resolved.kind)) return this.dropPicks(() => false);
       this.activateCpuAbility(resolved, defense);
       this.activateCpuMove(resolved, defense);
       this.dropStalePicks(resolved, defense);
@@ -382,11 +389,11 @@
       this.spendMoves();
     }
 
-    // A punt, kick, spike, or kneel has no contest, so every pending pick drops without cost.
-    dropDeadPicks() {
-      for (const side of Object.keys(this.phase.moves)) this.dropPick('moves', side);
-      for (const [side, ability] of Object.entries(this.phase.abilities))
-        if (!ability.paid) this.dropPick('abilities', side);
+    // Psychic Read is the only pick paid before the snap, so it never drops; a dead play keeps no other pick.
+    dropPicks(keep) {
+      for (const key of ['moves', 'abilities'])
+        for (const [side, pick] of Object.entries(this.phase[key]))
+          if (!pick.paid && !keep(key, side, pick)) this.dropPick(key, side);
     }
 
     dropPick(key, side) {
@@ -398,15 +405,13 @@
 
     // A call, target, or substitution changed after the pick can leave the actor without a legal role.
     dropStalePicks(resolved, defense) {
-      for (const key of ['moves', 'abilities']) {
-        for (const [side, pick] of Object.entries(this.phase[key])) {
-          const play = side === this.possession ? resolved : defense;
-          const options = key === 'moves' ? this.availableMoves(side, play) : this.availableAbilities(side, play);
-          const same = (entry) =>
-            entry.actor.id === pick.actor.id && (entry.move ?? entry.id) === (pick.move ?? pick.id);
-          if (!pick.paid && !options.some(same)) this.dropPick(key, side);
-        }
-      }
+      this.dropPicks((key, side, pick) => {
+        const play = side === this.possession ? resolved : defense;
+        const options = key === 'moves' ? this.availableMoves(side, play) : this.availableAbilities(side, play);
+        return options.some(
+          (entry) => entry.actor.id === pick.actor.id && (entry.move ?? entry.id) === (pick.move ?? pick.id),
+        );
+      });
     }
 
     spendMoves() {
@@ -565,6 +570,7 @@
     snap(offense, defense, options = {}) {
       if (this.over) throw new Error('The game has ended.');
       this.validateSnap(offense, defense, options);
+      this.seatUnits(offense, defense);
       const resolved = this.resolveOffense(offense, options);
       const prior = {
         side: this.possession,

@@ -1380,3 +1380,32 @@ describe('Sixth review fixes', () => {
     assert.equal(unit(home, 'power-run').includes(te1.id), false);
   });
 });
+
+describe('Seventh review fixes', () => {
+  const roared = () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const te1 = home.player('TE', 0);
+    home.sendToBench(te1, 'offense', Moves.offense());
+    return { match, home, te1 };
+  };
+
+  test('a snap with no prepared call still seats a benched player', () => {
+    const { match, home, te1 } = roared();
+    match.snap(Moves.offense('power-run'), Moves.defense());
+    assert.equal(home.player('TE', 0).id === te1.id || home.player('TE', 1).id === te1.id, false);
+  });
+
+  test('seating a benched player on an audible pays no Spikes', () => {
+    const { match, home } = roared();
+    match.setSpikes('home', true);
+    match.prepareCall(Moves.offense());
+    const energy = home.players.map((mon) => home.energy(mon));
+    match.choosePlayerCall(Moves.offense('power-run'));
+    match.choosePlayerCall(Moves.offense());
+    assert.deepEqual(
+      home.players.map((mon) => home.energy(mon)),
+      energy,
+    );
+  });
+});
