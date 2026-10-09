@@ -233,8 +233,13 @@
     }
 
     rotateTeam(side, offense, defense) {
+      const { kind, play } = this.unitFor(side, offense, defense);
+      this.settleUnit(side, kind, play);
+    }
+
+    unitFor(side, offense, defense) {
       const kind = side === this.possession ? 'offense' : 'defense';
-      this.settleUnit(side, kind, kind === 'offense' ? offense : defense);
+      return { kind, play: kind === 'offense' ? offense : defense };
     }
 
     // Seating undoes a Roar's effect rather than sending a player in, so it never pays Spikes.
@@ -243,10 +248,13 @@
       if (this.autoRotate[side]) this.rotateUnit(side, kind, play);
     }
 
-    // A snap with no prepared call skipped the call-time seating and rotation, so it gets the same step.
-    settleUnprepared(offense, defense) {
+    // A snap with no prepared call missed the call-time seating, so it seats here; seating never pays Spikes.
+    seatUnprepared(offense, defense) {
       if (this.phase) return;
-      for (const side of ['home', 'away']) this.rotateTeam(side, offense, defense);
+      for (const side of ['home', 'away']) {
+        const { kind, play } = this.unitFor(side, offense, defense);
+        this.rosters[side].seatBenched(kind, play);
+      }
     }
 
     setAutoRotate(side, enabled) {
@@ -570,7 +578,7 @@
       if (this.over) throw new Error('The game has ended.');
       this.validateSnap(offense, defense, options);
       const resolved = this.resolveOffense(offense, options);
-      this.settleUnprepared(resolved, defense);
+      this.seatUnprepared(resolved, defense);
       const prior = {
         side: this.possession,
         drive: this.drive,

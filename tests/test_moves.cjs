@@ -9,6 +9,15 @@ const { BattleMotion } = require('../src/ui/battle/motion.js');
 const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 
 class Moves {
+  // A Roar on the first tight end in one-tight-end personnel sends it to TE depth 2.
+  static roared() {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const te1 = home.player('TE', 0);
+    home.sendToBench(te1, 'offense', Moves.offense());
+    return { match, home, te1 };
+  }
+
   static offense(id = 'inside-zone') {
     return OFFENSE.find((play) => play.id === id);
   }
@@ -1297,16 +1306,8 @@ describe('Move cues', () => {
 
 describe('Fifth review fixes', () => {
   // Inside Zone fields one tight end, Power Run two, QB Sneak all three.
-  const roared = () => {
-    const match = Moves.game();
-    const home = match.rosters.home;
-    const te1 = home.player('TE', 0);
-    home.sendToBench(te1, 'offense', Moves.offense());
-    return { match, home, te1 };
-  };
-
   test('a bigger formation seats a free backup in place of a benched tight end', () => {
-    const { home, te1 } = roared();
+    const { home, te1 } = Moves.roared();
     assert.equal(home.player('TE', 1).id, te1.id);
     home.seatBenched('offense', Moves.offense('power-run'));
     const unit = home.lineup('offense', Moves.offense('power-run')).map((slot) => slot.mon.id);
@@ -1315,21 +1316,21 @@ describe('Fifth review fixes', () => {
   });
 
   test('calling a bigger formation seats a benched player before the snap', () => {
-    const { match, te1 } = roared();
+    const { match, te1 } = Moves.roared();
     match.prepareCall(Moves.offense('power-run'));
     const unit = match.rosters.home.lineup('offense', Moves.offense('power-run')).map((slot) => slot.mon.id);
     assert.equal(unit.includes(te1.id), false);
   });
 
   test('a formation that needs every player at a position fields the benched one', () => {
-    const { home, te1 } = roared();
+    const { home, te1 } = Moves.roared();
     home.seatBenched('offense', Moves.offense('qb-sneak'));
     const unit = home.lineup('offense', Moves.offense('qb-sneak')).map((slot) => slot.mon.id);
     assert.equal(unit.includes(te1.id), true);
   });
 
   test('Roar on a benched player fails without throwing', () => {
-    const { home, te1 } = roared();
+    const { home, te1 } = Moves.roared();
     const order = home.players.map((mon) => mon.id);
     assert.equal(home.sendToBench(te1, 'offense', Moves.offense('qb-sneak')), false);
     assert.deepEqual(
@@ -1339,7 +1340,7 @@ describe('Fifth review fixes', () => {
   });
 
   test('a benched player can move down the depth chart', () => {
-    const { home, te1 } = roared();
+    const { home, te1 } = Moves.roared();
     home.substitute('TE', 1, 2);
     assert.equal(home.player('TE', 2).id, te1.id);
   });
@@ -1357,24 +1358,17 @@ describe('Fifth review fixes', () => {
 });
 
 describe('Sixth review fixes', () => {
-  const roared = () => {
-    const match = Moves.game();
-    const home = match.rosters.home;
-    const te1 = home.player('TE', 0);
-    home.sendToBench(te1, 'offense', Moves.offense());
-    return { match, home, te1 };
-  };
   const unit = (roster, id) => roster.lineup('offense', Moves.offense(id)).map((slot) => slot.mon.id);
 
   test('a benched player who is also trapped stays put and the call still starts', () => {
-    const { match, home, te1 } = roared();
+    const { match, home, te1 } = Moves.roared();
     home.afflict(te1, 'trap');
     assert.doesNotThrow(() => match.prepareCall(Moves.offense('power-run')));
     assert.equal(unit(home, 'power-run').includes(te1.id), true);
   });
 
   test('an audible to a bigger formation seats a benched player at once', () => {
-    const { match, home, te1 } = roared();
+    const { match, home, te1 } = Moves.roared();
     match.prepareCall(Moves.offense());
     match.choosePlayerCall(Moves.offense('power-run'));
     assert.equal(unit(home, 'power-run').includes(te1.id), false);
@@ -1382,28 +1376,20 @@ describe('Sixth review fixes', () => {
 });
 
 describe('Seventh review fixes', () => {
-  const roared = () => {
-    const match = Moves.game();
-    const home = match.rosters.home;
-    const te1 = home.player('TE', 0);
-    home.sendToBench(te1, 'offense', Moves.offense());
-    return { match, home, te1 };
-  };
-
   test('a snap with no prepared call still seats a benched player', () => {
-    const { match, home, te1 } = roared();
-    const energy = home.energy(te1);
-    const result = match.snap(Moves.offense('power-run'), Moves.defense());
-    assert.equal(
-      Object.values(result.participants).some((mon) => mon.id === te1.id),
-      false,
-    );
-    assert.equal(home.energy(te1) >= energy, true);
-    assert.equal(home.player('TE', 0).id === te1.id || home.player('TE', 1).id === te1.id, false);
+    const { match, home, te1 } = Moves.roared();
+    match.setSpikes('home', true);
+    const spends = [];
+    const spend = home.spend.bind(home);
+    home.spend = (mon, amount) => spends.push(amount) && spend(mon, amount);
+    match.snap(Moves.offense('power-run'), Moves.defense());
+    const unit = home.lineup('offense', Moves.offense('power-run')).map((slot) => slot.mon.id);
+    assert.equal(unit.includes(te1.id), false);
+    assert.equal(spends.includes(FootballGame.SPIKES_COST), false);
   });
 
   test('seating a benched player on an audible pays no Spikes', () => {
-    const { match, home } = roared();
+    const { match, home } = Moves.roared();
     match.setSpikes('home', true);
     match.prepareCall(Moves.offense());
     const energy = home.players.map((mon) => home.energy(mon));
