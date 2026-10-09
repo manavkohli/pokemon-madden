@@ -481,3 +481,17 @@ test('a pending move or ability can be replaced or cancelled before the snap and
     await harness.close();
   }
 });
+
+test('a trapped substitution shows its message instead of throwing', async () => {
+  const harness = await AppHarness.create();
+  try {
+    const app = harness.app;
+    app.game.rosters.home.afflict(app.game.rosters.home.player('RB'), 'trap');
+    harness.select('subRole', 'RB');
+    harness.element('subButton').click();
+    assert.match(harness.element('coachNotice').textContent, /trapped/);
+    assert.deepEqual(harness.errors, []);
+  } finally {
+    await harness.close();
+  }
+});

@@ -21,7 +21,16 @@
     // Ranks a non-strike move against a strike's power so a default moveset can mix both.
     static STATUS_RANK = { ailment: 50, stat: 45, heal: 40, field: 35, protect: 30, switch: 20, ohko: 10 };
     static STAT_KEYS = { physical: 'attack', special: 'special_attack', status: 'attack' };
-    static BADGES = { paralysis: 'PAR', sleep: 'SLP', freeze: 'FRZ', burn: 'BRN', poison: 'PSN', confusion: 'CNF' };
+    static BADGES = {
+      paralysis: 'PAR',
+      sleep: 'SLP',
+      freeze: 'FRZ',
+      burn: 'BRN',
+      poison: 'PSN',
+      confusion: 'CNF',
+      trap: 'TRP',
+    };
+    static SELF_FAINT = ['explosion', 'self-destruct'];
     static WEATHER = {
       'rain-dance': { Water: 1.5, Fire: 0.5 },
       'sunny-day': { Fire: 1.5, Water: 0.5 },
@@ -140,7 +149,7 @@
 
     static defaultMoveset(mon) {
       if (MoveBook.defaults.has(mon)) return MoveBook.defaults.get(mon);
-      const learnable = MoveBook.learnable(mon);
+      const learnable = MoveBook.learnable(mon).filter((name) => !MoveBook.SELF_FAINT.includes(name));
       const strikes = MoveBook.ranked(
         learnable.filter((name) => MoveBook.family(name) === 'strike'),
         mon,

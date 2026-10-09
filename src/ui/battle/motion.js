@@ -10,11 +10,11 @@
     static CUE_START = 0.22;
     static CUE_END = 0.5;
     static CUE_SPLIT = 0.36;
-    // A shield holds through contact and a one-hit flash lands on it.
-    static CUE_WINDOWS = { protect: [0.22, 0.79], ohko: [0.5, 0.68] };
+    static CUE_WINDOWS = { ohko: [0.5, 0.68] };
+    // A Protect shield draws from its own state and holds through contact.
+    static SHIELD_WINDOW = [0.22, 0.79];
     static SHAPES = {
       heal: { kind: 'sparkle', at: 'user', label: '✦ ✦ ✦', rise: -12 },
-      protect: { kind: 'bubble', at: 'user' },
       ohko: { kind: 'flash', at: 'target' },
       switch: { kind: 'aura', at: 'target', label: 'OUT' },
     };
@@ -81,23 +81,24 @@
     }
 
     // One move plays its cue in 0.22-0.50; with two, the offense plays in 0.22-0.36 and the defense in 0.36-0.50.
-    cueWindow(index, family) {
+    cueWindow(record) {
+      const family = MoveBook.family(record.move);
       if (BattleMotion.CUE_WINDOWS[family]) return BattleMotion.CUE_WINDOWS[family];
       if (this.moves.length < 2) return [BattleMotion.CUE_START, BattleMotion.CUE_END];
-      return index === 0
+      return record.offense
         ? [BattleMotion.CUE_START, BattleMotion.CUE_SPLIT]
         : [BattleMotion.CUE_SPLIT, BattleMotion.CUE_END];
     }
 
-    captionStart(index) {
-      return this.moves.length > 1 && index === 1 ? BattleMotion.CUE_SPLIT : BattleMotion.CUE_START;
+    captionStart(record) {
+      return this.moves.length > 1 && !record.offense ? BattleMotion.CUE_SPLIT : BattleMotion.CUE_START;
     }
 
     moveCaption(progress) {
       if (!this.moves.length || progress < BattleMotion.CUE_START) return null;
       const detail = `${this.featured.lead.name} vs ${this.featured.stopper.name}`;
       if (progress < BattleMotion.CONTACT) {
-        const index = this.moves.findLastIndex((record, at) => this.captionStart(at) <= progress);
+        const index = this.moves.findLastIndex((record) => this.captionStart(record) <= progress);
         const { actor, move } = this.moves[index];
         return { round: 'MOVE', title: `${actor.name} used ${MoveBook.get(move).display_name}!`, detail };
       }
@@ -110,14 +111,13 @@
     }
 
     cue(progress, actors) {
-      const index = this.moves.findIndex((record, at) => {
-        const [start, end] = this.cueWindow(at, MoveBook.family(record.move));
-        return progress >= start && progress < end;
+      const record = this.moves.find((entry) => {
+        const [start, end] = this.cueWindow(entry);
+        return MoveBook.family(entry.move) !== 'protect' && progress >= start && progress < end;
       });
-      if (index < 0) return null;
-      const record = this.moves[index];
+      if (!record) return null;
       const family = MoveBook.family(record.move);
-      const [start, end] = this.cueWindow(index, family);
+      const [start, end] = this.cueWindow(record);
       const base = {
         type: MoveBook.get(record.move).type,
         t: BattleMotion.ease(BattleMotion.interval(progress, start, end)),
@@ -128,8 +128,7 @@
       return record.hit ? { ...base, ...this.effectCue(record, family, spots) } : null;
     }
 
-    // Slots are found by side (offense 0-1, defense 2-3) and object identity, so a species on both teams resolves correctly.
-    // An unfeatured user or target falls back to its side's lead slot.
+    // Slots are found by side (offense 0-1, defense 2-3) and object identity, falling back to the side's lead slot.
     spots(record, actors) {
       const { actor, target, offense } = record;
       const mons = Object.values(this.featured);
@@ -144,6 +143,13 @@
         target: at(actors[find(target, !offense)]),
         centre: { x: 50, y: 50 },
       };
+    }
+
+    bubble(progress, actors) {
+      const record = this.moves.find((entry) => entry.hit && MoveBook.family(entry.move) === 'protect');
+      const [start, end] = BattleMotion.SHIELD_WINDOW;
+      if (!record || progress < start || progress >= end) return null;
+      return this.spots(record, actors).user;
     }
 
     strikeCue(record, base, spots) {
@@ -234,12 +240,14 @@
         );
       }
       const cue = reduced ? null : this.cue(progress, actors);
+      const bubble = reduced ? null : this.bubble(progress, actors);
       const shake = !reduced && progress >= 0.56 && progress < 0.63 ? Math.sin(impact * 58) * (1 - impact) * 5 : 0;
       return {
         actors,
         ball: this.ball(progress, action, follow, lead, stopper),
         shake,
         cue,
+        bubble,
         impact,
         progress,
         caption: this.caption(progress),

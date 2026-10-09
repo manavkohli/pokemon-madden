@@ -19,6 +19,7 @@
       this.impactNode = element.querySelector('#battleImpact');
       this.effectsNode = element.querySelector('#battleEffects');
       this.cueNode = element.querySelector('#battleCue');
+      this.shieldNode = element.querySelector('#battleShield');
       this.progressNode = element.querySelector('#battleProgress');
       this.motionPreference =
         typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
@@ -97,6 +98,7 @@
         this.shadows[index].style.transform = `scale(${1 + actor.bob * 0.025}, 1)`;
       });
       this.renderCue(state.cue);
+      this.renderShield(state.bubble);
       this.renderBadges(state.progress);
       this.element.style.setProperty('--drift', `${this.reduced ? 0 : Math.round(state.progress * 160)}px`);
       this.actionNode.style.transform = `translateX(${state.shake}px)`;
@@ -127,6 +129,13 @@
       ['carrier', 'support', 'defender', 'help'].forEach((role, index) => {
         this.badgeNodes[index].textContent = this.statuses[phase][role].join(' ');
       });
+    }
+
+    renderShield(spot) {
+      this.shieldNode.style.opacity = spot ? '1' : '0';
+      if (!spot) return;
+      this.shieldNode.style.left = `${spot.x}%`;
+      this.shieldNode.style.top = `${spot.y}%`;
     }
 
     renderCue(cue) {

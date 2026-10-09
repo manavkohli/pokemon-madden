@@ -811,7 +811,7 @@ describe('Review fixes', () => {
   test('Spikes charge only the player who enters the unit', () => {
     const match = Moves.game();
     const home = match.rosters.home;
-    match.field.home.spikes = true;
+    match.setSpikes('home', true);
     match.prepareCall(Moves.offense());
     const starter = home.player('RB');
     const backup = home.player('RB', 1);
@@ -947,7 +947,7 @@ describe('Second review fixes', () => {
   test('Roar plus Spikes charges the replacement and a benched slot rotates by its real occupant', () => {
     const match = Moves.game();
     const [home, away] = [match.rosters.home, match.rosters.away];
-    match.field.home.spikes = true;
+    match.setSpikes('home', true);
     const backup = home.player('RB', 1);
     match.prepareCall(Moves.offense());
     Moves.use(match, 'away', away.player('LB'), 'roar');
@@ -956,15 +956,17 @@ describe('Second review fixes', () => {
     const roster = Moves.game().rosters.home;
     const [te1, te2, te3] = [0, 1, 2].map((depth) => roster.player('TE', depth));
     te3.base_stats = { ...te3.base_stats, hp: 200, attack: 200, defense: 200, special_attack: 200 };
-    roster.afflict(te1, 'benched');
     roster.spend(te2, 60);
     roster.spend(te3, 70);
-    roster.rotate('offense', Moves.offense(), 10);
+    assert.equal(roster.sendToBench(te1, 'offense', Moves.offense()), true);
+    roster.entryCost = 10;
+    roster.rotate('offense', Moves.offense());
     assert.equal(roster.player('TE', 0).id, te1.id);
     assert.equal(roster.player('TE', 1).id, te3.id);
     assert.equal(roster.player('TE', 2).id, te2.id);
     assert.equal(roster.energy(te3), 20);
     assert.equal(roster.energy(te2), 40);
+    assert.equal(roster.lineup('offense', Moves.offense()).find((slot) => slot.role === 'TE').mon.id, te3.id);
   });
 
   test('a stuff that Protect erased still keeps the clock running on a sideline finish', () => {
@@ -1038,6 +1040,99 @@ describe('Second review fixes', () => {
   });
 });
 
+describe('Third review fixes', () => {
+  const tightEndPlay = () => ({ ...Moves.offense('quick-slant'), carrier: ['TE', 0] });
+
+  test('Roar picks the replacement once, and Spikes charge it once and nobody else', () => {
+    const roster = Moves.game().rosters.home;
+    const [te1, te2, te3] = [0, 1, 2].map((depth) => roster.player('TE', depth));
+    roster.spend(te2, 40);
+    roster.spend(te3, 41);
+    roster.entryCost = 10;
+    assert.equal(roster.sendToBench(te1, 'offense', tightEndPlay()), true);
+    const played = () => roster.lineup('offense', tightEndPlay()).find((slot) => slot.role === 'TE').mon.id;
+    assert.equal(played(), te2.id);
+    assert.equal(roster.energy(te2), 50);
+    assert.equal(roster.energy(te3), 59);
+    assert.equal(roster.energy(te1), 100);
+    roster.spend(te2, 15);
+    assert.equal(played(), te2.id);
+    assert.equal(roster.energy(te2), 35);
+    assert.equal(roster.occupant(roster.lineup('offense', tightEndPlay()), ['TE', 0]).id, te2.id);
+  });
+
+  test('swapping a benched starter with its stored replacement charges nobody', () => {
+    const roster = Moves.game().rosters.home;
+    const [te1, te2] = [0, 1].map((depth) => roster.player('TE', depth));
+    roster.sendToBench(te1, 'offense', tightEndPlay());
+    roster.entryCost = 10;
+    const energies = [te1, te2].map((mon) => roster.energy(mon));
+    roster.substituteInUnit('offense', tightEndPlay(), 'TE', 0, 1);
+    assert.deepEqual(
+      [te1, te2].map((mon) => roster.energy(mon)),
+      energies,
+    );
+    assert.equal(roster.lineup('offense', tightEndPlay()).find((slot) => slot.role === 'TE').mon.id, te2.id);
+  });
+
+  test('Sandstorm drains only the players who played', () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const [te1, te2] = [0, 1].map((depth) => home.player('TE', depth));
+    home.sendToBench(te1, 'offense', Moves.offense());
+    match.field.weather = { kind: 'sandstorm', snaps: 5 };
+    match.prepareCall(Moves.offense());
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(home.energy(te1), 100);
+    assert.ok(home.energy(te2) <= 100 - 3);
+  });
+
+  test('Explosion is left out of default movesets, can be picked, and leaves the user at zero stamina', () => {
+    for (const name of ['Electrode', 'Voltorb', 'Golem', 'Gengar', 'Forretress']) {
+      assert.equal(
+        MoveBook.defaultMoveset(Moves.mon(name)).some((move) => MoveBook.SELF_FAINT.includes(move)),
+        false,
+      );
+    }
+    const match = Moves.game();
+    const rb = match.rosters.home.player('RB');
+    rb.moves.push('explosion');
+    Moves.pick(match, 'home', rb, 'explosion');
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(match.rosters.home.energy(rb), 0);
+    assert.ok(match.rosters.home.penalty(rb) > 0);
+  });
+
+  test('offensive Protect and a defensive Thunderbolt draw the shield and the beam together', () => {
+    const match = Moves.game();
+    match.prepareCall(Moves.offense());
+    Moves.use(match, 'home', match.rosters.home.player('RB'), 'protect');
+    Moves.use(match, 'away', match.rosters.away.player('LB'), 'thunderbolt');
+    const result = match.snap(match.phase.offense, match.phase.defense);
+    const { carrier, support, defender, help } = result.participants;
+    const motion = new BattleMotion(Moves.offense(), result, { lead: carrier, support, stopper: defender, help });
+    const state = motion.sample(0.45);
+    assert.equal(state.cue.kind, 'beam');
+    assert.ok(state.bubble);
+    assert.equal(motion.sample(0.7).bubble !== null, true);
+    assert.equal(motion.sample(0.85).bubble, null);
+    assert.equal(motion.sample(0.45, true).bubble, null);
+    assert.equal(motion.sample(0.3).cue, null);
+  });
+
+  test('an expired snap still reports the active weather and trap has a badge', () => {
+    const match = Moves.game();
+    match.field.weather = { kind: 'rain-dance', snaps: 3 };
+    match.clockRunning = true;
+    match.seconds = 10;
+    match.prepareCall(Moves.offense());
+    assert.equal(match.snap(match.phase.offense, match.phase.defense).weather, 'rain-dance');
+    const rb = match.rosters.home.player('RB');
+    match.rosters.home.afflict(rb, 'trap');
+    assert.deepEqual(match.rosters.home.badges(rb), ['TRP']);
+  });
+});
+
 describe('Move cues', () => {
   test('the cue plays between 0.22 and 0.5, veers off on a miss, and the caption names the move', () => {
     for (const [move, random, missed] of [
@@ -1069,7 +1164,6 @@ describe('Move cues', () => {
       ['growl', 'arrows', '▼▼▼'],
       ['agility', 'arrows', '▲▲▲'],
       ['recover', 'sparkle', '✦ ✦ ✦'],
-      ['protect', 'bubble', undefined],
       ['rain-dance', 'field', undefined],
       ['fissure', 'flash', undefined],
       ['roar', 'aura', 'OUT'],

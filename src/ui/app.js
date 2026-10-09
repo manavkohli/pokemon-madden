@@ -196,11 +196,17 @@
       });
       this.el('subRole').addEventListener('change', () => this.renderSubstitutions(this.playerPreview()));
       this.el('subButton').addEventListener('click', () => {
-        this.game.substitute(
-          this.el('subRole').value,
-          Number(this.el('subFrom').value),
-          Number(this.el('subTo').value),
-        );
+        try {
+          this.game.substitute(
+            this.el('subRole').value,
+            Number(this.el('subFrom').value),
+            Number(this.el('subTo').value),
+          );
+        } catch (error) {
+          if (!(error instanceof RangeError)) throw error;
+          this.el('coachNotice').textContent = error.message;
+          return;
+        }
         this.renderGame();
       });
       for (const id of ['subFrom', 'subTo'])

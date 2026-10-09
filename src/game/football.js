@@ -235,11 +235,7 @@
     rotateTeam(side, offense, defense) {
       if (!this.autoRotate[side]) return;
       const attacking = side === this.possession;
-      this.rosters[side].rotate(attacking ? 'offense' : 'defense', attacking ? offense : defense, this.entryCost(side));
-    }
-
-    entryCost(side) {
-      return this.field[side].spikes ? FootballGame.SPIKES_COST : 0;
+      this.rosters[side].rotate(attacking ? 'offense' : 'defense', attacking ? offense : defense);
     }
 
     setAutoRotate(side, enabled) {
@@ -276,20 +272,13 @@
       this.phase[key] = play;
       delete this.phase.moves.home;
       if (!this.phase.abilities.home?.paid) delete this.phase.abilities.home;
-      if (this.autoRotate.home)
-        this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play, this.entryCost('home'));
+      if (this.autoRotate.home) this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play);
     }
 
     substitute(role, first, second) {
       if (!this.phase || this.over) throw new Error('Substitutions require an active call');
-      const cost = this.entryCost('home');
-      const offense = this.possession === 'home';
-      const lineup = this.rosters.home.lineup(
-        offense ? 'offense' : 'defense',
-        this.phase[offense ? 'offense' : 'defense'],
-      );
-      const unit = cost ? { ids: new Set(lineup.map((slot) => slot.mon.id)), cost } : null;
-      this.rosters.home.substitute(role, first, second, unit);
+      const kind = this.possession === 'home' ? 'offense' : 'defense';
+      this.rosters.home.substituteInUnit(kind, this.phase[kind], role, first, second);
     }
 
     isLegalCall(play) {
@@ -609,6 +598,7 @@
         runoff: elapsed,
         outcome: 'clock-expired',
         message: 'The clock expires before the snap.',
+        weather: this.field.weather?.kind ?? '',
         moves: [],
         offense,
       });
@@ -804,6 +794,7 @@
     // Effects land after this snap's conditions count down, so a new condition lasts its full duration.
     settleMoves(records, calls) {
       for (const record of records) {
+        if (MoveBook.SELF_FAINT.includes(record.move)) this.rosters[record.side].spend(record.actor, 100);
         if (!record.hit) continue;
         this.settleStamina(record);
         const strike = MoveBook.family(record.move) === 'strike';
@@ -856,12 +847,18 @@
       if (this.field.weather && --this.field.weather.snaps <= 0) this.field.weather = null;
     }
 
+    setSpikes(side, on) {
+      if (on) this.field[side].spikes = true;
+      else delete this.field[side].spikes;
+      this.rosters[side].entryCost = on ? FootballGame.SPIKES_COST : 0;
+    }
+
     setField(record, name) {
       const foe = this.opponent(record.side);
       if (name === 'haze') for (const roster of Object.values(this.rosters)) roster.clearStages();
       else if (FootballGame.WEATHERS.includes(name))
         this.field.weather = { kind: name, snaps: FootballGame.FIELD_SNAPS };
-      else if (name === 'spikes') this.field[foe].spikes = true;
+      else if (name === 'spikes') this.setSpikes(foe, true);
       else this.field[record.side][name] = FootballGame.FIELD_SNAPS;
       record.notes.push(FootballGame.FIELD_NOTES[name]);
     }
@@ -870,13 +867,8 @@
     sendToBench(record, calls) {
       const foe = this.rosters[this.opponent(record.side)];
       const kind = record.offense ? 'defense' : 'offense';
-      const before = new Set(foe.lineup(kind, calls[kind]).map((slot) => slot.mon.id));
-      foe.afflict(record.target, 'benched');
-      const after = foe.lineup(kind, calls[kind]).map((slot) => slot.mon);
-      const stays = after.some((mon) => mon.id === record.target.id);
-      if (stays) foe.release(record.target, 'benched');
-      for (const mon of after) if (!before.has(mon.id)) foe.spend(mon, this.entryCost(this.opponent(record.side)));
-      record.notes.push(stays ? 'But it failed!' : `${record.target.name} was sent to the bench!`);
+      const sent = foe.sendToBench(record.target, kind, calls[kind]);
+      record.notes.push(sent ? `${record.target.name} was sent to the bench!` : 'But it failed!');
     }
 
     afflict(record, effect) {
@@ -914,8 +906,7 @@
       return [`${record.actor.name} used ${move}!`, note, ...record.notes].filter(Boolean).join(' ');
     }
 
-    // One-hit moves skip the contest rolls: the offense scores, the defense takes the ball.
-    // Protect beats a one-hit KO: a held breakaway stops at 5 yards and a defensive KO becomes no gain or an incompletion.
+    // A one-hit KO skips the contest rolls, and Protect holds a breakaway to 5 yards or erases a defensive KO.
     knockout(record, offense, matchup) {
       record.notes.push("It's a one-hit KO!");
       if (record.offense) {
@@ -1093,7 +1084,7 @@
       this.seconds = this.quarterSeconds;
       if (this.quarter === 3) {
         this.timeouts = { home: 3, away: 3 };
-        for (const side of ['home', 'away']) delete this.field[side].spikes;
+        for (const side of ['home', 'away']) this.setSpikes(side, false);
         this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
         for (const roster of Object.values(this.rosters)) roster.recover(100);
         this.possession = 'away';
