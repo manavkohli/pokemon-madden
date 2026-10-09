@@ -22,6 +22,11 @@
     static STATUS_RANK = { ailment: 50, stat: 45, heal: 40, field: 35, protect: 30, switch: 20, ohko: 10 };
     static STAT_KEYS = { physical: 'attack', special: 'special_attack', status: 'attack' };
     static BADGES = { paralysis: 'PAR', sleep: 'SLP', freeze: 'FRZ', burn: 'BRN', poison: 'PSN', confusion: 'CNF' };
+    static WEATHER = {
+      'rain-dance': { Water: 1.5, Fire: 0.5 },
+      'sunny-day': { Fire: 1.5, Water: 0.5 },
+    };
+    static SCREEN_POINTS = 10;
     static STRIKE_CAP = 30;
     static PRIORITY_BONUS = 8;
     static NO_POWER = 60;
@@ -101,17 +106,20 @@
       if (family === 'strike') return [MoveBook.secondary(name)].filter(Boolean);
       if (family === 'heal') return [{ kind: 'heal' }];
       if (family === 'stat') return [MoveBook.statEffect(name)];
+      if (family === 'field') return [{ kind: 'field', field: name }];
+      if (family === 'protect') return [{ kind: 'protect' }];
+      if (family === 'switch') return [{ kind: 'switch' }];
       if (family !== 'ailment') return [];
       const ailment = { kind: 'ailment', ailment: meta.ailment, severe: name === 'toxic' };
       return changes.length ? [ailment, { ...MoveBook.statEffect(name), self: false }] : [ailment];
     }
 
     // Contest points a strike adds to the actor's margin; type immunity zeroes it, including priority.
-    static strike(name, { actor, skill, effectiveness, crit = false }) {
+    static strike(name, { actor, skill, effectiveness, crit = false, modifier = 1 }) {
       if (!effectiveness) return 0;
       const move = MoveBook.get(name);
       const stab = MoveBook.isStab(name, actor) ? 1.5 : 1;
-      const base = MoveBook.power(name) * 0.15 * stab * effectiveness * (skill / 70);
+      const base = MoveBook.power(name) * 0.15 * stab * effectiveness * modifier * (skill / 70);
       const total = (base + (move.priority > 0 ? MoveBook.PRIORITY_BONUS : 0)) * (crit ? 2 : 1);
       return Math.min(MoveBook.STRIKE_CAP, Math.round(total));
     }

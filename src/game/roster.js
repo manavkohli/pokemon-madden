@@ -15,6 +15,7 @@
       confusion: 3,
       trap: 3,
       'leech-seed': 5,
+      benched: 2,
     };
     static MAJOR = ['paralysis', 'sleep', 'freeze', 'burn', 'poison'];
     static DRAIN = { burn: 3, poison: 5, 'leech-seed': 4 };
@@ -113,6 +114,10 @@
       this.stages.set(mon.id, { ...entries, [stat]: { stage, snaps: Roster.STAGE_SNAPS } });
     }
 
+    release(mon, kind) {
+      delete this.conditions.get(mon.id)?.[kind];
+    }
+
     clearStages() {
       this.stages.clear();
     }
@@ -146,7 +151,7 @@
       for (const mon of new Set(Object.values(participants))) this.spend(mon, 4);
     }
 
-    substitute(role, first, second) {
+    substitute(role, first, second, entryCost = 0) {
       const slots = POSITIONS.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.code === role);
       if (!slots[first] || !slots[second] || first === second) throw new RangeError('Choose two different depth slots');
       const trapped = [first, second].find((index) => this.has(this.players[slots[index].index], 'trap'));
@@ -154,9 +159,10 @@
       const a = slots[first].index;
       const b = slots[second].index;
       [this.players[a], this.players[b]] = [this.players[b], this.players[a]];
+      if (entryCost) this.spend(this.players[a], entryCost);
     }
 
-    rotate(side, play) {
+    rotate(side, play, entryCost = 0) {
       const active = this.lineup(side, play);
       const activeIds = new Set(active.map((slot) => slot.mon.id));
       for (const slot of active) {
@@ -168,12 +174,15 @@
         }))
           .filter(
             (candidate) =>
-              candidate.code === slot.role && !activeIds.has(candidate.mon.id) && !this.has(candidate.mon, 'trap'),
+              candidate.code === slot.role &&
+              !activeIds.has(candidate.mon.id) &&
+              !this.has(candidate.mon, 'trap') &&
+              !this.has(candidate.mon, 'benched'),
           )
           .sort((a, b) => this.effectiveRating(b.mon, b.code) - this.effectiveRating(a.mon, a.code));
         if (!bench.length || this.effectiveRating(bench[0].mon, slot.role) <= this.effectiveRating(slot.mon, slot.role))
           continue;
-        this.substitute(slot.role, slot.depth - 1, bench[0].depth - 1);
+        this.substitute(slot.role, slot.depth - 1, bench[0].depth - 1, entryCost);
         activeIds.delete(slot.mon.id);
         activeIds.add(bench[0].mon.id);
       }
@@ -323,7 +332,23 @@
           Array.from({ length: counts[i] }, (_, depth) => [code, depth]),
         );
       }
-      return slots.map(([role, depth]) => ({ mon: this.player(role, depth), role, depth: depth + 1 }));
+      return this.replaceBenched(
+        slots.map(([role, depth]) => ({ mon: this.player(role, depth), role, depth: depth + 1 })),
+      );
+    }
+
+    // A player sent to the bench is replaced by the best rested backup of the same role outside the unit.
+    replaceBenched(lineup) {
+      const taken = new Set(lineup.map((slot) => slot.mon.id));
+      return lineup.map((slot) => {
+        if (!this.has(slot.mon, 'benched')) return slot;
+        const backup = POSITIONS.map((position, index) => ({ code: position.code, mon: this.players[index] }))
+          .filter((entry) => entry.code === slot.role && !taken.has(entry.mon.id) && !this.has(entry.mon, 'benched'))
+          .sort((a, b) => this.energy(b.mon) - this.energy(a.mon))[0];
+        if (!backup) return slot;
+        taken.add(backup.mon.id);
+        return { ...slot, mon: backup.mon };
+      });
     }
 
     assign(slotIndex, mon) {

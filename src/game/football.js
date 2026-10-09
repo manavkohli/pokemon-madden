@@ -9,7 +9,24 @@
   class FootballGame {
     static TEMPOS = { normal: 15, hurry: 3, chew: 30 };
     static ABILITY_CHARGES = 2;
-    static MOVE_FAMILIES = ['strike', 'ailment', 'stat', 'heal'];
+    static MOVE_FAMILIES = ['strike', 'ailment', 'stat', 'heal', 'field', 'protect', 'ohko', 'switch'];
+    static FIELD_SNAPS = 5;
+    static SPIKES_COST = 10;
+    static SAND_DRAIN = 3;
+    static SAND_IMMUNE = ['Rock', 'Ground', 'Steel'];
+    static PROTECT_YARDS = 5;
+    static WEATHERS = ['rain-dance', 'sunny-day', 'sandstorm'];
+    static FIELD_NOTES = {
+      reflect: 'Reflect shields the team from runs and physical strikes.',
+      'light-screen': 'Light Screen shields the team from passes and special strikes.',
+      safeguard: 'Safeguard protects the team from ailments.',
+      mist: 'Mist protects the team from stat drops.',
+      haze: 'All stat changes were eliminated!',
+      'rain-dance': 'It started to rain!',
+      'sunny-day': 'The sunlight turned harsh!',
+      sandstorm: 'A sandstorm kicked up!',
+      spikes: 'Spikes were scattered around the rival side!',
+    };
     static HEAL = 50;
     static CONFUSION_CHANCE = 1 / 3;
     static AILMENT_NOTES = {
@@ -47,6 +64,7 @@
       this.timeouts = { home: 3, away: 3 };
       this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
       this.pp = { home: new Map(), away: new Map() };
+      this.field = { home: {}, away: {}, weather: null };
       this.autoRotate = { home: false, away: true };
       this.quarterSeconds = quarterSeconds;
       this.random = random;
@@ -216,7 +234,11 @@
     rotateTeam(side, offense, defense) {
       if (!this.autoRotate[side]) return;
       const attacking = side === this.possession;
-      this.rosters[side].rotate(attacking ? 'offense' : 'defense', attacking ? offense : defense);
+      this.rosters[side].rotate(attacking ? 'offense' : 'defense', attacking ? offense : defense, this.entryCost(side));
+    }
+
+    entryCost(side) {
+      return this.field[side].spikes ? FootballGame.SPIKES_COST : 0;
     }
 
     setAutoRotate(side, enabled) {
@@ -252,12 +274,13 @@
       if (this.phase.inspected) this.phase.audibled = true;
       this.phase[key] = play;
       delete this.phase.moves.home;
-      if (this.autoRotate.home) this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play);
+      if (this.autoRotate.home)
+        this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play, this.entryCost('home'));
     }
 
     substitute(role, first, second) {
       if (!this.phase || this.over) throw new Error('Substitutions require an active call');
-      this.rosters.home.substitute(role, first, second);
+      this.rosters.home.substitute(role, first, second, this.entryCost('home'));
     }
 
     isLegalCall(play) {
@@ -484,6 +507,7 @@
       if (this.phase) this.commitChoices(offense, resolved, defense, options);
       const result = this.resolvePlay(resolved, defense, options);
       result.moves ??= [];
+      result.weather = this.field.weather?.kind ?? '';
       result.offense = resolved;
       result.runoff = runoff;
       this.finishSnap(resolved, defense, result, prior, options);
@@ -564,7 +588,9 @@
       const before = this.badgeMap(result.participants, attack, defend);
       attack.tick(defend);
       defend.tick(attack);
-      this.settleMoves(result.moves ?? []);
+      this.drainSand(offense, defense, attack, defend);
+      this.countDownField();
+      this.settleMoves(result.moves ?? [], { offense, defense });
       result.statuses = { before, after: this.badgeMap(result.participants, attack, defend) };
       this.history.push({ side: prior.side, id: offense.id, kind: offense.kind, defenseId: defense.id });
       this.clockRunning = this.isInBounds(offense, result, options) && this.drive === prior.drive;
@@ -665,13 +691,21 @@
         abilities,
         this.rollMoves(),
         this.rollConfusion(offense, defense),
+        {
+          weather: this.field.weather?.kind ?? null,
+          attack: this.field[this.possession],
+          defend: this.field[this.opponent()],
+        },
       );
       const scheme = this.matchupScore(offense, defense);
       const odds = matchup.chances(scheme);
-      const result =
-        offense.kind === 'run'
-          ? this.resolveRun(offense, matchup, odds, scheme, options)
-          : this.resolvePass(offense, matchup, odds, scheme, options);
+      const knockout = matchup.moveRecords.find(
+        (record) => MoveBook.family(record.move) === 'ohko' && record.hit && record.effectiveness,
+      );
+      let result;
+      if (knockout) result = this.knockout(knockout, offense);
+      else if (offense.kind === 'run') result = this.resolveRun(offense, matchup, odds, scheme, options);
+      else result = this.resolvePass(offense, matchup, odds, scheme, options);
       result.participants = matchup.participants(result);
       result.moves = matchup.moveRecords;
       result.explanation = matchup.explanation();
@@ -715,13 +749,13 @@
     }
 
     // Effects land after this snap's conditions count down, so a new condition lasts its full duration.
-    settleMoves(records) {
+    settleMoves(records, calls) {
       for (const record of records) {
         if (!record.hit) continue;
         this.settleStamina(record);
         const strike = MoveBook.family(record.move) === 'strike';
         for (const effect of MoveBook.effects(record.move)) {
-          if (!strike || record.secondary) this.applyEffect(record, effect);
+          if (!strike || record.secondary) this.applyEffect(record, effect, calls);
         }
       }
     }
@@ -734,17 +768,68 @@
       else roster.restore(record.actor, Math.round(record.value / 2));
     }
 
-    applyEffect(record, effect) {
+    applyEffect(record, effect, calls) {
       if (effect.kind === 'heal') {
         this.rosters[record.side].restore(record.actor, FootballGame.HEAL);
         record.notes.push(`${record.actor.name} regained stamina.`);
       } else if (effect.kind === 'ailment') this.afflict(record, effect);
-      else this.shiftStats(record, effect);
+      else if (effect.kind === 'stat') this.shiftStats(record, effect);
+      else if (effect.kind === 'field') this.setField(record, effect.field);
+      else if (effect.kind === 'protect') record.notes.push(`${record.actor.name} protected the play.`);
+      else this.sendToBench(record, calls);
+    }
+
+    // Sandstorm hurts the units that played this snap unless they are Rock, Ground, or Steel.
+    drainSand(offense, defense, attack, defend) {
+      if (this.field.weather?.kind !== 'sandstorm') return;
+      for (const [roster, lineup] of [
+        [attack, attack.lineup('offense', offense)],
+        [defend, defend.lineup('defense', defense)],
+      ]) {
+        for (const slot of lineup) {
+          if (!slot.mon.types.some((type) => FootballGame.SAND_IMMUNE.includes(type)))
+            roster.spend(slot.mon, FootballGame.SAND_DRAIN);
+        }
+      }
+    }
+
+    // Screens and weather set this snap keep their full duration because they start counting next snap.
+    countDownField() {
+      for (const side of ['home', 'away']) {
+        for (const name of Object.keys(this.field[side])) {
+          if (name !== 'spikes' && --this.field[side][name] <= 0) delete this.field[side][name];
+        }
+      }
+      if (this.field.weather && --this.field.weather.snaps <= 0) this.field.weather = null;
+    }
+
+    setField(record, name) {
+      const foe = this.opponent(record.side);
+      if (name === 'haze') for (const roster of Object.values(this.rosters)) roster.clearStages();
+      else if (FootballGame.WEATHERS.includes(name))
+        this.field.weather = { kind: name, snaps: FootballGame.FIELD_SNAPS };
+      else if (name === 'spikes') this.field[foe].spikes = true;
+      else this.field[record.side][name] = FootballGame.FIELD_SNAPS;
+      record.notes.push(FootballGame.FIELD_NOTES[name]);
+    }
+
+    // Roar and Whirlwind only work when a same-role backup can take the player's place next snap.
+    sendToBench(record, calls) {
+      const foe = this.rosters[this.opponent(record.side)];
+      const kind = record.offense ? 'defense' : 'offense';
+      foe.afflict(record.target, 'benched');
+      const stays = foe.lineup(kind, calls[kind]).some((slot) => slot.mon.id === record.target.id);
+      if (stays) foe.release(record.target, 'benched');
+      record.notes.push(stays ? 'But it failed!' : `${record.target.name} was sent to the bench!`);
     }
 
     afflict(record, effect) {
       if (record.effectiveness === 0) return;
       const foe = this.rosters[this.opponent(record.side)];
+      if (this.field[this.opponent(record.side)].safeguard) {
+        record.notes.push(`${record.target.name} is protected by Safeguard.`);
+        return;
+      }
       const extra = effect.ailment === 'leech-seed' ? { source: record.actor } : { severe: effect.severe };
       const note = foe.afflict(record.target, effect.ailment, extra)
         ? `${record.target.name} ${FootballGame.AILMENT_NOTES[effect.ailment]}.`
@@ -754,11 +839,15 @@
 
     shiftStats(record, effect) {
       if (!effect.self && record.effectiveness === 0) return;
+      const rose = effect.changes.reduce((sum, entry) => sum + entry.change, 0) > 0;
       const mon = effect.self ? record.actor : record.target;
+      if (!effect.self && !rose && this.field[this.opponent(record.side)].mist) {
+        record.notes.push(`${mon.name} is protected by Mist.`);
+        return;
+      }
       const roster = this.rosters[effect.self ? record.side : this.opponent(record.side)];
       for (const { stat, change } of effect.changes) roster.shift(mon, stat, change);
       const stats = effect.changes.map(({ stat }) => stat.replace('_', ' ')).join(' and ');
-      const rose = effect.changes.reduce((sum, entry) => sum + entry.change, 0) > 0;
       record.notes.push(`${mon.name}'s ${stats} ${rose ? 'rose' : 'fell'}!`);
     }
 
@@ -769,39 +858,62 @@
       return [`${record.actor.name} used ${move}!`, note, ...record.notes].filter(Boolean).join(' ');
     }
 
-    resolveRun(offense, matchup, odds, scheme, options) {
-      if (this.random() < odds.stuff) return this.tackle(-1 - Math.floor(this.random() * 4), 6, 'STUFFED!', 'stuff');
-      const yards = this.gain(offense, matchup, scheme, options);
-      if (this.random() < odds.fumble) {
-        this.changePossession(100 - Math.max(1, Math.min(99, this.spot + yards)));
-        return { yards, seconds: 7, message: 'FUMBLE! Defense recovers.', turnover: true, outcome: 'fumble' };
+    // One-hit moves skip the contest rolls: the offense scores, the defense takes the ball.
+    knockout(record, offense) {
+      record.notes.push("It's a one-hit KO!");
+      if (record.offense) {
+        const yards = 100 - this.spot;
+        return { yards, seconds: 7, ...this.moveBall(yards) };
       }
+      return offense.kind === 'run' ? this.fumble(0) : this.interception();
+    }
+
+    fumble(yards) {
+      this.changePossession(100 - Math.max(1, Math.min(99, this.spot + yards)));
+      return { yards, seconds: 7, message: 'FUMBLE! Defense recovers.', turnover: true, outcome: 'fumble' };
+    }
+
+    interception() {
+      this.changePossession(100 - this.spot);
+      return {
+        yards: 0,
+        seconds: 6,
+        message: 'INTERCEPTED! Possession changes.',
+        turnover: true,
+        outcome: 'interception',
+      };
+    }
+
+    // Protect on offense turns a sack, stuff, fumble, or interception into no gain or an incompletion.
+    resolveRun(offense, matchup, odds, scheme, options) {
+      const safe = matchup.protects.offense;
+      if (this.random() < odds.stuff)
+        return safe
+          ? this.tackle(0, 6, 'NO GAIN!', 'stop')
+          : this.tackle(-1 - Math.floor(this.random() * 4), 6, 'STUFFED!', 'stuff');
+      const yards = this.gain(offense, matchup, scheme, options);
+      if (this.random() < odds.fumble && !safe) return this.fumble(yards);
       return { yards, seconds: 6 + Math.floor(this.random() * 4), ...this.moveBall(yards) };
     }
 
     resolvePass(offense, matchup, odds, scheme, options) {
-      if (this.random() < odds.sack) return this.tackle(-3 - Math.floor(this.random() * 6), 6, 'SACK!', 'sack');
-      if (this.random() < odds.interception) {
-        this.changePossession(100 - this.spot);
-        return {
-          yards: 0,
-          seconds: 6,
-          message: 'INTERCEPTED! Possession changes.',
-          turnover: true,
-          outcome: 'interception',
-        };
-      }
-      if (this.random() > odds.completion) return this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
+      const safe = matchup.protects.offense;
+      const incomplete = () => this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
+      if (this.random() < odds.sack)
+        return safe ? incomplete() : this.tackle(-3 - Math.floor(this.random() * 6), 6, 'SACK!', 'sack');
+      if (this.random() < odds.interception) return safe ? incomplete() : this.interception();
+      if (this.random() > odds.completion) return incomplete();
       const yards = this.gain(offense, matchup, scheme, options);
       return { yards, seconds: 5 + Math.floor(this.random() * 4), ...this.moveBall(yards) };
     }
 
     gain(offense, matchup, scheme, options) {
       const sidelineCost = options.sideline ? 2 : 0;
-      return Math.max(
+      const yards = Math.max(
         -8,
         Math.round(offense.base + matchup.yardBonus + scheme + (this.random() - 0.5) * offense.spread - sidelineCost),
       );
+      return matchup.protects.defense ? Math.min(FootballGame.PROTECT_YARDS, yards) : yards;
     }
 
     tackle(yards, seconds, label, outcome) {
@@ -918,6 +1030,7 @@
       this.seconds = this.quarterSeconds;
       if (this.quarter === 3) {
         this.timeouts = { home: 3, away: 3 };
+        for (const side of ['home', 'away']) delete this.field[side].spikes;
         this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
         for (const roster of Object.values(this.rosters)) roster.recover(100);
         this.possession = 'away';

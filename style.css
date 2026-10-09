@@ -1879,6 +1879,15 @@ a:focus-visible {
   margin: 0;
   transform: translateX(-50%);
 }
+.weather-label {
+  padding: 2px 6px;
+  background: #3b6ea8;
+  color: #fff;
+  font: normal 8px var(--pixel);
+}
+.weather-label:empty {
+  display: none;
+}
 .move-list {
   max-height: 240px;
   overflow-y: auto;

@@ -782,6 +782,10 @@
     renderField(preview = this.playerPreview()) {
       const game = this.game;
       const x = FootballField.position(game.spot);
+      this.el('field').dataset.weather = game.field.weather?.kind ?? '';
+      this.el('weatherLabel').textContent = game.field.weather
+        ? `${MoveBook.get(game.field.weather.kind).display_name.toUpperCase()} · ${game.field.weather.snaps}`
+        : '';
       this.el('scrimmageLine').style.left = `${x}%`;
       this.el('firstDownLine').style.left = `${FootballField.position(game.spot + game.toGo)}%`;
       this.el('football').style.left = `${x}%`;

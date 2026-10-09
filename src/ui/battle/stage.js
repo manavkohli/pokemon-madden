@@ -51,6 +51,7 @@
       this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
       this.impactNode.textContent = motion.impact;
       this.element.setAttribute('data-move-type', motion.moveType);
+      this.element.setAttribute('data-weather', result.weather ?? '');
       this.effectsNode.innerHTML = Array.from({ length: motion.scoring ? 20 : 10 }, () => '<i></i>').join('');
       this.particles = Array.from(this.effectsNode.children);
       this.reduced = this.motionPreference.matches;
@@ -128,9 +129,13 @@
     }
 
     renderCue(cue) {
-      this.cueNode.style.opacity = cue ? '1' : '0';
-      if (!cue) return;
+      if (!cue) {
+        this.cueNode.style.opacity = '0';
+        return;
+      }
       this.cueNode.className = `battle-cue ${cue.kind}`;
+      this.cueNode.setAttribute('data-layer', cue.layer ?? '');
+      this.cueNode.style.opacity = cue.kind === 'flash' ? String(1 - cue.t) : '1';
       this.cueNode.textContent = cue.label ?? '';
       this.cueNode.style.left = `${BattleMotion.mix(cue.from.x, cue.to.x, cue.t)}%`;
       this.cueNode.style.top = `${BattleMotion.mix(cue.from.y, cue.to.y, cue.t)}%`;

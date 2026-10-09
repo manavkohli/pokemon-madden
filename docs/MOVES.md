@@ -1,6 +1,6 @@
 # ERD: Pokémon move sets on plays
 
-**Date:** 2026-10-09 · **Status:** Scoped, unbuilt · **Scope:** move data in `scrape_pokedex.py`, a new `MoveBook` in `src/game/`, movesets and conditions on `Roster`, move activation on `FootballGame`, move modifiers in `PlayMatchup`, move cues in `BattleMotion`/`BattleStage`, and the draft and pre-snap panels in `GameApp`.
+**Date:** 2026-10-09 · **Status:** Built · **Scope:** move data in `scrape_pokedex.py`, a new `MoveBook` in `src/game/`, movesets and conditions on `Roster`, move activation on `FootballGame`, move modifiers in `PlayMatchup`, move cues in `BattleMotion`/`BattleStage`, and the draft and pre-snap panels in `GameApp`.
 
 ## Goal
 

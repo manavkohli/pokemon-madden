@@ -9,6 +9,21 @@
     static CONTACT = 0.56;
     static CUE_START = 0.22;
     static CUE_END = 0.5;
+    // A shield holds through contact and a one-hit flash lands on it.
+    static CUE_WINDOWS = { protect: [0.22, 0.79], ohko: [0.5, 0.68] };
+    static SHAPES = {
+      heal: { kind: 'sparkle', at: 'user', label: '✦ ✦ ✦', rise: -12 },
+      protect: { kind: 'bubble', at: 'user' },
+      ohko: { kind: 'flash', at: 'target' },
+      switch: { kind: 'aura', at: 'target', label: 'OUT' },
+    };
+    static FIELD_LAYERS = {
+      'rain-dance': 'rain',
+      'sunny-day': 'sun',
+      sandstorm: 'sand',
+      haze: 'haze',
+      spikes: 'spikes',
+    };
 
     constructor(offense, result, featured) {
       this.offense = offense;
@@ -77,41 +92,65 @@
 
     // The move's user and target keep their featured slots; an unfeatured one falls back to its side's lead slot.
     cue(progress, actors) {
-      if (!this.move || progress < BattleMotion.CUE_START || progress >= BattleMotion.CUE_END) return null;
-      const { actor, target, offense, hit } = this.move;
-      const slots = Object.values(this.featured).map((mon) => mon.id);
-      const find = (mon, fallback) => Math.max(0, slots.indexOf(mon.id) < 0 ? fallback : slots.indexOf(mon.id));
-      const from = actors[find(actor, offense ? 0 : 2)];
-      const to = actors[find(target, offense ? 2 : 0)];
-      const entry = MoveBook.get(this.move.move);
+      if (!this.move) return null;
       const family = MoveBook.family(this.move.move);
+      const [start, end] = BattleMotion.CUE_WINDOWS[family] ?? [BattleMotion.CUE_START, BattleMotion.CUE_END];
+      if (progress < start || progress >= end) return null;
       const base = {
-        type: entry.type,
-        t: BattleMotion.ease(BattleMotion.interval(progress, BattleMotion.CUE_START, BattleMotion.CUE_END)),
-        missed: !hit,
+        type: MoveBook.get(this.move.move).type,
+        t: BattleMotion.ease(BattleMotion.interval(progress, start, end)),
+        missed: !this.move.hit,
       };
-      const at = (actor) => ({ x: actor.x, y: actor.y - 8 });
-      if (family === 'strike')
-        return {
-          ...base,
-          kind: entry.damage_class === 'special' ? 'beam' : 'lunge',
-          from: at(from),
-          to: hit ? at(to) : { x: to.x + 12, y: -20 },
-        };
-      return hit ? { ...base, ...this.effectCue(family, at(from), at(to)) } : null;
+      const spots = this.spots(actors);
+      if (family === 'strike') return this.strikeCue(base, spots);
+      return this.move.hit ? { ...base, ...this.effectCue(family, spots) } : null;
     }
 
-    // Ailments settle on the opponent, stat changes rise over the user or fall over the opponent, and heals rise from the user.
-    effectCue(family, user, opponent) {
-      const self = family === 'heal' || (family === 'stat' && MoveBook.statEffect(this.move.move).self);
-      const spot = self ? user : opponent;
-      const rise = self ? -12 : 12;
+    spots(actors) {
+      const { actor, target, offense } = this.move;
+      const slots = Object.values(this.featured).map((mon) => mon.id);
+      const find = (mon, fallback) => (slots.includes(mon.id) ? slots.indexOf(mon.id) : fallback);
+      const at = (mover) => ({ x: mover.x, y: mover.y - 8 });
+      return {
+        user: at(actors[find(actor, offense ? 0 : 2)]),
+        target: at(actors[find(target, offense ? 2 : 0)]),
+        centre: { x: 50, y: 50 },
+      };
+    }
+
+    strikeCue(base, spots) {
+      const special = MoveBook.get(this.move.move).damage_class === 'special';
+      const veer = { x: spots.target.x + 12, y: -20 };
+      return { ...base, kind: special ? 'beam' : 'lunge', from: spots.user, to: this.move.hit ? spots.target : veer };
+    }
+
+    // Ailments settle on the opponent, stat changes rise over the user or fall over the opponent, heals rise from the user.
+    shape(family) {
+      const name = this.move.move;
       if (family === 'ailment') {
-        const ailment = MoveBook.effects(this.move.move)[0].ailment;
-        return { kind: 'aura', from: spot, to: spot, label: MoveBook.BADGES[ailment] ?? ailment.toUpperCase() };
+        const ailment = MoveBook.effects(name)[0].ailment;
+        return { kind: 'aura', at: 'target', label: MoveBook.BADGES[ailment] ?? ailment.toUpperCase() };
       }
-      const label = family === 'heal' ? '✦ ✦ ✦' : self ? '▲▲▲' : '▼▼▼';
-      return { kind: family === 'heal' ? 'sparkle' : 'arrows', from: spot, to: { x: spot.x, y: spot.y + rise }, label };
+      if (family === 'stat') {
+        return MoveBook.statEffect(name).self
+          ? { kind: 'arrows', at: 'user', label: '▲▲▲', rise: -12 }
+          : { kind: 'arrows', at: 'target', label: '▼▼▼', rise: 12 };
+      }
+      if (family === 'field')
+        return { kind: 'field', at: 'centre', layer: BattleMotion.FIELD_LAYERS[name] ?? 'screen' };
+      return BattleMotion.SHAPES[family];
+    }
+
+    effectCue(family, spots) {
+      const shape = this.shape(family);
+      const spot = spots[shape.at];
+      return {
+        kind: shape.kind,
+        label: shape.label,
+        layer: shape.layer,
+        from: spot,
+        to: { x: spot.x, y: spot.y + (shape.rise ?? 0) },
+      };
     }
 
     caption(progress) {

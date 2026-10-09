@@ -10,7 +10,17 @@
     static CONFUSED_DROP = 15;
     static PRESSURE = ['blitz', 'zone-blitz', 'fire-zone', 'cover-0', 'run-blitz'];
 
-    constructor(attack, defend, offense, defense, lane = 'middle', abilities = {}, moves = {}, confused = new Set()) {
+    constructor(
+      attack,
+      defend,
+      offense,
+      defense,
+      lane = 'middle',
+      abilities = {},
+      moves = {},
+      confused = new Set(),
+      field = {},
+    ) {
       this.attack = attack;
       this.defend = defend;
       this.offense = offense;
@@ -18,6 +28,8 @@
       this.abilities = abilities;
       this.moves = moves;
       this.confused = confused;
+      this.field = field;
+      this.protects = { offense: false, defense: false };
       this.accuracyShift = 0;
       this.moveRecords = [];
       this.line = attack.lineup('offense', offense);
@@ -69,7 +81,15 @@
       this.applyAttackAbility();
       this.applyDefenseAbility();
       this.applyConditions();
+      this.applyScreens();
       this.applyMoves();
+    }
+
+    // Reflect and Light Screen give the defending team 10 margin against runs and passes.
+    applyScreens() {
+      const screens = this.field.defend ?? {};
+      if (this.offense.kind === 'run' && screens.reflect) this.tackle -= MoveBook.SCREEN_POINTS;
+      if (this.offense.kind !== 'run' && screens['light-screen']) this.separation -= MoveBook.SCREEN_POINTS;
     }
 
     // Stat stages move the contest each stat feeds; a confused player's stumble costs its own side 15 points.
@@ -137,31 +157,46 @@
     applyMoves() {
       for (const key of ['attack', 'defend']) {
         const entry = this.moves[key];
-        if (!entry) continue;
-        const offense = key === 'attack';
-        const { target, margin } = offense ? this.offenseContest(entry.actor) : this.defenseContest(entry.actor);
-        const effectiveness = MoveBook.effectiveness(entry.move, target);
-        const stat = MoveBook.STAT_KEYS[MoveBook.get(entry.move).damage_class];
-        const skill = (offense ? this.attack : this.defend).skill(entry.actor, stat);
-        const strike = MoveBook.family(entry.move) === 'strike';
-        const value =
-          entry.hit && strike
-            ? MoveBook.strike(entry.move, { actor: entry.actor, skill, effectiveness, crit: entry.crit })
-            : 0;
-        if (strike) this[margin] += offense ? value : -value;
-        this.moveRecords.push({
-          side: entry.side,
-          offense,
-          secondary: entry.secondary,
-          notes: [],
-          actor: entry.actor,
-          target,
-          move: entry.move,
-          hit: entry.hit,
-          effectiveness,
-          value,
-        });
+        if (entry) this.moveRecords.push(this.applyMove(entry, key === 'attack'));
       }
+    }
+
+    applyMove(entry, offense) {
+      const { target, margin } = offense ? this.offenseContest(entry.actor) : this.defenseContest(entry.actor);
+      const effectiveness = MoveBook.effectiveness(entry.move, target);
+      const family = MoveBook.family(entry.move);
+      const value = entry.hit && family === 'strike' ? this.strikeValue(entry, offense, effectiveness) : 0;
+      this[margin] += offense ? value : -value;
+      if (entry.hit && family === 'protect') this.protects[offense ? 'offense' : 'defense'] = true;
+      return {
+        side: entry.side,
+        offense,
+        secondary: entry.secondary,
+        notes: [],
+        actor: entry.actor,
+        target,
+        move: entry.move,
+        hit: entry.hit,
+        effectiveness,
+        value,
+      };
+    }
+
+    // Weather scales the strike; a screen on the target's team removes up to 10 points of a matching strike.
+    strikeValue(entry, offense, effectiveness) {
+      const move = MoveBook.get(entry.move);
+      const skill = (offense ? this.attack : this.defend).skill(entry.actor, MoveBook.STAT_KEYS[move.damage_class]);
+      const modifier = MoveBook.WEATHER[this.field.weather]?.[move.type] ?? 1;
+      const value = MoveBook.strike(entry.move, {
+        actor: entry.actor,
+        skill,
+        effectiveness,
+        crit: entry.crit,
+        modifier,
+      });
+      const screen =
+        this.field[offense ? 'defend' : 'attack']?.[move.damage_class === 'physical' ? 'reflect' : 'light-screen'];
+      return screen ? Math.max(0, value - MoveBook.SCREEN_POINTS) : value;
     }
 
     applyAttackAbility() {
@@ -216,7 +251,9 @@
           0.008,
           0.12,
         ),
-        fumble: PlayMatchup.bounded(0.018 - this.tackle * 0.0003, 0.005, 0.05),
+        fumble:
+          PlayMatchup.bounded(0.018 - this.tackle * 0.0003, 0.005, 0.05) +
+          (this.field.weather === 'rain-dance' ? 0.01 : 0),
       };
     }
 

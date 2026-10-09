@@ -362,6 +362,71 @@
 .reduced-motion .battle-cue {
   display: none;
 }
+[data-layer='rain'],
+[data-weather='rain-dance'] {
+  --layer: repeating-linear-gradient(100deg, transparent 0 10px, rgba(150, 190, 255, 0.55) 10px 12px);
+}
+[data-layer='sun'],
+[data-weather='sunny-day'] {
+  --layer: radial-gradient(circle at 88% 6%, rgba(255, 247, 168, 0.85), rgba(255, 208, 90, 0.25) 38%, transparent 62%);
+}
+[data-layer='sand'],
+[data-weather='sandstorm'] {
+  --layer: repeating-linear-gradient(0deg, rgba(214, 170, 96, 0.35) 0 6px, rgba(190, 140, 70, 0.45) 6px 12px);
+}
+[data-layer='haze'] {
+  --layer: linear-gradient(rgba(235, 235, 235, 0.6), rgba(210, 210, 210, 0.6));
+}
+[data-layer='spikes'] {
+  --layer: repeating-linear-gradient(90deg, transparent 0 14px, rgba(60, 60, 70, 0.7) 14px 18px);
+}
+[data-layer='screen'] {
+  --layer: linear-gradient(rgba(159, 216, 255, 0.28), rgba(159, 216, 255, 0.18));
+}
+.battle-backdrop::after,
+#field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--layer, none);
+  pointer-events: none;
+}
+.battle-cue.bubble {
+  width: 92px;
+  height: 92px;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: #cfe8ff;
+  box-shadow:
+    inset 0 0 18px #cfe8ff,
+    0 0 12px #cfe8ff;
+}
+.battle-cue.flash {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+.battle-cue.field {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--layer, none);
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .battle-stage:not(.reduced-motion) .battle-backdrop::after,
+  .battle-cue.field {
+    animation: weather-drift 0.6s linear infinite;
+  }
+}
+@keyframes weather-drift {
+  to {
+    background-position: 0 24px;
+  }
+}
 .battle-impact {
   position: absolute;
   top: 40%;

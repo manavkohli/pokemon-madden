@@ -39,11 +39,13 @@ CPU calls account for down, distance, field position, score, clock, roster ratin
 
 Use the coaching panel to choose a lane, tempo, or sideline finish; manage timeouts and substitutions; and inspect stamina. A running clock consumes simulated runoff before a snap: normal 15 seconds, hurry-up 3, chew-clock 30. A spike costs one second and a down; a kneel costs one yard and keeps the clock running. Browsing uses no game time. Bench players recover stamina, and automatic rotation can replace tired starters.
 
+Every Pokémon carries up to four moves from its Crystal learnset; choose them in the draft profile. Before a snap, fire one move from a player in the active unit. Strikes add to that player's contest (STAB, type effectiveness, and skill count), ailments and stat changes last a few snaps and show as badges, and screens, weather, Protect, Fissure, and Roar change the field. Each move has limited PP and costs stamina. Moves are separate from abilities and never use ability charges.
+
 Electric carriers/front defenders, Steel blockers/front defenders, and Psychic QBs/coverage players unlock limited abilities. Each team gets two shared charges per half; an activation also costs ten stamina. Psychic Read reveals the actual rival call, while Burst and Shield modify the participating player's contest. The [NFL fourth-down decision guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3) informed these simplified rules.
 
 ## Development
 
-Refresh the Pokémon Database catalog with `python3 scrape_pokedex.py`. Commit both `pokemon_gen1_2.json` and `pokemon_gen1_2.js`. Salaries, position ratings, and football outcomes are game rules.
+Refresh the Pokémon Database stats and the PokeAPI Crystal moves and type chart with `python3 scrape_pokedex.py`. Commit both `pokemon_gen1_2.json` and `pokemon_gen1_2.js`. Salaries, position ratings, and football outcomes are game rules.
 
 Use Node.js 24 or newer for the development tools:
 
@@ -52,6 +54,7 @@ npm ci
 npm run lint
 npm run format:check
 npm test
+node scripts/balance.cjs 500  # points per game with moves off and on
 # Gameplay and UI regressions alone:
 npm run test:mechanics
 python3 -m unittest discover -s tests -p 'test_pokedex.py'

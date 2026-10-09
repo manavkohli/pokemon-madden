@@ -17,16 +17,17 @@ The animation never computes a football result. Changing animation duration ther
 | File | Responsibility |
 | --- | --- |
 | `src/game/playbook.js` | Calls, positions, and salary cap |
-| `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, personnel packages, stamina, and substitutions |
-| `src/game/matchup.js` | Individual contests, bounded probabilities, ability modifiers, and the actual participants |
-| `src/game/football.js` | Committed calls, scouting/audibles, ability charges, CPU decisions, play resolution, possession, scoring, and simulated clock management |
-| `src/ui/app.js` | Drafting, independent team budgets, stadium theme selection, play selection, scoreboard, and application lifecycle |
+| `src/game/moves.js` | `MoveBook`: move families, strike values, secondary effects, PP, stamina cost, ranking, and default movesets |
+| `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, personnel packages, stamina, substitutions, movesets, conditions, and stat stages |
+| `src/game/matchup.js` | Individual contests, bounded probabilities, ability and move modifiers, the actor override, and the actual participants |
+| `src/game/football.js` | Committed calls, scouting/audibles, ability charges, move activation and PP, field conditions, CPU decisions, play resolution, possession, scoring, and simulated clock management |
+| `src/ui/app.js` | Drafting, move picking, independent team budgets, stadium theme selection, play and move selection, status badges, scoreboard, and application lifecycle |
 | `src/ui/play-clock.js` | Call deadlines, pause/resume, and stale timer cancellation |
 | `src/ui/diagram.js` | Route and coverage SVGs |
 | `src/ui/field.js` | One yardage projection for field markings, ball position, and first-down markers |
 | `src/ui/sprites.js` | Sprite URLs, markup, and missing-image handling |
-| `src/ui/battle/motion.js` | Pure choreography and captions |
-| `src/ui/battle/stage.js` | Battle DOM, scheduling, and playback lifecycle |
+| `src/ui/battle/motion.js` | Pure choreography, move cues, and captions |
+| `src/ui/battle/stage.js` | Battle DOM, scheduling, move cue and badge drawing, and playback lifecycle |
 | `src/ui/battle/battle.css` | Arena, sprites, and effects styling |
 
 ## Team generation and stadiums
@@ -51,6 +52,18 @@ Each match owns fresh copies of the drafted rosters. Stamina is keyed by Pokémo
 
 Each side has two shared ability charges per half and can activate one ability per call for ten stamina, provided its actor has at least twenty. Activation records the choice on the call; the charge and the stamina are paid at the snap, after the clock check, so an expired period costs nothing. Electric Burst gives its offensive carrier twelve separation/escape points or gives a defensive front twelve pressure points. Steel Shield adds eighteen protection points through an active blocker or eighteen tackle resistance through an active defender. Psychic Read requires an active Psychic QB on offense or a Psychic coverage player on defense. Physical bonuses require the actor to remain on the field; Burst cannot transfer to a substituted carrier. The CPU spends its own charges under the same eligibility rules. Halftime restores charges and timeouts.
 
+## How a move works
+
+Every Pokémon carries up to four Crystal-learnset moves (`pokemon_gen1_2.json` holds the PokeAPI catalog and the Gen 2 type chart; `scrape_pokedex.py` writes it). `MoveBook` maps each move to one family: strike, ailment, stat, heal, field, protect, one-hit, or force-switch. `Roster` stores the coach's four picks and falls back to a default moveset of the strongest STAB strike, the strongest other strike, the best status move, and the next best move.
+
+Before the snap a coach picks one actor and one move from the MOVES list; the CPU picks its best-ranked move on 40% of calls. `activateMove` only records the pick on the phase. Inside `FootballGame.snap()`, after the clock check, the engine drops any pick whose actor lost its role, pays ability charges, move PP, and stamina, then rolls accuracy, critical hit, and secondary effect with the injected `random`. A miss still pays.
+
+`PlayMatchup` gives the actor its role's contest (blocker, rusher, carrier, passer, marker, or tackler), adds a strike's value to that margin (STAB, type chart, skill, weather, screens, capped at 30), and returns one record per move in `result.moves`. After the snap's countdown, `FootballGame` applies effects: ailments and stat stages on `Roster`, heals, field conditions, weather, Protect caps, one-hit results, and force-switch. The drive log, status badges, and move cues all read `result.moves` and `result.statuses`.
+
+`BattleMotion` samples a cue (Beam, Lunge, Aura, Arrows, Sparkle, Bubble, Field, or Flash) between 0.22 and 0.5 of the play and colors it by move type; `BattleStage` draws it on its single clock. Active weather stays drawn on later plays through `data-weather` on the field and the battle stage. Reduced motion hides the cue and overlay animation and keeps the type tint and captions.
+
+`node scripts/balance.cjs 500` plays seeded computer-controlled games with moves off and on and prints average points per game; it is a tuning tool, not a test.
+
 ## Playback guarantees
 
 Pause freezes both poses and progress callbacks. Stadium lighting uses the same sampled progress in `BattleStage.render()`, with fixed lighting for reduced motion. Resume starts from the held position. Skip completes progress exactly once and releases the scheduler. Cancellation resolves the old playback without completing its clock; a token prevents an already queued frame from touching a replacement play. Returning to drafting or starting a rematch also clears the pending result timer.
@@ -73,4 +86,4 @@ Use `python3 -m http.server 8000 --bind 127.0.0.1` for a local preview, or open 
 
 ## Verification
 
-`npm run test:mechanics` runs deterministic contests, scouting/audibles, abilities, stamina, clock boundaries, and 25 seeded complete games, plus DOM integration tests that load the real classic scripts and drive the actual controls. The UI regressions include Read Option → turnover → defensive call → rival touchdown, both scoring directions, special-team filters, pause at the result banner, animation failures, stale rematch callbacks, and halftime transitions. `happy-dom` is a development-only DOM environment; the browser runtime has no npm dependency. Existing battle and play-clock checks still cover the one-clock playback lifecycle.
+`node tests/test_moves.cjs` covers move families, strike values, movesets, conditions, field conditions, and move cues. `npm run test:mechanics` runs deterministic contests, scouting/audibles, abilities, stamina, clock boundaries, and 25 seeded complete games, plus DOM integration tests that load the real classic scripts and drive the actual controls. The UI regressions include Read Option → turnover → defensive call → rival touchdown, both scoring directions, special-team filters, pause at the result banner, animation failures, stale rematch callbacks, and halftime transitions. `happy-dom` is a development-only DOM environment; the browser runtime has no npm dependency. Existing battle and play-clock checks still cover the one-clock playback lifecycle.
