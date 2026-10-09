@@ -14,7 +14,7 @@ Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset, chose
 | PokeAPI serves all 251 Gen 2 moves with structured mechanics: `power`, `accuracy`, `pp`, `priority`, `damage_class`, `effect_chance`, `stat_changes`, and `meta` (`category`, `ailment`, `ailment_chance`, `flinch_chance`, `drain`, `healing`, `crit_rate`, `min_hits`/`max_hits`). | `pokeapi.co/api/v2/move/1..251`, pulled 2026-10-09 |
 | Move categories across the 251 moves: damage 98, damage-ailment 34, unique 31, net-good-stats 26, ailment 19, damage-lower 13, heal 6, field-effect 5, damage-heal 5, damage-raise 4, whole-field-effect 4, ohko 3, force-switch 2, swagger 1. | same pull |
 | Crystal learnsets (level-up, TM/HM, tutor, egg) hold 1–65 moves per Pokémon, median 36. | `pokeapi.co/api/v2/pokemon/1..251`, `version_group = crystal` |
-| Under the family rules below, 217 of 251 moves map to a football effect. After that filter, the median Pokémon has 29 learnable moves. Nine Pokémon have fewer than four: Caterpie, Weedle, Metapod, Kakuna, Magikarp, Unown, Wobbuffet, Ditto (0), Smeargle (0). | same pull |
+| Under the family rules below, 218 of 251 moves map to a football effect. After that filter, the median Pokémon has 29 learnable moves. Nine Pokémon have fewer than four: Caterpie, Weedle, Metapod, Kakuna, Magikarp, Unown, Wobbuffet, Ditto (0), Smeargle (0). | same pull |
 | 17 damage moves have no fixed power (Seismic Toss, Flail, Return, Counter, Low Kick, and others). | same pull |
 | PokeAPI records the Gen 2–4 type chart through `past_damage_relations` (Steel resists Ghost and Dark before Gen 5). | `pokeapi.co/api/v2/type/steel` |
 | `PlayMatchup` reduces every play to three contest margins (`protection`, `separation`, `tackle`) that set the odds and the yard bonus. Abilities add flat values to those margins. | `src/game/matchup.js` |
@@ -52,7 +52,7 @@ Every new player receives a default moveset, so `Roster.random()` teams and the 
 A coach fires a move after committing the call, in the same pre-snap panel as abilities. A move is eligible when its player is in the active unit, has at least 20 stamina, and has PP left.
 
 - **PP per game** is `ceil(pp / 5)` for each player's move: Tackle 7 uses, Thunderbolt 3, Hydro Pump 1. PP is per player, so a deep bench of Electric types holds more Thunderbolts.
-- **Stamina cost** is 6 for a non-damage move and `6 + round(power / 20)` for a strike (Thunderbolt 11, Hyper Beam 13).
+- **Stamina cost** is 6 for a non-damage move and `6 + round(power / 20)` for a strike (Thunderbolt 11, Hyper Beam 14).
 - **The actor takes its role's contest.** On offense, a carrier actor fights the coverage or tackle contest, a passer actor fights completion, and an OL or TE actor becomes the featured blocker. On defense, a DL actor becomes the rusher, and an LB, CB, or S actor becomes the marker on a pass and the tackler on a run. The offense does not know the defensive call before the snap, so this rule guarantees that a fired move always lands, and the move's user always appears in the battle.
 - **Accuracy** rolls at the snap. A miss spends the PP and the stamina and changes nothing ("Pikachu's Thunder missed!").
 - **Secondary effects** roll automatically when the move hits, at twice the PokeAPI chance, capped at 100%. A game holds about 70 snaps, so a raw 10% paralysis chance on three uses would almost never appear.
@@ -74,7 +74,7 @@ A coach fires a move after committing the call, in the same pre-snap panel as ab
 | One-hit | Fissure, Horn Drill, Guillotine | 30% accuracy. A hit on offense is a breakaway touchdown; a hit on defense is a turnover (fumble on a run, interception on a pass). Type immunity still applies. |
 | Force-switch | Roar, Whirlwind | Sends the opponent to the bench for the next two snaps of their team, replaced by the best rested backup. |
 
-Swagger confuses the opponent and raises its attack two stages. The 34 moves without a family (Transform, Sketch, Metronome, Splash, Substitute, Baton Pass, Attract, Perish Song, and others) never appear in the move picker.
+Swagger confuses the opponent and raises its attack two stages. The 33 moves without a family (Transform, Sketch, Metronome, Splash, Substitute, Baton Pass, Attract, Perish Song, and others) never appear in the move picker.
 
 ## Conditions: lasting effects on players
 
@@ -113,7 +113,7 @@ One weather condition is active at a time; new weather replaces the old.
 
 ## Animation: eight cue archetypes colored by type
 
-`BattleMotion` gains a move cue in the 0.22–0.50 progress window, before contact at 0.56. The cue comes from the move's family and damage class, colored by the move's type from a 17-color palette. Eight archetypes cover all 217 moves without per-move art:
+`BattleMotion` gains a move cue in the 0.22–0.50 progress window, before contact at 0.56. The cue comes from the move's family and damage class, colored by the move's type from a 17-color palette. Eight archetypes cover all 218 moves without per-move art:
 
 1. **Beam** (special strike): a projectile from the actor to the opponent. A miss veers off the stage.
 2. **Lunge** (physical strike): the actor dashes into the opponent with a type-colored burst.
@@ -141,7 +141,7 @@ At contact the round label reads MOVE and the callout states effectiveness: "It'
 - **Outcome:** `MoveBook` derives families and magnitudes; `Roster` holds default movesets for every player. No gameplay change.
 - **Contract:** the Effect families table and the default-moveset order.
 - **Dependencies:** track 1.
-- **Acceptance:** a test asserts 217 learnable moves; Tri Attack is a strike with no secondary; Splash has no family; Pikachu's default moveset starts with an Electric strike; a Thunderbolt from a 100-special-attack Electric player into a Water opponent is capped at 30.
+- **Acceptance:** a test asserts 218 learnable moves; Tri Attack is a strike with no secondary; Splash has no family; Pikachu's default moveset starts with an Electric strike; a Thunderbolt from a 100-special-attack Electric player into a Water opponent is capped at 30.
 - **Separate plan:** not required.
 
 ### 3. Strikes on the field

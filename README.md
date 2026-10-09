@@ -18,30 +18,96 @@ A live play in Silver Stadium.
 
 ![Live QB Sneak in Silver Stadium, with blue turf and stadium lights](docs/screenshots/battle.jpg)
 
+A move in the rain: Chansey uses Protect while Rain Dance is active.
+
+![A battle scene with rain streaks, a Protect bubble around Chansey, and a Rain Dance weather badge on the scoreboard](docs/screenshots/png/moves-rain-battle-1280.png)
+
 [PNG screenshots and artwork for sharing](docs/screenshots/png/).
 
 ## Playing
 
-1. Click a roster slot, choose a Pokémon, and assign it from the player profile. On phones, swipe through the roster slots.
-2. Set each team's credit cap (9,500–27,000 credits in 500-credit steps), then generate one team or shuffle both. Changing a cap preserves the current picks. Both teams must be within budget to kick off; free play removes both caps. The default is 26,000 credits per team.
-3. Choose a stadium and quarter length, then kick off.
-4. Select a play to inspect its routes, coverage, and personnel. Press **Snap** (or **Lock in** on defense) to run it immediately, or let the play clock reach zero. The CPU reveals its call at the snap.
+### Build your team
 
-Each team has 31 Pokémon; each play fields 11. Personnel packages include two tight ends, four wide receivers, two backs, and two quarterbacks. Generated teams contain no duplicate Pokémon.
+1. Choose a stadium and a quarter length (3, 5, 8, or 12 minutes).
+2. Set each team's credit cap (9,500–27,000 credits in 500-credit steps; default 26,000). Changing a cap keeps the current picks. Both teams must be within budget to kick off; **free play** removes both caps.
+3. Generate one team or shuffle both, then adjust by hand: click a roster slot, choose a Pokémon, and assign it from the player profile. On phones, swipe through the roster slots.
+4. Pick each player's four moves in the profile (see [Moves](#moves)). Every player starts with a default set, so this step is optional.
 
-Offense and defense get the same play clock: 40 seconds normally, 25 at kickoff and after a possession or quarter change, following the [NFL play-clock rule](https://static.www.nfl.com/image/upload/fl_attachment/league/tqivdkzt9mu6wdgsh1ku.pdf#page=20). At zero, your selected call runs automatically; if you have not picked one, the game picks a random legal call from the current playbook.
+A team has 31 Pokémon across nine positions; each play fields 11. Position fit comes from base stats: speed and attack make receivers and backs, defense and HP make linemen, special attack makes quarterbacks. Salary follows base stat total, and legendaries cost extra. Generated teams contain no duplicates.
 
-**Pause** freezes the remaining call time and playback. **Skip** finishes playback. The scoreboard labels the score and quarter time separately. Quarter time advances during plays and stops between them. Reduced motion uses fixed poses and shorter captions.
+### Call a play
 
-The stadium themes are based on [Indigo Stadium in Kanto](https://bulbapedia.bulbagarden.net/wiki/Indigo_Plateau_Conference) and [Silver Stadium in Johto](https://bulbapedia.bulbagarden.net/wiki/Silver_Conference) from the animated series. Each has its own scenery, field colors, and lighting. Venue selection does not change football rules.
+You call offense on your possessions and defense on the rival's. The offense playbook has 40 calls in five groups (run, pass, trick, clock, special); the defense has 26 coverages and fronts. Select a call to see its routes, coverage, and personnel package, then press **Snap** (or **Lock in** on defense).
 
-CPU calls account for down, distance, field position, score, clock, roster ratings, and recent plays. The rival commits before you scout; scouting reveals a partial formation tell and leaves one audible. Read Option supports keep/handoff, RPO supports run/pass, and passing plays let you pick an active receiver. Individual protection, coverage, and tackle contests determine results.
+- **Play clock.** Both sides get 40 seconds, or 25 at kickoff and after a possession or quarter change, following the [NFL play-clock rule](https://static.www.nfl.com/image/upload/fl_attachment/league/tqivdkzt9mu6wdgsh1ku.pdf#page=20). At zero, your selected call runs; with no selection, a random legal run, pass, or trick call runs.
+- **Scout and audible.** The rival commits before you do. Scouting shows a partial formation tell, and you get one audible after it.
+- **Offense choices.** Pick a lane (left, middle, right) for runs, an active receiver for passes, keep or hand off on Read Option, and run or pass on the RPO.
+- **Tempo.** A running clock burns time before the snap: normal 15 seconds, hurry-up 3, chew-clock 30. A sideline finish stops the clock at a small yardage cost.
+- **Clock calls.** Spike costs one second and a down; Kneel costs one yard and keeps the clock running.
+- **Fourth down.** Go for it, punt, or kick. Field goal odds fall with distance and rise with the quarterback's rating.
 
-Use the coaching panel to choose a lane, tempo, or sideline finish; manage timeouts and substitutions; and inspect stamina. A running clock consumes simulated runoff before a snap: normal 15 seconds, hurry-up 3, chew-clock 30. A spike costs one second and a down; a kneel costs one yard and keeps the clock running. Browsing uses no game time. Bench players recover stamina, and automatic rotation can replace tired starters.
+### How a play resolves
 
-Every Pokémon carries up to four moves from its Crystal learnset; choose them in the draft profile. Before a snap, fire one move from a player in the active unit. Strikes add to that player's contest (STAB, type effectiveness, and skill count), ailments and stat changes last a few snaps and show as badges, and screens, weather, Protect, Fissure, and Roar change the field. Each move has limited PP and costs stamina. Moves are separate from abilities and never use ability charges.
+Every scrimmage play becomes three contests between the players on the field:
 
-Electric carriers/front defenders, Steel blockers/front defenders, and Psychic QBs/coverage players unlock limited abilities. Each team gets two shared charges per half; an activation also costs ten stamina. Psychic Read reveals the actual rival call, while Burst and Shield modify the participating player's contest. The [NFL fourth-down decision guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3) informed these simplified rules.
+- **Protection**: an offensive lineman against the rusher across the line. It sets sack and stuff odds.
+- **Separation**: the receiver or carrier against the cover man. It sets completion and interception odds.
+- **Tackle**: the carrier against the tackler. It sets yards after contact and fumble odds.
+
+Ratings, stamina, the scheme matchup between the two calls, abilities, and moves all feed these margins. The battle scene then shows the featured players: the carrier, a supporting player, the defender who made the play, and the safety help. The animation never decides a result.
+
+### Stamina, substitutions, and timeouts
+
+Every snap tires the active unit, and the featured players tire most. Below 70 stamina a player's ratings drop. Bench players recover each snap, every quarter break restores some stamina, and halftime restores it fully. Use the depth chart to swap players or turn on **automatic rotation** to replace tired starters. Each team has three timeouts per half; a timeout stops the clock and gives both teams a short rest.
+
+### Abilities
+
+Three types unlock a team ability: **Electric Burst** (an Electric carrier or front defender gains escape or rush), **Steel Shield** (a Steel blocker or front defender gains protection or tackling), and **Psychic Read** (a Psychic quarterback or coverage player reveals the rival's real call). Each team gets two charges per half and fires at most one ability per call. Charges and the ten-stamina cost are paid at the snap.
+
+### Moves
+
+Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset. Before the snap, fire one move from an eligible player: on offense the carrier, the passer on a pass, or any lineman or tight end; on defense anyone in the unit. Moves sit beside abilities, so one call can use both. The rival's move appears at the snap.
+
+- **PP.** Each move has `ceil(PP ÷ 5)` uses per game for that player: Tackle 7, Thunderbolt 3, Hydro Pump 1.
+- **Cost.** A move costs stamina (6, plus more for powerful strikes) and needs at least 20 stamina to fire.
+- **The user takes the contest.** Firing a move puts its user into the play: a defensive lineman becomes the rusher, a linebacker or defensive back becomes the cover man or tackler, and a lineman becomes the featured blocker.
+- **Accuracy.** A move can miss; a miss still costs its PP and stamina.
+
+| Kind | Examples | Effect |
+| --- | --- | --- |
+| Strike | Thunderbolt, Earthquake, Quick Attack | Adds to the user's contest margin, scaled by power, same-type bonus (×1.5), type effectiveness against the opponent (0 to ×4), and the user's attack or special attack. Priority moves add 8; high-crit moves can double. Capped at 30. |
+| Status | Thunder Wave, Sleep Powder, Toxic, Confuse Ray | Puts a condition on the opponent for a few of its team's snaps (below). Strikes with a secondary effect roll it automatically at twice the game chance. |
+| Stat change | Agility, Swords Dance, Growl, Sand-Attack | Raises the user's stat or lowers the opponent's for three snaps, up to two stages. |
+| Heal | Recover, Soft-Boiled, Milk Drink | Restores 50 stamina to the user. |
+| Field | Reflect, Light Screen, Safeguard, Mist, Haze, Rain Dance, Sunny Day, Sandstorm, Spikes | Changes the field for five snaps (Spikes: the rest of the half). |
+| Protect | Protect, Detect | Offense: a sack, stuff, fumble, or interception becomes no gain. Defense: the play gains at most 5 yards. |
+| One-hit | Fissure, Horn Drill, Guillotine | 30% accuracy. A hit is a breakaway touchdown on offense or a turnover on defense. |
+| Roar | Roar, Whirlwind | Sends the opponent to the bench for two snaps. |
+
+| Condition | Badge | Effect | Snaps |
+| --- | --- | --- | --- |
+| Paralysis | PAR | Speed −25% | 4 |
+| Sleep | SLP | Ratings −40 | 2 |
+| Freeze | FRZ | Ratings −40 | 2 |
+| Burn | BRN | Attack −25% and 3 stamina per snap | 4 |
+| Poison | PSN | 5 stamina per snap (Toxic 8) | 5 |
+| Confusion | CNF | One-in-three chance per snap to lose 15 margin | 3 |
+| Trap | | Cannot leave the field | 3 |
+| Leech Seed | | Loses 4 stamina per snap to the user | 5 |
+
+Conditions count down on every snap the player's team plays, on the field or on the bench, so a substitution protects the team but does not cure the player. A player holds one of paralysis, sleep, freeze, burn, or poison at a time. Rain powers up Water strikes and weakens Fire (Sun does the reverse); Sandstorm drains every player who is not Rock, Ground, or Steel; Safeguard blocks new conditions and Mist blocks stat drops. Badges show on the depth chart, the lineup, and the battle sprites, and the scoreboard shows the active weather.
+
+Ditto and Smeargle have no usable moves, and a few Pokémon (Magikarp, Caterpie, Unown, and others) have fewer than four.
+
+### The CPU rival
+
+The CPU calls plays from down, distance, field position, score, clock, roster ratings, and your recent tendencies. It kicks and punts on fourth down by field position, calls timeouts late in the half when behind, rotates tired players automatically, fires an ability on about a third of calls, and fires its best available move on 40% of calls.
+
+### Game flow
+
+The game plays four quarters. Halftime resets timeouts, ability charges, and Spikes, restores stamina, and gives the rival the second-half kickoff. A tie after four quarters goes to overtime, where the next score wins. **Pause** freezes the play clock and playback; **Skip** finishes the current animation. With the system's reduced-motion setting, plays use fixed poses, shorter playback, and captions without projectiles, weather layers, or particles.
+
+The stadium themes are based on [Indigo Stadium in Kanto](https://bulbapedia.bulbagarden.net/wiki/Indigo_Plateau_Conference) and [Silver Stadium in Johto](https://bulbapedia.bulbagarden.net/wiki/Silver_Conference) from the animated series. Each has its own scenery, field colors, and lighting. The stadium does not change football rules. The [NFL fourth-down decision guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3) informed the simplified rules.
 
 ## Development
 
@@ -68,7 +134,7 @@ Football rules and roster logic live in `src/game/`; drafting, diagrams, sprites
 
 Special thanks to **Anshu Chimala** and [**Pocket Aces**](https://github.com/achimala/pocket-aces) for the animation inspiration, especially [PipSprite](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/PipSprite.tsx) and [BattleScene](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/BattleScene.tsx). Pokéballers uses its own code and artwork.
 
-Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites). Base stats come from [Pokémon Database](https://pokemondb.net/pokedex/all). The trainer and stadium SVGs in `assets/` are original artwork. Fonts: DM Mono and Press Start 2P from [Google Fonts](https://fonts.google.com/), with local fallbacks.
+Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites). Base stats come from [Pokémon Database](https://pokemondb.net/pokedex/all). Moves, Crystal learnsets, and the Gen 2 type chart come from [PokeAPI](https://pokeapi.co/). The trainer and stadium SVGs in `assets/` are original artwork. Fonts: DM Mono and Press Start 2P from [Google Fonts](https://fonts.google.com/), with local fallbacks.
 
 ## License
 
