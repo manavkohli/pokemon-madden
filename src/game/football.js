@@ -10,6 +10,7 @@
       this.random = random;
       this.quarter = 1;
       this.seconds = quarterSeconds;
+      this.playClockSeconds = 25;
       this.score = { home: 0, away: 0 };
       this.possession = 'home';
       this.spot = 25;
@@ -181,6 +182,8 @@
       const side = this.possession;
       const wasOvertime = this.quarter === 5;
       const priorScore = this.score.home + this.score.away;
+      const priorDrive = this.drive;
+      const priorQuarter = this.quarter;
       const result =
         offense.kind === 'punt'
           ? this.punt()
@@ -190,6 +193,7 @@
       result.participants = this.playParticipants(side, offense, defense, result);
       this.history.push({ side, id: offense.id, kind: offense.kind, defenseId: defense.id });
       this.advanceClock(result.seconds);
+      this.playClockSeconds = this.drive !== priorDrive || this.quarter !== priorQuarter ? 25 : 40;
       if (wasOvertime && this.score.home + this.score.away > priorScore) this.over = true;
       this.log.unshift(`${side === 'home' ? 'VOLTS' : 'SURF'}: ${offense.name} vs ${defense.name} — ${result.message}`);
       return result;

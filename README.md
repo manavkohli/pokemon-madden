@@ -1,36 +1,45 @@
 # Pokéballers
 
-A Pokémon football fan game with Red-inspired menus, a Game Boy palette, and a rival waiting at Indigo Stadium.
+A Pokémon football fan game with Red-inspired menus, a Game Boy palette, and stadium themes from Kanto and Johto.
 
 Open `index.html` in a browser to play. No server or install is required. Internet access adds Pokémon sprites; the game falls back to local symbols when sprites are unavailable.
 
 ## Screenshots
 
-Scout the Pokédex and build a 31-player depth chart.
+Team builder with separate credit caps and stadium selection.
 
-![Team builder with a depth chart, Pokémon catalog, salary cap, and Mewtwo's player card](docs/screenshots/draft.jpg)
+![Team builder with independent credit cap sliders, stadium selection, and a Pokémon player profile](docs/screenshots/draft.jpg)
 
-Choose a call, inspect its routes and personnel, and follow the drive.
+Indigo Stadium playbook and route diagram.
 
 ![Indigo Stadium with the scoreboard, field, playbook, route diagram, and rival trainer](docs/screenshots/playbook.jpg)
 
-Watch each snap unfold in a Pokémon battle scene.
+A live play in Silver Stadium.
 
-![A quarterback battle with moving stadium lights and a Game Boy-style dialogue box](docs/screenshots/battle.jpg)
+![Live QB Sneak in Silver Stadium, with blue turf and stadium lights](docs/screenshots/battle.jpg)
+
+[PNG screenshots and artwork for sharing](docs/screenshots/png/).
 
 ## Playing
 
-Build a 31-Pokémon depth chart from the first 251 Pokédex entries. Click a slot, scout candidates, and assign one from their player profile. On a phone, swipe through the roster; selecting a slot or prospect takes you to the next panel. Shuffle both teams or choose free play to disable the 26,000-credit cap. Choose a quarter length before kickoff. Each call fields 11 Pokémon from the chart; packages include two tight ends, four wide receivers, two backs, and two quarterbacks.
+1. Click a roster slot, choose a Pokémon, and assign it from the player profile. On phones, swipe through the roster slots.
+2. Set each team's credit cap (9,500–27,000 credits in 500-credit steps), then generate one team or shuffle both. Changing a cap preserves the current picks. Both teams must be within budget to kick off; free play removes both caps. The default is 26,000 credits per team.
+3. Choose a stadium and quarter length, then kick off.
+4. Select a play to inspect its routes, coverage, and personnel. Press **Snap** (or **Lock in** on defense) to run it immediately, or let the play clock reach zero. The CPU reveals its call at the snap.
 
-During a game, click an offensive or defensive call to see its route or coverage diagram, matchup notes, and personnel. The CPU reveals its call at the snap. A short battle scene features the ball carrier or target and the defender most likely to make the play. Skip advances directly to the result; Pause freezes the scene. The quarter clock deducts play time as the battle animates and does not run between turns.
+Each team has 31 Pokémon; each play fields 11. Personnel packages include two tight ends, four wide receivers, two backs, and two quarterbacks. Generated teams contain no duplicate Pokémon.
 
-The battle arena uses large pixel sprites with procedural breathing and bobbing, pass and kick arcs, contact holds, tackle recoil, loose-ball motion, and scoring bursts. One animation clock keeps pause and skip consistent. The browser's reduced-motion preference enables fixed poses and shorter caption-based playback. No rendering library or runtime install is required.
+Offense and defense get the same play clock: 40 seconds normally, 25 at kickoff and after a possession or quarter change, following the [NFL play-clock rule](https://static.www.nfl.com/image/upload/fl_attachment/league/tqivdkzt9mu6wdgsh1ku.pdf#page=20). At zero, your selected call runs automatically; if you have not picked one, the game picks a random legal call from the current playbook.
 
-CPU calls use down, distance, field position, score, clock, roster strengths, and recent opposing calls. Fourth-down decisions and long-yardage coverage follow simplified football principles from the [NFL Next Gen Stats Decision Guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [NFL third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3). This is an arcade heuristic, not an NFL analytics model.
+**Pause** freezes the remaining call time and playback. **Skip** finishes playback. The scoreboard labels the score and quarter time separately. Quarter time advances during plays and stops between them. Reduced motion uses fixed poses and shorter captions.
 
-The catalog contains base stats from [Pokémon Database's National Pokédex table](https://pokemondb.net/pokedex/all). Refresh it with `python3 scrape_pokedex.py`, which writes both `pokemon_gen1_2.json` and the browser-ready `pokemon_gen1_2.js`. Position ratings, salaries, and football outcomes are game rules, not official Pokémon data.
+The stadium themes are based on [Indigo Stadium in Kanto](https://bulbapedia.bulbagarden.net/wiki/Indigo_Plateau_Conference) and [Silver Stadium in Johto](https://bulbapedia.bulbagarden.net/wiki/Silver_Conference) from the animated series. Each has its own scenery, field colors, and lighting. Venue selection does not change football rules.
+
+CPU calls account for down, distance, field position, score, clock, roster ratings, and recent plays. The [NFL fourth-down decision guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3) informed these simplified rules.
 
 ## Development
+
+Refresh the Pokémon Database catalog with `python3 scrape_pokedex.py`. Commit both `pokemon_gen1_2.json` and `pokemon_gen1_2.js`. Salaries, position ratings, and football outcomes are game rules.
 
 Use Node.js 24 or newer for the development tools:
 
@@ -42,15 +51,15 @@ npm test
 python3 -m unittest discover -s tests -p 'test_pokedex.py'
 ```
 
-No build step is needed. Any static host can serve the repository. For a local preview, run `python3 -m http.server 8000 --bind 127.0.0.1` and visit `http://127.0.0.1:8000`.
+No build step is needed. For a local preview, run `python3 -m http.server 8000 --bind 127.0.0.1` and visit `http://127.0.0.1:8000`.
 
-Football rules and roster logic live in `src/game/`; drafting, diagrams, sprites, and animation live in `src/ui/`. See the [architecture walkthrough](docs/ARCHITECTURE.md) for a play from snap to result, and [CONTRIBUTING.md](CONTRIBUTING.md) for checks and contribution guidance.
+Football rules and roster logic live in `src/game/`; drafting, diagrams, sprites, and animation live in `src/ui/`. See the [architecture walkthrough](docs/ARCHITECTURE.md) for ownership and the browser checklist, and [CONTRIBUTING.md](CONTRIBUTING.md) for checks and contribution guidance.
 
 ## Credits and inspiration
 
-Special thanks to **Anshu Chimala** and [**Pocket Aces**](https://github.com/achimala/pocket-aces), the open source creature-collecting poker roguelike that inspired this game's animation direction. Its [PipSprite](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/PipSprite.tsx) and [BattleScene](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/BattleScene.tsx) demonstrate how procedural breathing, bobbing, grounded sprites, lunges, recoil, and expressive impact timing bring static pixel art to life. Pokéballers applies those ideas through its own football choreography and animation clock. No Pocket Aces source code, generated art, or fonts are bundled here. Pocket Aces credits its code under MIT and its art under CC BY 4.0; see its [licensing notes](https://github.com/achimala/pocket-aces#license).
+Special thanks to **Anshu Chimala** and [**Pocket Aces**](https://github.com/achimala/pocket-aces) for the animation inspiration, especially [PipSprite](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/PipSprite.tsx) and [BattleScene](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/BattleScene.tsx). Pokéballers uses its own code and artwork.
 
-Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites). Base stats come from [Pokémon Database](https://pokemondb.net/pokedex/all). The trainer portrait and stadium scenery in `assets/` are original SVG artwork bundled with the project. The interface requests DM Mono and Press Start 2P through [Google Fonts](https://fonts.google.com/), with local font fallbacks when offline.
+Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites). Base stats come from [Pokémon Database](https://pokemondb.net/pokedex/all). The trainer and stadium SVGs in `assets/` are original artwork. Fonts: DM Mono and Press Start 2P from [Google Fonts](https://fonts.google.com/), with local fallbacks.
 
 ## License
 

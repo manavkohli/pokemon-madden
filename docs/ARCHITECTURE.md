@@ -17,15 +17,28 @@ The animation never computes a football result. Changing animation duration ther
 | File | Responsibility |
 | --- | --- |
 | `src/game/playbook.js` | Calls, positions, and salary cap |
-| `src/game/roster.js` | Position ratings, salaries, assignments, and personnel packages |
+| `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, and personnel packages |
 | `src/game/football.js` | CPU decisions, play resolution, possession, scoring, and clock |
-| `src/ui/app.js` | Drafting, play selection, scoreboard, and application lifecycle |
+| `src/ui/app.js` | Drafting, independent team budgets, stadium theme selection, play selection, scoreboard, and application lifecycle |
+| `src/ui/play-clock.js` | Call deadlines, pause/resume, and stale timer cancellation |
 | `src/ui/diagram.js` | Route and coverage SVGs |
 | `src/ui/field.js` | One yardage projection for field markings, ball position, and first-down markers |
 | `src/ui/sprites.js` | Sprite URLs, markup, and missing-image handling |
 | `src/ui/battle/motion.js` | Pure choreography and captions |
 | `src/ui/battle/stage.js` | Battle DOM, scheduling, and playback lifecycle |
 | `src/ui/battle/battle.css` | Arena, sprites, and effects styling |
+
+## Team generation and stadiums
+
+`Roster.random()` accepts a credit cap and reserves the minimum cost of filling the remaining depth slots before picking each player. It spreads the available spending across the slots, favors position fit, and prevents duplicate Pokémon. A cap below the cheapest possible complete roster raises an error. `GameApp` derives slider limits from the catalog and keeps separate budgets for each side. Changing a slider preserves the roster; generation replaces only the selected side. Kickoff checks both budgets, unless free play is enabled.
+
+Stadium selection belongs to `GameApp`. It updates the location labels and one body attribute; CSS supplies local scenery, turf, crowd, and lighting colors for Indigo and Silver Stadiums. Venue selection survives redrafting and rematches and does not affect game rules or create an animation clock.
+
+## Calling a play
+
+`FootballGame` supplies the same call limit for either possession: 25 seconds at kickoff or following a drive/quarter change, otherwise 40. `PlayClock` measures elapsed time with a monotonic clock; delayed browser callbacks cannot extend the deadline. It schedules logical deadlines with `setTimeout` and does not animate the stadium.
+
+`GameApp` starts a fresh deadline when the next call unlocks after the result banner. Selecting a call does not reset it. At expiry, the selected call snaps; without an explicit selection, a random legal call from the current playbook snaps. Manual snaps stop the deadline. Pause preserves fractional remaining time, and resume continues it. Redrafting and rematches cancel the old timer; generation tokens reject stale callbacks. The quarter clock remains an engine rule and advances only during resolved plays.
 
 ## Playback guarantees
 
@@ -41,7 +54,8 @@ Use `python3 -m http.server 8000 --bind 127.0.0.1` for a local preview, or open 
 
 - Draft a player, change filters, kick off, and select both run and pass calls.
 - Watch contact, ball flight, and the result. Confirm the clock finishes at the engine's resolved time and the next call unlocks.
-- Pause during a play, verify the clock and poses hold, then resume. Skip another play.
+- Pause while choosing a call and confirm the remaining play-clock seconds hold, then resume without a reset. Check automatic snapping with and without a selected call on both sides.
+- Pause during a play, verify the quarter clock and poses hold, then resume. Skip another play.
 - Return to drafting during playback and kick off again; the prior play must not update the new game.
 - Enable reduced motion and confirm fixed poses with captions. Disable networking and confirm missing sprites have visible fallbacks and play still resolves.
 - Check fourth-down kicks/punts, a turnover, and the final whistle when changing football rules.

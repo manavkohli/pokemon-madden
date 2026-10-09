@@ -2,7 +2,48 @@ const assert = require('node:assert/strict');
 const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
-const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
+const { OFFENSE, DEFENSE, POSITIONS, SALARY_CAP } = require('../src/game/playbook.js');
+
+class RosterChecks {
+  constructor(seed) {
+    this.seed = seed;
+  }
+
+  random() {
+    this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
+    return this.seed / 2 ** 32;
+  }
+
+  static run() {
+    const salaries = data.map((mon) => Roster.salary(mon)).sort((a, b) => a - b);
+    const minimum = salaries.slice(0, 31).reduce((sum, salary) => sum + salary, 0);
+    const maximum = salaries.slice(-31).reduce((sum, salary) => sum + salary, 0);
+    assert.deepEqual(Roster.salaryRange(data), { min: minimum, max: maximum });
+    assert.throws(() => Roster.random(data, minimum - 1), RangeError);
+    assert.throws(() => Roster.random(data, NaN), RangeError);
+    const drafts = new Set();
+    let cheapSpending = 0;
+    let highSpending = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const cap of [minimum, 9500, 12000, 18000, SALARY_CAP, 27000, Infinity]) {
+        const rolls = new RosterChecks(seed);
+        const roster = Roster.random(data, cap, () => rolls.random());
+        assert.equal(roster.players.length, POSITIONS.length);
+        assert.equal(new Set(roster.players.map((mon) => mon.id)).size, POSITIONS.length);
+        assert.ok(roster.salary <= cap, `${cap}: generated salary ${roster.salary}`);
+        for (const position of POSITIONS) assert.ok(roster.player(position.code, position.depth - 1));
+        if (cap === minimum) assert.equal(roster.salary, minimum);
+        if (cap === 12000) cheapSpending += roster.salary;
+        if (cap === SALARY_CAP) {
+          highSpending += roster.salary;
+          drafts.add(roster.players.map((mon) => mon.id).join(','));
+        }
+      }
+    }
+    assert.equal(drafts.size, 20, 'generation produces different teams');
+    assert.ok(highSpending > cheapSpending, 'higher budgets allow more expensive teams');
+  }
+}
 
 class ParticipantChecks {
   static stronger(roster, role, depth) {
@@ -62,6 +103,7 @@ class ParticipantChecks {
 }
 
 assert.equal(data.length, 251);
+RosterChecks.run();
 assert.ok(OFFENSE.length >= 35);
 assert.ok(DEFENSE.length >= 25);
 assert.deepEqual(
@@ -116,9 +158,14 @@ assert.equal(
 const insideZone = OFFENSE.find((play) => play.id === 'inside-zone');
 const dime = DEFENSE.find((play) => play.id === 'dime');
 const stuffedGame = new FootballGame(home, away, 300, () => 0);
+assert.equal(stuffedGame.playClockSeconds, 25);
 const stuffed = stuffedGame.snap(insideZone, dime);
 assert.equal(stuffed.outcome, 'stuff');
 assert.equal(stuffedGame.seconds, 277);
+assert.equal(stuffedGame.playClockSeconds, 40);
+stuffedGame.possession = 'away';
+stuffedGame.snap(insideZone, dime);
+assert.equal(stuffedGame.playClockSeconds, 40, 'defense has the same normal deadline as offense');
 
 const rolls = [0.99, 0];
 const pickedGame = new FootballGame(home, away, 300, () => rolls.shift() ?? 0.5);
@@ -126,6 +173,16 @@ const screen = OFFENSE.find((play) => play.id === 'screen-pass');
 const zoneBlitz = DEFENSE.find((play) => play.id === 'zone-blitz');
 const picked = pickedGame.snap(screen, zoneBlitz);
 assert.equal(picked.outcome, 'interception');
+assert.equal(pickedGame.playClockSeconds, 25);
+
+const conversion = new FootballGame(home, away, 300, () => 0);
+conversion.toGo = 1;
+const converted = conversion.snap(
+  OFFENSE.find((play) => play.id === 'deep-shot'),
+  DEFENSE.find((play) => play.id === 'run-stuff'),
+);
+assert.match(converted.message, /FIRST DOWN/);
+assert.equal(conversion.playClockSeconds, 40, 'a first down does not shorten the deadline');
 
 const game = new FootballGame(home, away, 300, () => 0);
 game.spot = 98;
@@ -137,6 +194,7 @@ assert.match(touchdown.message, /TOUCHDOWN/);
 assert.equal(game.score.home, 7);
 assert.equal(game.possession, 'away');
 assert.equal(game.spot, 25);
+assert.equal(game.playClockSeconds, 25);
 
 const turnover = new FootballGame(home, away, 300, () => 0.99);
 turnover.down = 4;
@@ -147,6 +205,7 @@ const failedFourth = turnover.snap(
 assert.equal(turnover.possession, 'away');
 assert.equal(turnover.down, 1);
 assert.match(failedFourth.message, /TURNOVER ON DOWNS/);
+assert.equal(turnover.playClockSeconds, 25);
 
 const quarter = new FootballGame(home, away, 300, () => 0);
 quarter.seconds = 1;
@@ -156,6 +215,7 @@ quarter.snap(
 );
 assert.equal(quarter.quarter, 2);
 assert.equal(quarter.seconds, 300);
+assert.equal(quarter.playClockSeconds, 25);
 
 const halftime = new FootballGame(home, away, 300, () => 0.5);
 halftime.quarter = 2;

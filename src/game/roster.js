@@ -1,5 +1,5 @@
 {
-  const { POSITIONS } = typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
+  const { POSITIONS, SALARY_CAP } = typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
 
   class Roster {
     constructor(pokemon, ids) {
@@ -7,18 +7,37 @@
       this.players = ids.map((id) => pokemon[id - 1]);
     }
 
-    static random(pokemon) {
-      const used = new Set();
-      const players = POSITIONS.map((position) => {
-        const candidates = pokemon
-          .filter((mon) => !used.has(mon.id))
-          .sort((a, b) => Roster.rating(b, position.code) - Roster.rating(a, position.code));
-        const player = candidates[Math.floor(Math.random() * Math.min(85, candidates.length))];
-        used.add(player.id);
-        return player;
-      });
+    static salaryRange(pokemon) {
+      const salaries = pokemon.map((mon) => Roster.salary(mon)).sort((a, b) => a - b);
+      return {
+        min: salaries.slice(0, POSITIONS.length).reduce((sum, salary) => sum + salary, 0),
+        max: salaries.slice(-POSITIONS.length).reduce((sum, salary) => sum + salary, 0),
+      };
+    }
+
+    static random(pokemon, cap = SALARY_CAP, random = Math.random) {
+      if (!(cap >= Roster.salaryRange(pokemon).min)) throw new RangeError('Cap cannot fund a full roster');
+      let available = [...pokemon].sort((a, b) => Roster.salary(a) - Roster.salary(b));
+      let budget = cap;
       const roster = new Roster(pokemon, []);
-      roster.players = players;
+      for (const position of POSITIONS) {
+        const slots = POSITIONS.length - roster.players.length;
+        const minimum = available.slice(0, slots).reduce((sum, mon) => sum + Roster.salary(mon), 0);
+        const cutoff = Roster.salary(available[slots - 1]);
+        const allowance = Math.max(Roster.salary(available[0]), budget / slots);
+        // Reserve enough for every remaining slot, even at the lowest possible cap.
+        const candidates = available
+          .filter((mon) => {
+            const salary = Roster.salary(mon);
+            const reserve = minimum - Math.min(salary, cutoff);
+            return salary <= allowance && salary + reserve <= budget;
+          })
+          .sort((a, b) => Roster.rating(b, position.code) - Roster.rating(a, position.code));
+        const player = candidates[Math.floor(random() * Math.min(85, candidates.length))];
+        roster.players.push(player);
+        budget -= Roster.salary(player);
+        available = available.filter((mon) => mon.id !== player.id);
+      }
       return roster;
     }
 

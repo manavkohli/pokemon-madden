@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pokéballers — Pocket Gridiron</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="src/ui/battle/battle.css" />
+    <link rel="stylesheet" href="style.css?v=0.1.5" />
+    <link rel="stylesheet" href="src/ui/battle/battle.css?v=0.1.5" />
   </head>
   <body>
     <header class="topbar">
@@ -25,17 +25,20 @@
     <section id="draftScreen" class="screen draft-screen">
       <div class="draft-intro">
         <div class="intro-copy">
-          <small class="eyebrow"><i aria-hidden="true"></i> INDIGO STADIUM IS CALLING</small>
-          <h1>Small monsters.<br /><span>Big league.</span></h1>
-          <p>Your dream team. Their home turf. Build your roster and take the field.</p>
-          <div class="intro-tags"><span>251 Pokémon</span><span>31 roster spots</span><span>One rivalry</span></div>
+          <small class="eyebrow"><i aria-hidden="true"></i> KANTO + JOHTO EXHIBITION</small>
+          <h1>Team builder</h1>
+          <div class="intro-tags"><span>251 Pokémon</span><span>31 roster spots</span></div>
+          <div class="venue-picker">
+            <label for="stadiumSelect">STADIUM</label>
+            <select id="stadiumSelect" aria-describedby="stadiumDescription"></select>
+            <p id="stadiumDescription"></p>
+          </div>
         </div>
         <div class="rival-ticket">
           <div class="rival-scene" aria-hidden="true"><img src="assets/trainer-ace.svg" alt="" /></div>
           <div class="rival-copy">
             <small>YOUR CHALLENGER</small>
             <h2>The Cerulean Ace</h2>
-            <p>“Hope you brought more than luck.”</p>
             <div id="rivalParty" class="rival-party" aria-label="Rival's key players"></div>
             <span class="ticket-team">CERULEAN SURF <b>VS</b> VIRIDIAN VOLTS</span>
           </div>
@@ -51,10 +54,22 @@
           </div>
           <div id="draftSlots" class="draft-slots"></div>
           <div class="budget-box">
-            <div><span>TEAM SALARY</span><strong id="salaryValue">—</strong></div>
-            <div class="meter"><i id="salaryMeter"></i></div>
-            <label><input id="noCap" type="checkbox" /> Free play · no salary cap</label
-            ><small id="salaryNote">Cap: 26,000 credits</small>
+            <div class="team-budget">
+              <label for="homeCap">Your credit cap <output id="homeCapValue" for="homeCap">26,000 CR</output></label>
+              <input id="homeCap" type="range" value="26000" step="500" aria-describedby="budgetHelp" />
+              <div class="budget-spend"><span>YOUR TEAM</span><strong id="homeSalary">—</strong></div>
+              <div class="meter"><i id="homeMeter"></i></div>
+              <button id="generateHome" class="button ghost" type="button">Generate your team</button>
+            </div>
+            <div class="team-budget">
+              <label for="awayCap">Rival credit cap <output id="awayCapValue" for="awayCap">26,000 CR</output></label>
+              <input id="awayCap" type="range" value="26000" step="500" aria-describedby="budgetHelp" />
+              <div class="budget-spend"><span>RIVAL TEAM</span><strong id="awaySalary">—</strong></div>
+              <div class="meter"><i id="awayMeter"></i></div>
+              <button id="generateAway" class="button ghost" type="button">Generate rival team</button>
+            </div>
+            <small id="budgetHelp">Set a budget, then generate. Your current picks stay until you do.</small>
+            <label class="free-play"><input id="noCap" type="checkbox" /> Free play · no credit caps</label>
           </div>
         </aside>
         <section class="surface catalog-panel">
@@ -114,8 +129,8 @@
     <section id="gameScreen" class="screen game-screen hidden">
       <div class="page-title game-title">
         <div>
-          <small>TRAINER EXHIBITION</small>
-          <h1>Indigo Stadium</h1>
+          <small id="stadiumRegion">KANTO · INDIGO PLATEAU</small>
+          <h1 id="stadiumTitle">Indigo Stadium</h1>
         </div>
         <button id="editTeamButton" class="button ghost" type="button">Edit team</button>
       </div>
@@ -127,14 +142,19 @@
                 <span class="team-crest home" aria-hidden="true">V</span>
                 <div><strong>VIRIDIAN VOLTS</strong><small>YOU · THE CHALLENGER</small></div>
               </div>
-              <div class="score-center"><span id="homeScore">00</span><b>:</b><span id="awayScore">00</span></div>
+              <div class="score-center" role="group" aria-label="Score">
+                <small>SCORE</small>
+                <div class="score-values">
+                  <span id="homeScore">0</span><b aria-hidden="true">–</b><span id="awayScore">0</span>
+                </div>
+              </div>
               <div class="score-team away">
                 <div><strong>CERULEAN SURF</strong><small>THE CERULEAN ACE · CPU</small></div>
                 <span class="team-crest away" aria-hidden="true">C</span>
               </div>
             </div>
             <div class="score-strip">
-              <span id="periodLabel">Q1</span><strong id="clockLabel">5:00</strong
+              <span id="periodLabel">Q1</span><span>GAME <strong id="clockLabel">5:00</strong></span
               ><span id="possessionLabel">VOLTS BALL</span><span id="downLabel">1ST & 10</span>
             </div>
             <div class="field" id="field">
@@ -179,6 +199,9 @@
                 <h2 id="callHeading">Call your play</h2>
               </div>
               <div class="call-controls">
+                <div id="playClock" class="play-clock hidden" role="timer" aria-label="Time to call a play">
+                  <small>PLAY CLOCK</small><strong id="playClockValue">25</strong>
+                </div>
                 <div id="playbookWrap">
                   <label
                     >PLAYBOOK
@@ -207,7 +230,7 @@
             <div class="rival-portrait" aria-hidden="true"><img src="assets/trainer-ace.svg" alt="" /></div>
             <small>YOUR RIVAL</small>
             <h2>The Cerulean Ace</h2>
-            <p id="rivalReaction">“Show me what your team can do.”</p>
+            <p id="rivalReaction">“Your call.”</p>
             <div id="matchRivalParty" class="rival-party" aria-label="Rival's key players"></div>
           </div>
           <div class="surface drive-panel">
@@ -237,14 +260,14 @@
 
     <footer class="site-footer">
       <span>POKÉBALLERS <b>AN UNOFFICIAL POKÉMON FAN GAME.</b></span
-      ><span>KANTO + JOHTO · FOR THE LOVE OF THE GAME</span>
+      ><span>KANTO + JOHTO</span>
     </footer>
 
     <dialog id="pauseOverlay" class="overlay" aria-labelledby="pauseTitle">
       <div class="overlay-card">
         <span class="overlay-icon">Ⅱ</span>
         <h2 id="pauseTitle">Game paused</h2>
-        <p>The clock only moves when a play resolves.</p>
+        <p>The play clock and playback are paused.</p>
         <button id="resumeButton" class="button primary" type="button">Resume ▶</button>
       </div>
     </dialog>
@@ -261,13 +284,14 @@
     </dialog>
     <script src="pokemon_gen1_2.js"></script>
     <script src="src/game/playbook.js"></script>
-    <script src="src/game/roster.js"></script>
-    <script src="src/game/football.js"></script>
+    <script src="src/game/roster.js?v=0.1.5"></script>
+    <script src="src/game/football.js?v=0.1.5"></script>
     <script src="src/ui/sprites.js"></script>
     <script src="src/ui/battle/motion.js"></script>
     <script src="src/ui/battle/stage.js"></script>
     <script src="src/ui/diagram.js"></script>
     <script src="src/ui/field.js"></script>
-    <script src="src/ui/app.js"></script>
+    <script src="src/ui/play-clock.js?v=0.1.5-1"></script>
+    <script src="src/ui/app.js?v=0.1.5-1"></script>
   </body>
 </html>

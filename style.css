@@ -11,8 +11,33 @@
   --orange: #b43f3e;
   --blue: #507967;
   --lcd: #c4cf9b;
+  --stadium-art: url('assets/stadium.svg');
+  --turf-dark: #8fa76d;
+  --turf-light: #99b278;
+  --stands-dark: #283f34;
+  --stands-light: #415b43;
+  --crowd-light: #bbc89b;
+  --crowd-dark: #657e59;
+  --field-edge: #3a5944;
+  --floodlight: #edf1c847;
   --pixel: 'Press Start 2P', monospace;
   --mono: 'DM Mono', monospace;
+}
+body[data-stadium='silver'] {
+  --bg: #293e59;
+  --lcd: #c2d5dc;
+  --stadium-art: url('assets/stadium-silver.svg');
+  --turf-dark: #83a8b7;
+  --turf-light: #95bac7;
+  --stands-dark: #243c55;
+  --stands-light: #3b5a73;
+  --crowd-light: #c8dce2;
+  --crowd-dark: #7e9db1;
+  --field-edge: #365872;
+  --floodlight: #dbefff50;
+}
+.battle-backdrop {
+  background: var(--stadium-art) center top / cover;
 }
 * {
   box-sizing: border-box;
@@ -211,14 +236,28 @@ a:focus-visible {
   letter-spacing: -1.5px;
   margin: 16px 0 12px;
 }
-.intro-copy h1 span {
-  color: #d4df9d;
+.venue-picker {
+  max-width: 380px;
+  margin-top: 20px;
 }
-.intro-copy > p {
-  color: #ebd3bf;
-  max-width: 470px;
-  margin: 0;
-  font-size: 12px;
+.venue-picker label {
+  display: block;
+  color: #efd8be;
+  font: 7px/1.8 var(--pixel);
+  margin-bottom: 8px;
+}
+.venue-picker select {
+  width: 100%;
+  padding: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 2px solid var(--edge);
+  box-shadow: 3px 3px #192c2966;
+}
+.venue-picker p {
+  color: #f0dfc9;
+  margin: 10px 0 0;
+  font-size: 11px;
 }
 .intro-tags {
   display: flex;
@@ -243,7 +282,7 @@ a:focus-visible {
 .rival-scene {
   position: relative;
   overflow: hidden;
-  background: url('assets/stadium.svg') center / auto 100%;
+  background: var(--stadium-art) center / auto 100%;
   border-right: 3px solid var(--edge);
 }
 .rival-scene::after {
@@ -274,11 +313,6 @@ a:focus-visible {
 .rival-copy h2 {
   font: 11px/1.9 var(--pixel);
   margin: 10px 0;
-}
-.rival-copy > p {
-  font-size: 10px;
-  color: var(--muted);
-  margin: 0 0 14px;
 }
 .rival-party {
   display: flex;
@@ -454,7 +488,7 @@ a:focus-visible {
   border-top: 2px solid var(--edge);
   background: var(--panel2);
 }
-.budget-box > div:first-child {
+.budget-spend {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -470,11 +504,43 @@ a:focus-visible {
   font-size: 10px;
   margin-top: 12px;
 }
-.budget-box input {
+.budget-box input[type='checkbox'] {
   accent-color: var(--lime);
   width: 14px;
   height: 14px;
   margin: 0;
+}
+.team-budget + .team-budget {
+  border-top: 1px solid #a7af8d;
+  padding-top: 12px;
+  margin-top: 14px;
+}
+.team-budget label {
+  justify-content: space-between;
+  margin: 0 0 6px;
+}
+.team-budget output {
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.team-budget input[type='range'] {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 0 0 8px;
+  accent-color: var(--orange);
+  cursor: pointer;
+}
+.team-budget input[type='range']:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.team-budget .button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 8px;
+  font-size: 10px;
 }
 .budget-box small {
   display: block;
@@ -760,15 +826,25 @@ a:focus-visible {
   background: #66598b;
 }
 .score-center {
-  display: flex;
+  display: grid;
+  justify-items: center;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   font: 23px var(--pixel);
   color: var(--ink);
   padding: 14px 16px;
   background: var(--lcd);
   border: 2px solid #6a7d58;
   box-shadow: inset 3px 3px #586e4826;
+}
+.score-center > small {
+  font: 6px/1.5 var(--pixel);
+  color: var(--muted);
+}
+.score-values {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .score-center b {
   color: #829064;
@@ -791,7 +867,7 @@ a:focus-visible {
   height: 370px;
   position: relative;
   overflow: hidden;
-  background: repeating-linear-gradient(90deg, #8fa76d 0 8.5%, #99b278 8.5% 17%);
+  background: repeating-linear-gradient(90deg, var(--turf-dark) 0 8.5%, var(--turf-light) 8.5% 17%);
   image-rendering: pixelated;
 }
 .yard-line {
@@ -820,7 +896,7 @@ a:focus-visible {
   top: 0;
   bottom: 0;
   width: 8%;
-  background: #3a5944;
+  background: var(--field-edge);
   color: #d7dfb1;
   display: flex;
   align-items: center;
@@ -931,6 +1007,28 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+.play-clock {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  min-width: 66px;
+  padding: 7px;
+  background: var(--lcd);
+  border: 2px solid #6a7d58;
+  color: var(--ink);
+}
+.play-clock small {
+  font: 5px/1.5 var(--pixel);
+}
+.play-clock strong {
+  font: 16px var(--pixel);
+  font-variant-numeric: tabular-nums;
+}
+.play-clock.urgent {
+  background: #f2d4b4;
+  color: #982f31;
+  border-color: #982f31;
 }
 .call-top label {
   display: flex;
@@ -1048,7 +1146,7 @@ a:focus-visible {
 }
 .rival-portrait {
   height: 114px;
-  background: url('assets/stadium.svg') center / auto 160px;
+  background: var(--stadium-art) center / auto 160px;
   border: 2px solid var(--edge);
   overflow: hidden;
   margin-bottom: 17px;
@@ -1211,6 +1309,9 @@ a:focus-visible {
     font-size: 18px;
     padding: 12px;
   }
+  .score-values {
+    gap: 6px;
+  }
 }
 @media (max-width: 1000px) {
   .screen {
@@ -1344,10 +1445,6 @@ a:focus-visible {
   .eyebrow {
     font-size: 6px;
   }
-  .intro-copy > p {
-    font-size: 11px;
-    max-width: 340px;
-  }
   .intro-tags {
     margin-top: 12px;
   }
@@ -1368,10 +1465,6 @@ a:focus-visible {
   .rival-copy h2 {
     font-size: 9px;
     margin: 7px 0;
-  }
-  .rival-copy > p {
-    font-size: 9px;
-    margin-bottom: 9px;
   }
   .rival-party {
     gap: 6px;
@@ -1450,9 +1543,6 @@ a:focus-visible {
     font-size: 11px;
   }
   .draft-footer {
-    position: sticky;
-    bottom: 12px;
-    z-index: 10;
     flex-direction: column;
     align-items: stretch;
     padding: 12px;
@@ -1551,6 +1641,8 @@ a:focus-visible {
   }
   .call-controls {
     justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   .call-top h2 {
     font-size: 9px;

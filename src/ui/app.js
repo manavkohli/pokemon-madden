@@ -11,9 +11,25 @@
     SpriteArt,
     PlayDiagram,
     FootballField,
+    PlayClock,
   } = window.Pokeballers;
 
   class GameApp {
+    static STADIUMS = [
+      {
+        id: 'indigo',
+        name: 'Indigo Stadium',
+        location: 'Kanto · Indigo Plateau',
+        description: 'The Indigo League venue. Green turf under the floodlights.',
+      },
+      {
+        id: 'silver',
+        name: 'Silver Stadium',
+        location: 'Johto · Silver Town',
+        description: 'The Silver Conference venue. A cool blue field beneath Mt. Silver.',
+      },
+    ];
+
     constructor(pokemon) {
       if (pokemon.length !== 251) throw new Error('Expected 251 Pokémon in pokemon_gen1_2.js');
       this.pokemon = pokemon;
@@ -29,6 +45,21 @@
       this.pendingSnap = null;
       this.sequence = 0;
       this.battle = new BattleStage(this.el('battleStage'));
+      this.callClock = new PlayClock({
+        onTick: (seconds) => this.renderCallClock(seconds),
+        onExpire: () => this.expireCall(),
+      });
+
+      const range = Roster.salaryRange(pokemon);
+      for (const side of ['home', 'away']) {
+        this.el(`${side}Cap`).min = Math.ceil(range.min / 500) * 500;
+        this.el(`${side}Cap`).max = Math.ceil(range.max / 500) * 500;
+        this.el(`${side}Cap`).value = SALARY_CAP;
+      }
+      this.el('stadiumSelect').innerHTML = GameApp.STADIUMS.map(
+        (stadium) => `<option value="${stadium.id}">${stadium.name} · ${stadium.location.split(' · ')[0]}</option>`,
+      ).join('');
+      this.renderStadium();
 
       document.addEventListener('error', (event) => SpriteArt.handleError(event), true);
       document.addEventListener('load', (event) => SpriteArt.handleLoad(event), true);
@@ -62,25 +93,29 @@
       this.el('typeFilter').addEventListener('change', () => this.renderCatalog());
       this.el('sortSelect').addEventListener('change', () => this.renderCatalog());
       this.el('noCap').addEventListener('change', () => this.renderBudget());
+      this.el('stadiumSelect').addEventListener('change', () => this.renderStadium());
+      for (const side of ['home', 'away']) {
+        this.el(`${side}Cap`).addEventListener('input', () => this.renderBudget());
+        this.el(side === 'home' ? 'generateHome' : 'generateAway').addEventListener('click', () => {
+          this.generateTeams([side]);
+        });
+      }
       this.el('randomizeButton').addEventListener('click', () => {
-        this.home = Roster.random(this.pokemon);
-        this.away = Roster.random(this.pokemon);
-        this.selectedPokemon = this.home.players[this.selectedSlot];
-        this.renderDraft();
-        this.el('draftMessage').textContent = 'Both teams randomized.';
+        this.generateTeams(['home', 'away']);
       });
       this.el('kickoffButton').addEventListener('click', () => this.start());
       this.el('playbookSelect').addEventListener('change', () => this.renderPlays());
       this.el('playList').addEventListener('click', (event) => {
         const card = event.target.closest('[data-play]');
         if (!card || this.locked) return;
+        this.callChosen = true;
         if (this.game.possession === 'home')
           this.selectedOffense = OFFENSE.find((play) => play.id === card.dataset.play);
         else this.selectedDefense = DEFENSE.find((play) => play.id === card.dataset.play);
         this.renderPlays();
         this.renderField();
       });
-      this.el('snapButton').addEventListener('click', () => this.snap().catch((error) => this.showError(error)));
+      this.el('snapButton').addEventListener('click', () => this.requestSnap());
       this.el('pauseButton').addEventListener('click', () => this.pause());
       this.el('resumeButton').addEventListener('click', () => this.resume());
       this.el('pauseOverlay').addEventListener('cancel', (event) => {
@@ -95,6 +130,31 @@
 
     showPanel(id) {
       if (matchMedia('(max-width: 700px)').matches) this.el(id).scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+
+    creditCap(side) {
+      return this.el('noCap').checked ? Infinity : Number(this.el(`${side}Cap`).value);
+    }
+
+    renderStadium() {
+      const stadium = GameApp.STADIUMS.find((venue) => venue.id === this.el('stadiumSelect').value);
+      document.body.dataset.stadium = stadium.id;
+      this.el('stadiumDescription').textContent = stadium.description;
+      this.el('stadiumTitle').textContent = stadium.name;
+      this.el('stadiumRegion').textContent = stadium.location.toUpperCase();
+    }
+
+    get overBudget() {
+      return ['home', 'away'].filter((side) => this[side].salary > this.creditCap(side));
+    }
+
+    generateTeams(sides) {
+      for (const side of sides) this[side] = Roster.random(this.pokemon, this.creditCap(side));
+      this.selectedPokemon = this.home.players[this.selectedSlot];
+      this.renderDraft();
+      if (this.overBudget.length === 0)
+        this.el('draftMessage').textContent =
+          sides.length === 2 ? 'Both teams generated. Ready for kickoff.' : 'Team generated. Ready for kickoff.';
     }
 
     renderDraft() {
@@ -127,21 +187,26 @@
     }
 
     renderBudget() {
-      const cap = SALARY_CAP;
-      const salary = this.home.salary;
-      this.el('salaryValue').textContent = `${salary.toLocaleString()} CR`;
-      this.el('salaryValue').style.color = salary > cap ? 'var(--orange)' : 'var(--lime)';
-      this.el('salaryMeter').style.width = `${Math.min(100, (salary / cap) * 100)}%`;
-      this.el('salaryMeter').style.background = salary > cap ? 'var(--orange)' : 'var(--lime)';
-      this.el('salaryNote').textContent = this.el('noCap').checked
-        ? 'Cap disabled for testing'
-        : `Cap: ${cap.toLocaleString()} credits`;
+      for (const side of ['home', 'away']) {
+        const cap = this.creditCap(side);
+        const slider = this.el(`${side}Cap`);
+        const salary = this[side].salary;
+        const color = salary > cap ? 'var(--orange)' : 'var(--lime)';
+        slider.disabled = this.el('noCap').checked;
+        slider.setAttribute('aria-valuetext', `${Number(slider.value).toLocaleString()} credits`);
+        this.el(`${side}CapValue`).textContent = Number.isFinite(cap) ? `${cap.toLocaleString()} CR` : 'NO CAP';
+        this.el(`${side}Salary`).textContent = `${salary.toLocaleString()} CR`;
+        this.el(`${side}Salary`).style.color = color;
+        this.el(`${side}Meter`).style.width = `${Math.min(100, (salary / Number(slider.value)) * 100)}%`;
+        this.el(`${side}Meter`).style.background = color;
+      }
+      const over = this.overBudget;
       this.el('draftMessage').textContent =
-        salary > cap && !this.el('noCap').checked
-          ? 'Over cap: swap a player or choose free play.'
+        over.length > 0
+          ? `${over.includes('home') ? 'Your team' : 'Rival team'} is over cap. Generate a team, raise the cap, or choose free play.`
           : 'Ready for kickoff.';
-      this.el('draftMessage').classList.toggle('error', salary > cap && !this.el('noCap').checked);
-      this.el('kickoffButton').disabled = salary > cap && !this.el('noCap').checked;
+      this.el('draftMessage').classList.toggle('error', over.length > 0);
+      this.el('kickoffButton').disabled = over.length > 0;
       this.el('rosterCount').textContent = `${this.home.players.length} ready`;
     }
 
@@ -190,15 +255,17 @@
       this.el('assignButton').addEventListener('click', () => {
         this.home.assign(this.selectedSlot, mon);
         this.renderDraft();
-        this.el('draftMessage').textContent = `${mon.name} assigned to ${position.code}.`;
+        if (this.overBudget.length === 0)
+          this.el('draftMessage').textContent = `${mon.name} assigned to ${position.code}.`;
         this.showPanel('draftSlots');
       });
     }
 
     start() {
-      if (this.home.salary > SALARY_CAP && !this.el('noCap').checked) return;
+      if (this.overBudget.length > 0) return;
       this.sequence += 1;
       clearTimeout(this.resultTimer);
+      this.callClock.stop();
       this.el('resultBanner').classList.add('hidden');
       this.battle.cancel();
       this.game = new FootballGame(this.home, this.away, Number(this.el('quarterLength').value));
@@ -214,12 +281,15 @@
       this.el('pauseOverlay').close();
       this.el('finalOverlay').close();
       this.renderGame();
+      this.beginCall();
       this.el('gameScreen').scrollIntoView({ block: 'start', behavior: 'auto' });
     }
 
     openDraft() {
       this.sequence += 1;
       clearTimeout(this.resultTimer);
+      this.callClock.stop();
+      this.renderCallClock(0);
       this.el('resultBanner').classList.add('hidden');
       this.battle.cancel();
       this.locked = false;
@@ -237,12 +307,14 @@
     pause() {
       if (!this.game || (this.game.over && !this.locked) || this.el('gameScreen').classList.contains('hidden')) return;
       this.paused = true;
+      this.callClock.setPaused(true);
       this.battle.setPaused(true);
       this.el('pauseOverlay').showModal();
     }
 
     resume() {
       this.paused = false;
+      this.callClock.setPaused(false);
       this.battle.setPaused(false);
       this.el('pauseOverlay').close();
       if (this.pendingSnap) {
@@ -260,14 +332,51 @@
       );
     }
 
+    beginCall() {
+      this.callChosen = false;
+      this.el('callHint').removeAttribute('role');
+      this.renderPlays();
+      this.callClock.start(this.game.playClockSeconds);
+    }
+
+    renderCallClock(seconds) {
+      this.el('playClock').classList.toggle('hidden', !this.callClock.active);
+      this.el('playClock').classList.toggle('urgent', seconds <= 10);
+      this.el('playClockValue').textContent = String(seconds);
+    }
+
+    expireCall() {
+      if (this.locked || this.paused || this.game.over) return;
+      if (!this.callChosen) {
+        const choices = this.playChoices();
+        const play = choices[Math.floor(Math.random() * choices.length)];
+        if (this.game.possession === 'home') this.selectedOffense = play;
+        else this.selectedDefense = play;
+      }
+      this.requestSnap();
+    }
+
+    requestSnap() {
+      return this.snap().catch((error) => this.showError(error));
+    }
+
     renderPlays() {
       const offense = this.game.possession === 'home';
       const choices = this.playChoices();
-      if (offense && !choices.includes(this.selectedOffense)) this.selectedOffense = choices[0];
+      if (offense && !choices.includes(this.selectedOffense)) {
+        this.selectedOffense = choices[0];
+        this.callChosen = false;
+      }
       this.el('callKicker').textContent = offense ? 'YOUR OFFENSE' : 'YOUR DEFENSE';
       this.el('callHeading').textContent = offense ? 'Call your play' : 'Call your coverage';
       this.el('playbookWrap').classList.toggle('hidden', !offense);
-      this.el('callHint').textContent = 'Rival call revealed at snap.';
+      const selected = offense ? this.selectedOffense : this.selectedDefense;
+      this.el('callHint').textContent = this.locked
+        ? 'Play in progress.'
+        : this.callChosen
+          ? `${selected.name} selected. Snap now or wait for the play clock.`
+          : 'Pick a play. At zero, an unchosen call is picked at random.';
+      this.el('snapButton').disabled = this.locked;
       this.el('snapButton').textContent = offense ? 'SNAP ▶' : 'LOCK IN ▶';
       this.el('playList').innerHTML = choices
         .map(
@@ -325,8 +434,11 @@
 
     async snap() {
       if (this.locked || this.paused || this.game.over) return;
+      this.callClock.stop();
+      this.renderCallClock(0);
       this.locked = true;
       this.el('snapButton').disabled = true;
+      this.el('callHint').textContent = 'Play in progress.';
       this.el('field').scrollIntoView({ block: 'center', behavior: 'auto' });
       const sequence = this.sequence;
       const game = this.game;
@@ -353,8 +465,8 @@
         if (sequence !== this.sequence) return;
         banner.classList.add('hidden');
         this.locked = false;
-        this.el('snapButton').disabled = false;
         if (this.game.over) this.showFinal();
+        else this.beginCall();
       };
       this.resultTimer = setTimeout(() => (this.paused ? (this.pendingSnap = finish) : finish()), 900);
     }
@@ -365,6 +477,7 @@
       this.locked = false;
       this.el('snapButton').disabled = false;
       this.renderGame();
+      if (!this.game.over) this.beginCall();
       this.el('callHint').textContent = `Play animation failed: ${error.message}. The drive log contains the result.`;
       this.el('callHint').setAttribute('role', 'alert');
       if (this.game.over) this.showFinal();
@@ -372,8 +485,8 @@
 
     renderGame() {
       const game = this.game;
-      this.el('homeScore').textContent = String(game.score.home).padStart(2, '0');
-      this.el('awayScore').textContent = String(game.score.away).padStart(2, '0');
+      this.el('homeScore').textContent = String(game.score.home);
+      this.el('awayScore').textContent = String(game.score.away);
       this.el('periodLabel').textContent = game.quarter === 5 ? 'OT' : `Q${game.quarter}`;
       this.el('clockLabel').textContent =
         `${Math.floor(game.seconds / 60)}:${String(game.seconds % 60).padStart(2, '0')}`;
@@ -395,7 +508,7 @@
             ? '“Fourth down. What have you got?”'
             : game.possession === 'away'
               ? '“My turn. Keep up.”'
-              : '“Show me what your team can do.”';
+              : '“Your call.”';
       this.el('playLog').innerHTML = game.log
         .slice(0, 8)
         .map((line) => `<p>${line}</p>`)

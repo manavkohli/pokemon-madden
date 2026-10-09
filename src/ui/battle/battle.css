@@ -6,22 +6,21 @@
   overflow: hidden;
   isolation: isolate;
   color: #263d30;
-  background: #9faf7c;
+  background: var(--turf-dark);
   container-type: inline-size;
 }
 .battle-backdrop {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: url('../../../assets/stadium.svg') center top / cover;
 }
 .battle-crowd {
   position: absolute;
-  inset: 0 0 51%;
+  inset: 22% 0 51%;
   background:
-    radial-gradient(circle, #bbc89b 2px, transparent 2px) 0 0 / 12px 12px,
-    radial-gradient(circle, #657e59 2px, transparent 2px) 6px 6px / 12px 12px,
-    repeating-linear-gradient(0deg, #415b43 0 20px, #283f34 20px 24px);
+    radial-gradient(circle, var(--crowd-light) 2px, transparent 2px) 0 0 / 12px 12px,
+    radial-gradient(circle, var(--crowd-dark) 2px, transparent 2px) 6px 6px / 12px 12px,
+    repeating-linear-gradient(0deg, var(--stands-light) 0 20px, var(--stands-dark) 20px 24px);
   border-bottom: 6px solid #beca98;
   opacity: 0.8;
 }
@@ -38,7 +37,7 @@
   top: 0;
   width: 30%;
   height: 120%;
-  background: linear-gradient(#edf1c847, transparent);
+  background: linear-gradient(var(--floodlight), transparent);
   clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
   transform-origin: 50% 0;
 }
@@ -56,7 +55,7 @@
   background:
     linear-gradient(#29453655, transparent 55%),
     repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 2px), #e3ebba55 calc(12.5% - 2px) 12.5%),
-    repeating-linear-gradient(0deg, #9caf7a 0 48px, #aabc86 48px 96px);
+    repeating-linear-gradient(0deg, var(--turf-dark) 0 48px, var(--turf-light) 48px 96px);
   border-top: 3px solid #d3deb0;
   transform: perspective(400px) rotateX(26deg);
 }

@@ -8,7 +8,7 @@ module.exports = [
         window: 'readonly', document: 'readonly', console: 'readonly',
         requestAnimationFrame: 'readonly', cancelAnimationFrame: 'readonly',
         matchMedia: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly',
-        process: 'readonly', global: 'readonly'
+        process: 'readonly', global: 'readonly', performance: 'readonly'
       }
     },
     rules: {
