@@ -1863,6 +1863,22 @@ a:focus-visible {
   color: var(--ink);
   cursor: pointer;
 }
+.status-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 4px;
+  color: #fff;
+  background: #7b4a8c;
+  font: normal 8px var(--pixel);
+  vertical-align: middle;
+}
+.field-player .status-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+}
 .move-list {
   max-height: 240px;
   overflow-y: auto;

@@ -41,10 +41,13 @@
       this.element.classList.toggle('scoring', motion.scoring);
       this.matchupLabel.textContent = `${offense.name}  VS  ${defense.name}`;
       Object.values(featured).forEach((mon, index) => {
-        this.fighters[index].innerHTML = SpriteArt.fighter(mon, index < 2);
+        this.fighters[index].innerHTML = `${SpriteArt.fighter(mon, index < 2)}<span class="status-badge"></span>`;
         this.fighters[index].setAttribute('aria-label', mon.name);
       });
       this.bodies = this.fighters.map((node) => node.querySelector('.battle-body'));
+      this.badgeNodes = this.fighters.map((node) => node.querySelector('.status-badge'));
+      this.statuses = result.statuses ?? null;
+      this.badgePhase = null;
       this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
       this.impactNode.textContent = motion.impact;
       this.element.setAttribute('data-move-type', motion.moveType);
@@ -93,6 +96,7 @@
         this.shadows[index].style.transform = `scale(${1 + actor.bob * 0.025}, 1)`;
       });
       this.renderCue(state.cue);
+      this.renderBadges(state.progress);
       this.actionNode.style.transform = `translateX(${state.shake}px)`;
       this.ballNode.style.left = `${state.ball.x}%`;
       this.ballNode.style.top = `${state.ball.y}%`;
@@ -113,11 +117,21 @@
       this.renderParticles(state);
     }
 
+    // Conditions in force during the play show first; ones the play inflicts appear at contact.
+    renderBadges(progress) {
+      const phase = progress >= BattleMotion.CONTACT ? 'after' : 'before';
+      if (!this.statuses || phase === this.badgePhase) return;
+      this.badgePhase = phase;
+      ['carrier', 'support', 'defender', 'help'].forEach((role, index) => {
+        this.badgeNodes[index].textContent = this.statuses[phase][role].join(' ');
+      });
+    }
+
     renderCue(cue) {
       this.cueNode.style.opacity = cue ? '1' : '0';
       if (!cue) return;
-      this.cueNode.classList.toggle('beam', cue.kind === 'beam');
-      this.cueNode.classList.toggle('lunge', cue.kind === 'lunge');
+      this.cueNode.className = `battle-cue ${cue.kind}`;
+      this.cueNode.textContent = cue.label ?? '';
       this.cueNode.style.left = `${BattleMotion.mix(cue.from.x, cue.to.x, cue.t)}%`;
       this.cueNode.style.top = `${BattleMotion.mix(cue.from.y, cue.to.y, cue.t)}%`;
     }

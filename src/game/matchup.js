@@ -5,15 +5,20 @@
     // Rating differences move probabilities by one percentage point per five points, with bounded odds.
     static ODDS_SCALE = 0.002;
     static YARDS_SCALE = 0.12;
+    static STAGE_POINTS = 6;
+    static ACCURACY_STAGE = 0.04;
+    static CONFUSED_DROP = 15;
     static PRESSURE = ['blitz', 'zone-blitz', 'fire-zone', 'cover-0', 'run-blitz'];
 
-    constructor(attack, defend, offense, defense, lane = 'middle', abilities = {}, moves = {}) {
+    constructor(attack, defend, offense, defense, lane = 'middle', abilities = {}, moves = {}, confused = new Set()) {
       this.attack = attack;
       this.defend = defend;
       this.offense = offense;
       this.defense = defense;
       this.abilities = abilities;
       this.moves = moves;
+      this.confused = confused;
+      this.accuracyShift = 0;
       this.moveRecords = [];
       this.line = attack.lineup('offense', offense);
       this.cover = defend.lineup('defense', defense);
@@ -63,7 +68,34 @@
         this.defend.effectiveRating(this.tackler.mon, this.tackler.role);
       this.applyAttackAbility();
       this.applyDefenseAbility();
+      this.applyConditions();
       this.applyMoves();
+    }
+
+    // Stat stages move the contest each stat feeds; a confused player's stumble costs its own side 15 points.
+    applyConditions() {
+      const run = this.offense.kind === 'run';
+      const roles = [
+        [this.attack, this.carrier, run ? ['attack'] : ['speed'], run ? 'tackle' : 'separation', 1],
+        [this.attack, this.blocker, ['defense'], 'protection', 1],
+        [this.defend, this.rusher, ['attack'], 'protection', -1],
+        [this.defend, this.tackler.mon, ['defense'], 'tackle', -1],
+      ];
+      if (!run)
+        roles.push(
+          [this.attack, this.passer, ['special_attack'], 'separation', 1],
+          [this.defend, this.marker.mon, ['speed', 'special_defense'], 'separation', -1],
+        );
+      for (const [roster, mon, stats, margin, sign] of roles) {
+        for (const stat of stats) this[margin] += sign * roster.stage(mon, stat) * PlayMatchup.STAGE_POINTS;
+        if (this.confused.has(mon.id)) this[margin] -= sign * PlayMatchup.CONFUSED_DROP;
+      }
+      if (!run)
+        this.accuracyShift =
+          PlayMatchup.ACCURACY_STAGE *
+          (this.attack.stage(this.passer, 'accuracy') +
+            this.attack.stage(this.carrier, 'evasion') -
+            this.defend.stage(this.marker.mon, 'evasion'));
     }
 
     // A move's user takes its role's contest, so a fired move always lands on a real opponent.
@@ -111,13 +143,17 @@
         const effectiveness = MoveBook.effectiveness(entry.move, target);
         const stat = MoveBook.STAT_KEYS[MoveBook.get(entry.move).damage_class];
         const skill = (offense ? this.attack : this.defend).skill(entry.actor, stat);
-        const value = entry.hit
-          ? MoveBook.strike(entry.move, { actor: entry.actor, skill, effectiveness, crit: entry.crit })
-          : 0;
-        this[margin] += offense ? value : -value;
+        const strike = MoveBook.family(entry.move) === 'strike';
+        const value =
+          entry.hit && strike
+            ? MoveBook.strike(entry.move, { actor: entry.actor, skill, effectiveness, crit: entry.crit })
+            : 0;
+        if (strike) this[margin] += offense ? value : -value;
         this.moveRecords.push({
           side: entry.side,
           offense,
+          secondary: entry.secondary,
+          notes: [],
           actor: entry.actor,
           target,
           move: entry.move,
@@ -159,7 +195,13 @@
       const deepHelp = this.offense.kind === 'deep' ? (this.defend.effectiveRating(this.help, 'S') - 60) * 0.002 : 0;
       return {
         completion: PlayMatchup.bounded(
-          0.7 - depth + (quarterback - 60) * 0.003 + this.separation * 0.004 + scheme * 0.018 - deepHelp,
+          0.7 -
+            depth +
+            (quarterback - 60) * 0.003 +
+            this.separation * 0.004 +
+            scheme * 0.018 -
+            deepHelp +
+            this.accuracyShift,
           0.15,
           0.92,
         ),

@@ -6,12 +6,31 @@
     static FATIGUE_THRESHOLD = 70;
     static FATIGUE_PENALTY = 0.4;
     static BENCH_RECOVERY = 9;
+    static DURATIONS = {
+      paralysis: 4,
+      sleep: 2,
+      freeze: 2,
+      burn: 4,
+      poison: 5,
+      confusion: 3,
+      trap: 3,
+      'leech-seed': 5,
+    };
+    static MAJOR = ['paralysis', 'sleep', 'freeze', 'burn', 'poison'];
+    static DRAIN = { burn: 3, poison: 5, 'leech-seed': 4 };
+    static TOXIC_DRAIN = 8;
+    static STATUS_PENALTY = 40;
+    static SLOWED = 0.75;
+    static STAGE_SNAPS = 3;
+    static STAGE_CAP = 2;
 
     constructor(pokemon, ids) {
       this.pokemon = pokemon;
       this.players = ids.map((id) => pokemon[id - 1]);
       this.stamina = new Map();
       this.movesets = new Map();
+      this.conditions = new Map();
+      this.stages = new Map();
     }
 
     copy() {
@@ -54,11 +73,67 @@
     }
 
     penalty(mon) {
-      return Math.round(Math.max(0, Roster.FATIGUE_THRESHOLD - this.energy(mon)) * Roster.FATIGUE_PENALTY);
+      const dazed = this.has(mon, 'sleep') || this.has(mon, 'freeze');
+      const fatigue = Math.round(Math.max(0, Roster.FATIGUE_THRESHOLD - this.energy(mon)) * Roster.FATIGUE_PENALTY);
+      return fatigue + (dazed ? Roster.STATUS_PENALTY : 0);
     }
 
     skill(mon, stat) {
-      return Math.max(20, Math.min(99, 20 + mon.base_stats[stat] * 0.63) - this.penalty(mon));
+      const slowed = (stat === 'speed' && this.has(mon, 'paralysis')) || (stat === 'attack' && this.has(mon, 'burn'));
+      const base = Math.min(99, 20 + mon.base_stats[stat] * 0.63) * (slowed ? Roster.SLOWED : 1);
+      return Math.max(20, base - this.penalty(mon));
+    }
+
+    has(mon, kind) {
+      return Boolean(this.conditions.get(mon.id)?.[kind]);
+    }
+
+    // A player holds one major ailment at a time; confusion, trap, and Leech Seed stack on top.
+    afflict(mon, kind, extra = {}) {
+      const current = this.conditions.get(mon.id) ?? {};
+      const major = Roster.MAJOR.includes(kind);
+      if (current[kind] || (major && Roster.MAJOR.some((entry) => current[entry]))) return false;
+      this.conditions.set(mon.id, { ...current, [kind]: { snaps: Roster.DURATIONS[kind], ...extra } });
+      return true;
+    }
+
+    badges(mon) {
+      return Object.keys(this.conditions.get(mon.id) ?? {})
+        .filter((kind) => MoveBook.BADGES[kind])
+        .map((kind) => MoveBook.BADGES[kind]);
+    }
+
+    stage(mon, stat) {
+      return this.stages.get(mon.id)?.[stat]?.stage ?? 0;
+    }
+
+    shift(mon, stat, change) {
+      const entries = this.stages.get(mon.id) ?? {};
+      const stage = Math.max(-Roster.STAGE_CAP, Math.min(Roster.STAGE_CAP, (entries[stat]?.stage ?? 0) + change));
+      this.stages.set(mon.id, { ...entries, [stat]: { stage, snaps: Roster.STAGE_SNAPS } });
+    }
+
+    clearStages() {
+      this.stages.clear();
+    }
+
+    // Counts every player's conditions and stages down, bench included; Leech Seed feeds the opposing user.
+    tick(foe) {
+      for (const mon of this.players) {
+        this.tickConditions(mon, foe);
+        const stages = this.stages.get(mon.id) ?? {};
+        for (const [stat, entry] of Object.entries(stages)) if (--entry.snaps <= 0) delete stages[stat];
+      }
+    }
+
+    tickConditions(mon, foe) {
+      const current = this.conditions.get(mon.id) ?? {};
+      for (const [kind, state] of Object.entries(current)) {
+        const drain = state.severe ? Roster.TOXIC_DRAIN : Roster.DRAIN[kind];
+        if (drain) this.spend(mon, drain);
+        if (kind === 'leech-seed') foe.restore(state.source, drain);
+        if (--state.snaps <= 0) delete current[kind];
+      }
     }
 
     finishPlay(lineup, play, participants) {
@@ -74,6 +149,8 @@
     substitute(role, first, second) {
       const slots = POSITIONS.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.code === role);
       if (!slots[first] || !slots[second] || first === second) throw new RangeError('Choose two different depth slots');
+      const trapped = [first, second].find((index) => this.has(this.players[slots[index].index], 'trap'));
+      if (trapped !== undefined) throw new RangeError(`${this.players[slots[trapped].index].name} is trapped`);
       const a = slots[first].index;
       const b = slots[second].index;
       [this.players[a], this.players[b]] = [this.players[b], this.players[a]];
@@ -83,12 +160,16 @@
       const active = this.lineup(side, play);
       const activeIds = new Set(active.map((slot) => slot.mon.id));
       for (const slot of active) {
-        if (this.energy(slot.mon) >= Roster.FATIGUE_THRESHOLD) continue;
+        if (this.has(slot.mon, 'trap')) continue;
+        if (this.energy(slot.mon) >= Roster.FATIGUE_THRESHOLD && this.penalty(slot.mon) === 0) continue;
         const bench = POSITIONS.map((position) => ({
           ...position,
           mon: this.player(position.code, position.depth - 1),
         }))
-          .filter((candidate) => candidate.code === slot.role && !activeIds.has(candidate.mon.id))
+          .filter(
+            (candidate) =>
+              candidate.code === slot.role && !activeIds.has(candidate.mon.id) && !this.has(candidate.mon, 'trap'),
+          )
           .sort((a, b) => this.effectiveRating(b.mon, b.code) - this.effectiveRating(a.mon, a.code));
         if (!bench.length || this.effectiveRating(bench[0].mon, slot.role) <= this.effectiveRating(slot.mon, slot.role))
           continue;

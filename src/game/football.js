@@ -9,7 +9,19 @@
   class FootballGame {
     static TEMPOS = { normal: 15, hurry: 3, chew: 30 };
     static ABILITY_CHARGES = 2;
-    static MOVE_FAMILIES = ['strike'];
+    static MOVE_FAMILIES = ['strike', 'ailment', 'stat', 'heal'];
+    static HEAL = 50;
+    static CONFUSION_CHANCE = 1 / 3;
+    static AILMENT_NOTES = {
+      paralysis: 'is paralyzed',
+      sleep: 'fell asleep',
+      freeze: 'was frozen solid',
+      burn: 'was burned',
+      poison: 'was poisoned',
+      confusion: 'became confused',
+      trap: 'was trapped',
+      'leech-seed': 'was seeded',
+    };
     static MOVE_MIN_STAMINA = 20;
     static CPU_MOVE_CHANCE = 0.4;
     static CRIT_CHANCE = 0.25;
@@ -549,6 +561,11 @@
         attack.recover(6);
         defend.recover(6);
       }
+      const before = this.badgeMap(result.participants, attack, defend);
+      attack.tick(defend);
+      defend.tick(attack);
+      this.settleMoves(result.moves ?? []);
+      result.statuses = { before, after: this.badgeMap(result.participants, attack, defend) };
       this.history.push({ side: prior.side, id: offense.id, kind: offense.kind, defenseId: defense.id });
       this.clockRunning = this.isInBounds(offense, result, options) && this.drive === prior.drive;
       this.finishClock(prior, result);
@@ -560,6 +577,16 @@
       if (result.explanation) this.log.splice(1, 0, result.explanation);
       this.log.splice(1, 0, ...(result.moves ?? []).map((record) => this.moveLine(record)));
       this.phase = null;
+    }
+
+    // Offensive roles read the attacking roster and defensive roles the defending one; a Pokémon can sit on both teams.
+    badgeMap(participants, attack, defend) {
+      return {
+        carrier: attack.badges(participants.carrier),
+        support: attack.badges(participants.support),
+        defender: defend.badges(participants.defender),
+        help: defend.badges(participants.help),
+      };
     }
 
     finishClock(prior, result) {
@@ -637,6 +664,7 @@
         options.lane || 'middle',
         abilities,
         this.rollMoves(),
+        this.rollConfusion(offense, defense),
       );
       const scheme = this.matchupScore(offense, defense);
       const odds = matchup.chances(scheme);
@@ -646,7 +674,6 @@
           : this.resolvePass(offense, matchup, odds, scheme, options);
       result.participants = matchup.participants(result);
       result.moves = matchup.moveRecords;
-      this.settleMoves(result.moves);
       result.explanation = matchup.explanation();
       result.matchup = { protection: matchup.protection, separation: matchup.separation, tackle: matchup.tackle, odds };
       return result;
@@ -664,26 +691,82 @@
         const { accuracy, meta } = MoveBook.get(pick.move);
         const hit = accuracy === null || this.random() * 100 < accuracy;
         const crit = meta.crit_rate > 0 && this.random() < FootballGame.CRIT_CHANCE;
-        entries[key] = { ...pick, hit, crit };
+        const chance = hit ? MoveBook.secondary(pick.move)?.chance : undefined;
+        const secondary = chance !== undefined && this.random() * 100 < Math.min(100, chance * 2);
+        entries[key] = { ...pick, hit, crit, secondary };
       }
       return entries;
     }
 
+    // A confused player stumbles one snap in three; the roll happens here so the matchup stays a pure function.
+    rollConfusion(offense, defense) {
+      const stumbles = new Set();
+      for (const [side, kind, play] of [
+        [this.possession, 'offense', offense],
+        [this.opponent(), 'defense', defense],
+      ]) {
+        const roster = this.rosters[side];
+        for (const slot of roster.lineup(kind, play)) {
+          if (roster.has(slot.mon, 'confusion') && this.random() < FootballGame.CONFUSION_CHANCE)
+            stumbles.add(slot.mon.id);
+        }
+      }
+      return stumbles;
+    }
+
+    // Effects land after this snap's conditions count down, so a new condition lasts its full duration.
     settleMoves(records) {
       for (const record of records) {
-        const drain = MoveBook.get(record.move).meta.drain;
-        if (!record.hit || !record.value || !drain) continue;
-        const roster = this.rosters[record.side];
-        if (drain < 0) roster.spend(record.actor, Math.round(record.value / 4));
-        else roster.restore(record.actor, Math.round(record.value / 2));
+        if (!record.hit) continue;
+        this.settleStamina(record);
+        const strike = MoveBook.family(record.move) === 'strike';
+        for (const effect of MoveBook.effects(record.move)) {
+          if (!strike || record.secondary) this.applyEffect(record, effect);
+        }
       }
+    }
+
+    settleStamina(record) {
+      const drain = MoveBook.get(record.move).meta.drain;
+      if (!record.value || !drain) return;
+      const roster = this.rosters[record.side];
+      if (drain < 0) roster.spend(record.actor, Math.round(record.value / 4));
+      else roster.restore(record.actor, Math.round(record.value / 2));
+    }
+
+    applyEffect(record, effect) {
+      if (effect.kind === 'heal') {
+        this.rosters[record.side].restore(record.actor, FootballGame.HEAL);
+        record.notes.push(`${record.actor.name} regained stamina.`);
+      } else if (effect.kind === 'ailment') this.afflict(record, effect);
+      else this.shiftStats(record, effect);
+    }
+
+    afflict(record, effect) {
+      if (record.effectiveness === 0) return;
+      const foe = this.rosters[this.opponent(record.side)];
+      const extra = effect.ailment === 'leech-seed' ? { source: record.actor } : { severe: effect.severe };
+      const note = foe.afflict(record.target, effect.ailment, extra)
+        ? `${record.target.name} ${FootballGame.AILMENT_NOTES[effect.ailment]}.`
+        : 'But it failed!';
+      record.notes.push(note);
+    }
+
+    shiftStats(record, effect) {
+      if (!effect.self && record.effectiveness === 0) return;
+      const mon = effect.self ? record.actor : record.target;
+      const roster = this.rosters[effect.self ? record.side : this.opponent(record.side)];
+      for (const { stat, change } of effect.changes) roster.shift(mon, stat, change);
+      const stats = effect.changes.map(({ stat }) => stat.replace('_', ' ')).join(' and ');
+      const rose = effect.changes.reduce((sum, entry) => sum + entry.change, 0) > 0;
+      record.notes.push(`${mon.name}'s ${stats} ${rose ? 'rose' : 'fell'}!`);
     }
 
     moveLine(record) {
       const move = MoveBook.get(record.move).display_name;
       if (!record.hit) return `${record.actor.name}'s ${move} missed!`;
       const note = MoveBook.callout(record.effectiveness, record.target.name);
-      return `${record.actor.name} used ${move}!${note ? ` ${note}` : ''}`;
+      return [`${record.actor.name} used ${move}!`, note, ...record.notes].filter(Boolean).join(' ');
     }
 
     resolveRun(offense, matchup, odds, scheme, options) {

@@ -70,7 +70,8 @@
       const name = MoveBook.get(this.move.move).display_name;
       const detail = `${this.featured.lead.name} vs ${this.featured.stopper.name}`;
       if (progress < BattleMotion.CONTACT) return { round: 'MOVE', title: `${actor.name} used ${name}!`, detail };
-      const title = hit ? MoveBook.callout(effectiveness, target.name) || this.impact : `${name} missed!`;
+      const note = MoveBook.callout(effectiveness, target.name) || this.move.notes[0] || this.impact;
+      const title = hit ? note : `${name} missed!`;
       return { round: 'MOVE', title, detail };
     }
 
@@ -82,15 +83,35 @@
       const find = (mon, fallback) => Math.max(0, slots.indexOf(mon.id) < 0 ? fallback : slots.indexOf(mon.id));
       const from = actors[find(actor, offense ? 0 : 2)];
       const to = actors[find(target, offense ? 2 : 0)];
-      const strike = MoveBook.get(this.move.move);
-      return {
-        kind: strike.damage_class === 'special' ? 'beam' : 'lunge',
-        type: strike.type,
-        from: { x: from.x, y: from.y - 8 },
-        to: hit ? { x: to.x, y: to.y - 8 } : { x: to.x + 12, y: -20 },
+      const entry = MoveBook.get(this.move.move);
+      const family = MoveBook.family(this.move.move);
+      const base = {
+        type: entry.type,
         t: BattleMotion.ease(BattleMotion.interval(progress, BattleMotion.CUE_START, BattleMotion.CUE_END)),
         missed: !hit,
       };
+      const at = (actor) => ({ x: actor.x, y: actor.y - 8 });
+      if (family === 'strike')
+        return {
+          ...base,
+          kind: entry.damage_class === 'special' ? 'beam' : 'lunge',
+          from: at(from),
+          to: hit ? at(to) : { x: to.x + 12, y: -20 },
+        };
+      return hit ? { ...base, ...this.effectCue(family, at(from), at(to)) } : null;
+    }
+
+    // Ailments settle on the opponent, stat changes rise over the user or fall over the opponent, and heals rise from the user.
+    effectCue(family, user, opponent) {
+      const self = family === 'heal' || (family === 'stat' && MoveBook.statEffect(this.move.move).self);
+      const spot = self ? user : opponent;
+      const rise = self ? -12 : 12;
+      if (family === 'ailment') {
+        const ailment = MoveBook.effects(this.move.move)[0].ailment;
+        return { kind: 'aura', from: spot, to: spot, label: MoveBook.BADGES[ailment] ?? ailment.toUpperCase() };
+      }
+      const label = family === 'heal' ? '✦ ✦ ✦' : self ? '▲▲▲' : '▼▼▼';
+      return { kind: family === 'heal' ? 'sparkle' : 'arrows', from: spot, to: { x: spot.x, y: spot.y + rise }, label };
     }
 
     caption(progress) {

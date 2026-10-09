@@ -310,6 +310,13 @@
         : 'One ability per call. Both teams have two shared charges each half.';
     }
 
+    badges(roster, mon) {
+      return roster
+        .badges(mon)
+        .map((badge) => `<em class="status-badge">${badge}</em>`)
+        .join('');
+    }
+
     renderMoves(play) {
       const active = this.game.phase?.moves.home;
       this.el('moveBudget').textContent = active
@@ -321,7 +328,7 @@
           .map(({ actor, move, pp }) => {
             const entry = MoveBook.get(move);
             const chosen = active?.actor.id === actor.id && active.move === move;
-            return `<button type="button" class="ability-button move-button ${chosen ? 'active' : ''}" data-actor="${actor.id}" data-move="${move}" ${active ? 'disabled' : ''}><b>${entry.display_name} · ${actor.name}</b><span>${entry.type.toUpperCase()} ${entry.power ?? '—'} · ${pp}/${MoveBook.uses(move)} PP</span></button>`;
+            return `<button type="button" class="ability-button move-button ${chosen ? 'active' : ''}" data-actor="${actor.id}" data-move="${move}" ${active ? 'disabled' : ''}><b>${entry.display_name} · ${actor.name}</b><span>${entry.type.toUpperCase()} ${entry.power ?? MoveBook.family(move).toUpperCase()} · ${pp}/${MoveBook.uses(move)} PP</span></button>`;
           })
           .join('') || '<p>No move is available for this call. Players need 20 stamina and PP.</p>';
     }
@@ -344,7 +351,7 @@
       );
       this.el('staminaList').innerHTML = POSITIONS.map((slot, index) => {
         const mon = roster.players[index];
-        return `<div class="stamina-player ${active.has(mon.id) ? 'on-field' : ''}"><span>${slot.code}${slot.depth} · ${mon.name}</span><span>${roster.effectiveRating(mon, slot.code)} FIT · ${roster.energy(mon)} STA${active.has(mon.id) ? ' · ON FIELD' : ' · BENCH'}</span></div>`;
+        return `<div class="stamina-player ${active.has(mon.id) ? 'on-field' : ''}"><span>${slot.code}${slot.depth} · ${mon.name}${this.badges(roster, mon)}</span><span>${roster.effectiveRating(mon, slot.code)} FIT · ${roster.energy(mon)} STA${active.has(mon.id) ? ' · ON FIELD' : ' · BENCH'}</span></div>`;
       }).join('');
     }
 
@@ -817,7 +824,7 @@
           const room = unit.dx < 0 ? x - FootballField.START : FootballField.END - x;
           const left = x + unit.dx * Math.min(1, room / 22);
           const label = `${unit.role}${unit.depth}`;
-          return `<div class="field-player ${unit.side}" data-role="${unit.role}" style="left:${left}%;top:${unit.y}%" title="${unit.mon.name} · ${label}">${SpriteArt.frame(unit.mon)}<small>${label}</small></div>`;
+          return `<div class="field-player ${unit.side}" data-role="${unit.role}" style="left:${left}%;top:${unit.y}%" title="${unit.mon.name} · ${label}">${SpriteArt.frame(unit.mon)}<small>${label}</small>${this.badges(game.rosters[unit.side === 'off' ? game.possession : game.opponent()], unit.mon)}</div>`;
         })
         .join('');
     }

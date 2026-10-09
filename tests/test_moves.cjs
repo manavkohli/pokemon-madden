@@ -27,7 +27,21 @@ class Moves {
       roster.players = roster.players.map((mon) => ({
         ...mon,
         types: ['Normal'],
-        moves: ['thunderbolt', 'thunder', 'tackle', 'surf'],
+        moves: [
+          'thunderbolt',
+          'thunder',
+          'tackle',
+          'surf',
+          'thunder-wave',
+          'agility',
+          'recover',
+          'growl',
+          'toxic',
+          'leech-seed',
+          'confuse-ray',
+          'sleep-powder',
+          'double-team',
+        ],
         base_stats: { hp: 80, attack: 80, defense: 80, special_attack: 80, special_defense: 80, speed: 80, total: 480 },
       }));
       return roster;
@@ -35,7 +49,13 @@ class Moves {
     return new FootballGame(...teams, 300, random);
   }
 
+  static learn(game, side, mon, names) {
+    game.rosters[side].setMoveset(mon, names);
+  }
+
   static pick(game, side, mon, move, play) {
+    const roster = game.rosters[side];
+    if (!roster.moveset(mon).includes(move)) roster.setMoveset(mon, [...roster.moveset(mon).slice(0, 3), move]);
     game.prepareCall(side === game.possession ? play : Moves.offense());
     return game.activateMove(side, mon.id, move, play);
   }
@@ -365,6 +385,164 @@ describe('Roster move validation', () => {
   });
 });
 
+describe('Conditions, stat stages, and heals', () => {
+  test('paralysis lasts four of the team snaps, bench included, and a second major ailment is refused', () => {
+    const [home, away] = [Moves.game().rosters.home, Moves.game().rosters.away];
+    const bench = home.player('RB', 1);
+    assert.equal(home.afflict(bench, 'paralysis'), true);
+    assert.equal(home.afflict(bench, 'burn'), false);
+    assert.equal(home.has(bench, 'paralysis'), true);
+    assert.equal(home.has(bench, 'burn'), false);
+    assert.equal(home.afflict(bench, 'confusion'), true);
+    for (let snap = 1; snap <= 4; snap++) {
+      assert.equal(home.has(bench, 'paralysis'), true, `snap ${snap}`);
+      home.tick(away);
+    }
+    assert.equal(home.has(bench, 'paralysis'), false);
+    assert.equal(home.has(bench, 'confusion'), false);
+  });
+
+  test('sleep costs 40 rating, paralysis cuts speed skill by a quarter, and auto-rotation benches a sleeper', () => {
+    const game = Moves.game();
+    const roster = game.rosters.home;
+    const starter = roster.player('RB');
+    const backup = roster.player('RB', 1);
+    const rating = roster.effectiveRating(starter, 'RB');
+    const speed = roster.skill(starter, 'speed');
+    roster.afflict(starter, 'paralysis');
+    assert.ok(Math.abs(roster.skill(starter, 'speed') - speed * 0.75) < 1);
+    const sleeper = roster.player('RB', 0);
+    roster.conditions.clear();
+    roster.afflict(sleeper, 'sleep');
+    assert.equal(roster.effectiveRating(sleeper, 'RB'), rating - 40);
+    roster.rotate('offense', Moves.offense());
+    assert.equal(roster.player('RB').id, backup.id);
+  });
+
+  test('burn and poison drain stamina, Toxic drains more, and Leech Seed feeds the opposing user', () => {
+    const game = Moves.game();
+    const [home, away] = [game.rosters.home, game.rosters.away];
+    const [burned, poisoned, toxic, seeded] = ['QB', 'RB', 'WR', 'TE'].map((role) => home.player(role));
+    const seeder = away.player('DL');
+    home.afflict(burned, 'burn');
+    home.afflict(poisoned, 'poison');
+    home.afflict(toxic, 'poison', { severe: true });
+    home.afflict(seeded, 'leech-seed', { source: seeder });
+    away.spend(seeder, 50);
+    home.tick(away);
+    assert.deepEqual(
+      [burned, poisoned, toxic, seeded].map((mon) => home.energy(mon)),
+      [97, 95, 92, 96],
+    );
+    assert.equal(away.energy(seeder), 54);
+    assert.equal(home.skill(burned, 'attack') < new Roster(data, []).skill(burned, 'attack'), true);
+  });
+
+  test('a trapped player cannot be substituted out', () => {
+    const roster = Moves.game().rosters.home;
+    roster.afflict(roster.player('RB'), 'trap');
+    assert.throws(() => roster.substitute('RB', 0, 1), /trapped/);
+    roster.rotate('offense', Moves.offense());
+    assert.equal(roster.player('RB').id, roster.players[POSITIONS.findIndex((slot) => slot.code === 'RB')].id);
+  });
+
+  test('stat stages cap at plus or minus two and expire after three team snaps', () => {
+    const [home, away] = [Moves.game().rosters.home, Moves.game().rosters.away];
+    const mon = home.player('WR');
+    for (let index = 0; index < 4; index++) home.shift(mon, 'speed', 1);
+    assert.equal(home.stage(mon, 'speed'), 2);
+    for (let index = 0; index < 6; index++) home.shift(mon, 'speed', -1);
+    assert.equal(home.stage(mon, 'speed'), -2);
+    for (let snap = 0; snap < 3; snap++) home.tick(away);
+    assert.equal(home.stage(mon, 'speed'), 0);
+  });
+
+  test('a stage moves its contest by six points and accuracy stages move completion odds', () => {
+    const game = Moves.game();
+    const pass = [game.rosters.home, game.rosters.away, Moves.offense('quick-slant'), Moves.defense(), 'middle', {}];
+    const base = new PlayMatchup(...pass);
+    game.rosters.home.shift(base.carrier, 'speed', 2);
+    assert.equal(new PlayMatchup(...pass).separation, base.separation + 12);
+    game.rosters.home.shift(base.passer, 'accuracy', -2);
+    const slowed = new PlayMatchup(...pass);
+    assert.equal(slowed.accuracyShift, -0.08);
+    assert.ok(Math.abs(slowed.chances(0).completion - (base.chances(0).completion + 12 * 0.004 - 0.08)) < 1e-9);
+    game.rosters.away.shift(base.marker.mon, 'speed', 2);
+    assert.equal(new PlayMatchup(...pass).separation, base.separation);
+  });
+
+  test('a confused player stumbles for 15 points when the roll lands', () => {
+    const game = Moves.game(() => 0);
+    const rb = game.rosters.home.player('RB');
+    game.rosters.home.afflict(rb, 'confusion');
+    const stumbles = game.rollConfusion(Moves.offense(), Moves.defense());
+    assert.deepEqual([...stumbles], [rb.id]);
+    const args = [game.rosters.home, game.rosters.away, Moves.offense(), Moves.defense(), 'middle', {}, {}];
+    assert.equal(new PlayMatchup(...args, stumbles).tackle, new PlayMatchup(...args).tackle - 15);
+    assert.equal(Moves.game(() => 0.5).rollConfusion(Moves.offense(), Moves.defense()).size, 0);
+  });
+
+  test('Thunder Wave paralyzes the opposing player after the snap and logs it', () => {
+    const game = Moves.game();
+    const rb = game.rosters.home.player('RB');
+    Moves.learn(game, 'home', rb, ['thunder-wave']);
+    Moves.pick(game, 'home', rb, 'thunder-wave', Moves.offense());
+    const result = game.snap(game.phase.offense, game.phase.defense);
+    const target = result.moves[0].target;
+    assert.equal(game.rosters.away.has(target, 'paralysis'), true);
+    assert.ok(game.log.some((line) => line.includes(`${target.name} is paralyzed.`)));
+    assert.deepEqual(result.statuses.before.defender, []);
+  });
+
+  test('Thunder Wave fails against an already afflicted target and into a Ground type', () => {
+    const game = Moves.game();
+    const rb = game.rosters.home.player('RB');
+    rb.types = ['Electric'];
+    Moves.learn(game, 'home', rb, ['thunder-wave']);
+    const probe = new PlayMatchup(game.rosters.home, game.rosters.away, Moves.offense(), Moves.defense());
+    game.rosters.away.afflict(probe.tackler.mon, 'burn');
+    Moves.pick(game, 'home', rb, 'thunder-wave', Moves.offense());
+    const result = game.snap(game.phase.offense, game.phase.defense);
+    assert.equal(game.rosters.away.has(result.moves[0].target, 'paralysis'), false);
+    assert.ok(game.log.some((line) => line.includes('But it failed!')));
+    const ground = Moves.game();
+    const runner = ground.rosters.home.player('RB');
+    runner.types = ['Electric'];
+    for (const mon of ground.rosters.away.players) mon.types = ['Ground'];
+    Moves.learn(ground, 'home', runner, ['thunder-wave']);
+    Moves.pick(ground, 'home', runner, 'thunder-wave', Moves.offense());
+    const immune = ground.snap(ground.phase.offense, ground.phase.defense);
+    assert.equal(ground.rosters.away.has(immune.moves[0].target, 'paralysis'), false);
+  });
+
+  test('a strike secondary rolls at twice its chance and Agility and Recover change the user', () => {
+    const lucky = Moves.game(() => 0);
+    const rb = lucky.rosters.home.player('RB');
+    Moves.learn(lucky, 'home', rb, ['thunderbolt']);
+    Moves.pick(lucky, 'home', rb, 'thunderbolt', Moves.offense());
+    const hit = lucky.snap(lucky.phase.offense, lucky.phase.defense);
+    assert.equal(lucky.rosters.away.has(hit.moves[0].target, 'paralysis'), true);
+    const unlucky = Moves.game(() => 0.5);
+    const runner = unlucky.rosters.home.player('RB');
+    Moves.learn(unlucky, 'home', runner, ['thunderbolt']);
+    Moves.pick(unlucky, 'home', runner, 'thunderbolt', Moves.offense());
+    const miss = unlucky.snap(unlucky.phase.offense, unlucky.phase.defense);
+    assert.equal(unlucky.rosters.away.has(miss.moves[0].target, 'paralysis'), false);
+    const boost = Moves.game();
+    const wr = boost.rosters.home.player('RB');
+    Moves.learn(boost, 'home', wr, ['agility', 'recover']);
+    Moves.pick(boost, 'home', wr, 'agility', Moves.offense());
+    boost.snap(boost.phase.offense, boost.phase.defense);
+    assert.equal(boost.rosters.home.stage(wr, 'speed'), 2);
+    boost.rosters.home.spend(wr, 60);
+    boost.prepareCall(Moves.offense());
+    boost.activateMove('home', wr.id, 'recover', Moves.offense());
+    const before = boost.rosters.home.energy(wr);
+    boost.snap(boost.phase.offense, boost.phase.defense);
+    assert.ok(boost.rosters.home.energy(wr) > before + 30);
+  });
+});
+
 describe('Move cues', () => {
   test('the cue plays between 0.22 and 0.5, veers off on a miss, and the caption names the move', () => {
     for (const [move, random, missed] of [
@@ -387,6 +565,26 @@ describe('Move cues', () => {
       assert.equal(motion.sample(0.3).caption.round, 'MOVE');
       assert.match(motion.sample(0.6).caption.title, missed ? /missed!/ : /^(?!.*missed)/);
       assert.equal(motion.moveType, 'Electric');
+    }
+  });
+
+  test('status, stat, and heal moves draw aura, arrows, and sparkle cues', () => {
+    for (const [move, kind, label] of [
+      ['thunder-wave', 'aura', 'PAR'],
+      ['growl', 'arrows', '▼▼▼'],
+      ['agility', 'arrows', '▲▲▲'],
+      ['recover', 'sparkle', '✦ ✦ ✦'],
+    ]) {
+      const game = Moves.game();
+      const rb = game.rosters.home.player('RB');
+      Moves.learn(game, 'home', rb, [move]);
+      Moves.pick(game, 'home', rb, move, Moves.offense());
+      const result = game.snap(game.phase.offense, game.phase.defense);
+      const { carrier, support, defender, help } = result.participants;
+      const motion = new BattleMotion(Moves.offense(), result, { lead: carrier, support, stopper: defender, help });
+      const cue = motion.sample(0.4).cue;
+      assert.equal(cue.kind, kind, move);
+      assert.equal(cue.label, label, move);
     }
   });
 

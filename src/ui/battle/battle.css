@@ -314,6 +314,51 @@
   height: 46px;
   border-radius: 38%;
 }
+.battle-cue.aura {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: transparent;
+  border-width: 4px;
+  border-color: var(--move-color, #fff8d8);
+  color: #fff8d8;
+  text-shadow: 1px 1px #263d30;
+  font: 8px var(--pixel);
+}
+.battle-cue.arrows,
+.battle-cue.sparkle {
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  color: #d3f08c;
+  text-shadow: 2px 2px #263d30;
+  font: 16px var(--pixel);
+  white-space: nowrap;
+}
+.battle-cue.sparkle {
+  color: #7cd37c;
+}
+.battle-fighter .status-badge {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 2px 4px;
+  color: #fff;
+  background: #7b4a8c;
+  border: 1px solid #fff0bd;
+  font: 6px var(--pixel);
+  white-space: nowrap;
+}
+.battle-fighter .status-badge:empty {
+  display: none;
+}
 .reduced-motion .battle-cue {
   display: none;
 }

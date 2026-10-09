@@ -20,7 +20,8 @@
     };
     // Ranks a non-strike move against a strike's power so a default moveset can mix both.
     static STATUS_RANK = { ailment: 50, stat: 45, heal: 40, field: 35, protect: 30, switch: 20, ohko: 10 };
-    static STAT_KEYS = { physical: 'attack', special: 'special_attack' };
+    static STAT_KEYS = { physical: 'attack', special: 'special_attack', status: 'attack' };
+    static BADGES = { paralysis: 'PAR', sleep: 'SLP', freeze: 'FRZ', burn: 'BRN', poison: 'PSN', confusion: 'CNF' };
     static STRIKE_CAP = 30;
     static PRIORITY_BONUS = 8;
     static NO_POWER = 60;
@@ -75,14 +76,34 @@
       return mon.types.includes(MoveBook.get(name).type);
     }
 
+    // A positive net change raises the user; a negative net change lowers the opponent.
+    static statEffect(name, chance = null) {
+      const changes = MoveBook.get(name).stat_changes.map(({ stat, change }) => ({
+        stat: stat.replace('-', '_'),
+        change,
+      }));
+      return { kind: 'stat', changes, self: changes.reduce((sum, entry) => sum + entry.change, 0) > 0, chance };
+    }
+
     // The effect a strike adds on top of its damage: an ailment or a stat change that rolls when the strike hits.
     static secondary(name) {
       const { meta, stat_changes: changes } = MoveBook.get(name);
       if (MoveBook.family(name) !== 'strike') return null;
       if (MoveBook.MODELED_AILMENTS.includes(meta.ailment))
         return { kind: 'ailment', ailment: meta.ailment, chance: meta.ailment_chance };
-      if (changes.length && meta.stat_chance) return { kind: 'stat', changes, chance: meta.stat_chance };
-      return null;
+      return changes.length && meta.stat_chance ? MoveBook.statEffect(name, meta.stat_chance) : null;
+    }
+
+    // Everything a hit applies besides contest points; Swagger confuses and raises the opponent's attack.
+    static effects(name) {
+      const family = MoveBook.family(name);
+      const { meta, stat_changes: changes } = MoveBook.get(name);
+      if (family === 'strike') return [MoveBook.secondary(name)].filter(Boolean);
+      if (family === 'heal') return [{ kind: 'heal' }];
+      if (family === 'stat') return [MoveBook.statEffect(name)];
+      if (family !== 'ailment') return [];
+      const ailment = { kind: 'ailment', ailment: meta.ailment, severe: name === 'toxic' };
+      return changes.length ? [ailment, { ...MoveBook.statEffect(name), self: false }] : [ailment];
     }
 
     // Contest points a strike adds to the actor's margin; type immunity zeroes it, including priority.
