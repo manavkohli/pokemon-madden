@@ -1392,7 +1392,13 @@ describe('Seventh review fixes', () => {
 
   test('a snap with no prepared call still seats a benched player', () => {
     const { match, home, te1 } = roared();
-    match.snap(Moves.offense('power-run'), Moves.defense());
+    const energy = home.energy(te1);
+    const result = match.snap(Moves.offense('power-run'), Moves.defense());
+    assert.equal(
+      Object.values(result.participants).some((mon) => mon.id === te1.id),
+      false,
+    );
+    assert.equal(home.energy(te1) >= energy, true);
     assert.equal(home.player('TE', 0).id === te1.id || home.player('TE', 1).id === te1.id, false);
   });
 

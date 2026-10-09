@@ -243,11 +243,10 @@
       if (this.autoRotate[side]) this.rotateUnit(side, kind, play);
     }
 
-    seatUnits(offense, defense) {
-      for (const side of ['home', 'away']) {
-        const kind = side === this.possession ? 'offense' : 'defense';
-        this.rosters[side].seatBenched(kind, kind === 'offense' ? offense : defense);
-      }
+    // A snap with no prepared call skipped the call-time seating and rotation, so it gets the same step.
+    settleUnprepared(offense, defense) {
+      if (this.phase) return;
+      for (const side of ['home', 'away']) this.rotateTeam(side, offense, defense);
     }
 
     setAutoRotate(side, enabled) {
@@ -297,7 +296,7 @@
       this.changeUnit(side, kind, play, () => this.rosters[side].rotate(kind, play));
     }
 
-    // Every depth-chart change (manual swap, rotation, Roar) runs here so Spikes charge each entrant once.
+    // Manual swaps, rotation, and Roar run here so Spikes charge each entrant once; seating a benched player is exempt.
     changeUnit(side, kind, play, change) {
       const roster = this.rosters[side];
       if (!this.field[side].spikes) return change();
@@ -570,8 +569,8 @@
     snap(offense, defense, options = {}) {
       if (this.over) throw new Error('The game has ended.');
       this.validateSnap(offense, defense, options);
-      this.seatUnits(offense, defense);
       const resolved = this.resolveOffense(offense, options);
+      this.settleUnprepared(resolved, defense);
       const prior = {
         side: this.possession,
         drive: this.drive,
