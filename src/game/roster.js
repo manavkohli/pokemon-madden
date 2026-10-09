@@ -149,8 +149,12 @@
     substitute(role, first, second) {
       const slots = POSITIONS.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.code === role);
       if (!slots[first] || !slots[second] || first === second) throw new RangeError('Choose two different depth slots');
-      const benched = [first, second].find((index) => this.has(this.players[slots[index].index], 'benched'));
-      if (benched !== undefined) throw new RangeError(`${this.players[slots[benched].index].name} is benched`);
+      // A benched player may move down the depth chart but never up toward the field.
+      const rising = [
+        [first, second],
+        [second, first],
+      ].find(([from, to]) => to < from && this.has(this.players[slots[from].index], 'benched'));
+      if (rising) throw new RangeError(`${this.players[slots[rising[0]].index].name} is benched`);
       const trapped = [first, second].find((index) => this.has(this.players[slots[index].index], 'trap'));
       if (trapped !== undefined) throw new RangeError(`${this.players[slots[trapped].index].name} is trapped`);
       const a = slots[first].index;
@@ -158,26 +162,44 @@
       [this.players[a], this.players[b]] = [this.players[b], this.players[a]];
     }
 
-    // Swaps the target with its best-rested same-role backup outside the unit and benches it; false when none exists.
-    sendToBench(mon, side, play) {
+    // The best-rested same-role player outside the unit who is free to enter it.
+    backupFor(mon, side, play) {
       const taken = new Set(this.lineup(side, play).map((entry) => entry.mon.id));
       const own = POSITIONS[this.players.indexOf(mon)];
-      const backup = POSITIONS.map((position, index) => ({ position, mon: this.players[index] }))
+      return POSITIONS.map((position, index) => ({ ...position, mon: this.players[index] }))
         .filter(
           (entry) =>
-            entry.position.code === own.code &&
+            entry.code === own.code &&
             !taken.has(entry.mon.id) &&
             !this.has(entry.mon, 'benched') &&
             !this.has(entry.mon, 'trap'),
         )
         .sort((a, b) => this.energy(b.mon) - this.energy(a.mon))[0];
-      if (!backup || this.has(mon, 'trap')) return false;
-      this.substitute(own.code, own.depth - 1, backup.position.depth - 1);
+    }
+
+    // Swaps the target with its backup and benches it; false when the target is trapped, benched, or has no backup.
+    sendToBench(mon, side, play) {
+      if (this.has(mon, 'trap') || this.has(mon, 'benched')) return false;
+      const backup = this.backupFor(mon, side, play);
+      if (!backup) return false;
+      this.substitute(backup.code, POSITIONS[this.players.indexOf(mon)].depth - 1, backup.depth - 1);
       return this.afflict(mon, 'benched');
     }
 
-    hasStages() {
-      return [...this.stages.values()].some((entries) => Object.keys(entries).length > 0);
+    // A bigger formation can reach a benched player's depth, so a free backup takes that slot before the snap.
+    seatBenched(side, play) {
+      for (const slot of this.lineup(side, play)) {
+        if (!this.has(slot.mon, 'benched')) continue;
+        const backup = this.backupFor(slot.mon, side, play);
+        if (backup) this.substitute(slot.role, slot.depth - 1, backup.depth - 1);
+      }
+    }
+
+    stageTotal() {
+      return [...this.stages.values()].reduce(
+        (sum, entries) => sum + Object.values(entries).reduce((total, entry) => total + entry.stage, 0),
+        0,
+      );
     }
 
     hasMajor(mon) {

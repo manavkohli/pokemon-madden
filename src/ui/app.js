@@ -599,12 +599,12 @@
     }
 
     playChoices() {
-      if (this.game.possession === 'away') return DEFENSE;
+      if (this.game.possession === 'away') return this.legalCalls();
       this.el('playbookSelect').querySelector('[value="special"]').disabled = this.game.down !== 4;
       if (this.game.down !== 4 && this.el('playbookSelect').value === 'special')
         this.el('playbookSelect').value = 'all';
       const group = this.el('playbookSelect').value;
-      return OFFENSE.filter((play) => (group === 'all' || play.group === group) && this.game.isLegalCall(play));
+      return this.legalCalls().filter((play) => group === 'all' || play.group === group);
     }
 
     beginCall() {

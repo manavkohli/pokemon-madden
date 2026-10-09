@@ -1164,6 +1164,7 @@ describe('Third review fixes', () => {
     const charges = { ...match.charges };
     const result = match.snap(match.phase.offense, match.phase.defense);
     assert.deepEqual(result.moves, []);
+    assert.equal(match.log.includes(`${dl.name} could not use Tackle.`), true);
     assert.equal(match.ppLeft('home', dl, 'tackle'), MoveBook.uses('tackle'));
     assert.deepEqual(match.charges, charges);
     assert.deepEqual(match.phase, null);
@@ -1291,5 +1292,66 @@ describe('Move cues', () => {
     const featured = { lead: carrier, support, stopper: defender, help };
     assert.equal(new BattleMotion(Moves.offense(), result, featured).sample(0.3).cue.kind, 'lunge');
     assert.equal(new BattleMotion(Moves.offense(), { ...result, moves: [] }, featured).sample(0.3).cue, null);
+  });
+});
+
+describe('Fifth review fixes', () => {
+  // Inside Zone fields one tight end, Power Run two, QB Sneak all three.
+  const roared = () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const te1 = home.player('TE', 0);
+    home.sendToBench(te1, 'offense', Moves.offense());
+    return { match, home, te1 };
+  };
+
+  test('a bigger formation seats a free backup in place of a benched tight end', () => {
+    const { home, te1 } = roared();
+    assert.equal(home.player('TE', 1).id, te1.id);
+    home.seatBenched('offense', Moves.offense('power-run'));
+    const unit = home.lineup('offense', Moves.offense('power-run')).map((slot) => slot.mon.id);
+    assert.equal(unit.includes(te1.id), false);
+    assert.equal(home.player('TE', 2).id, te1.id);
+  });
+
+  test('calling a bigger formation seats a benched player before the snap', () => {
+    const { match, te1 } = roared();
+    match.prepareCall(Moves.offense('power-run'));
+    const unit = match.rosters.home.lineup('offense', Moves.offense('power-run')).map((slot) => slot.mon.id);
+    assert.equal(unit.includes(te1.id), false);
+  });
+
+  test('a formation that needs every player at a position fields the benched one', () => {
+    const { home, te1 } = roared();
+    home.seatBenched('offense', Moves.offense('qb-sneak'));
+    const unit = home.lineup('offense', Moves.offense('qb-sneak')).map((slot) => slot.mon.id);
+    assert.equal(unit.includes(te1.id), true);
+  });
+
+  test('Roar on a benched player fails without throwing', () => {
+    const { home, te1 } = roared();
+    const order = home.players.map((mon) => mon.id);
+    assert.equal(home.sendToBench(te1, 'offense', Moves.offense('qb-sneak')), false);
+    assert.deepEqual(
+      home.players.map((mon) => mon.id),
+      order,
+    );
+  });
+
+  test('a benched player can move down the depth chart', () => {
+    const { home, te1 } = roared();
+    home.substitute('TE', 1, 2);
+    assert.equal(home.player('TE', 2).id, te1.id);
+  });
+
+  test('the CPU fires Haze only when the rival holds more stat stages', () => {
+    const match = Moves.game();
+    const [own, rival] = [match.rosters.away, match.rosters.home];
+    const rb = own.player('RB');
+    own.shift(rb, 'attack', 2);
+    assert.equal(match.cpuWants('away', { actor: rb, move: 'haze' }), false);
+    rival.shift(rival.player('RB'), 'attack', 2);
+    rival.shift(rival.player('QB'), 'speed', 1);
+    assert.equal(match.cpuWants('away', { actor: rb, move: 'haze' }), true);
   });
 });

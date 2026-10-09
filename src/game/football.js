@@ -233,9 +233,16 @@
     }
 
     rotateTeam(side, offense, defense) {
+      this.seatTeam(side, offense, defense);
       if (!this.autoRotate[side]) return;
       const attacking = side === this.possession;
       this.rotateUnit(side, attacking ? 'offense' : 'defense', attacking ? offense : defense);
+    }
+
+    seatTeam(side, offense, defense) {
+      const kind = side === this.possession ? 'offense' : 'defense';
+      const play = kind === 'offense' ? offense : defense;
+      this.changeUnit(side, kind, play, () => this.rosters[side].seatBenched(kind, play));
     }
 
     setAutoRotate(side, enabled) {
@@ -379,9 +386,15 @@
 
     // A punt, kick, spike, or kneel has no contest, so every pending pick drops without cost.
     dropDeadPicks() {
-      this.phase.moves = {};
-      for (const [side, ability] of Object.entries(this.phase.abilities))
-        if (!ability.paid) delete this.phase.abilities[side];
+      for (const key of ['moves', 'abilities'])
+        for (const side of Object.keys(this.phase[key])) if (!this.phase[key][side].paid) this.dropPick(key, side);
+    }
+
+    dropPick(key, side) {
+      const pick = this.phase[key][side];
+      delete this.phase[key][side];
+      const name = key === 'moves' ? MoveBook.get(pick.move).display_name : pick.name;
+      this.log.unshift(`${pick.actor.name} could not use ${name}.`);
     }
 
     // A call, target, or substitution changed after the pick can leave the actor without a legal role.
@@ -392,10 +405,7 @@
           const options = key === 'moves' ? this.availableMoves(side, play) : this.availableAbilities(side, play);
           const same = (entry) =>
             entry.actor.id === pick.actor.id && (entry.move ?? entry.id) === (pick.move ?? pick.id);
-          if (pick.paid || options.some(same)) continue;
-          delete this.phase[key][side];
-          const name = key === 'moves' ? MoveBook.get(pick.move).display_name : pick.name;
-          this.log.unshift(`${pick.actor.name} could not use ${name}.`);
+          if (!pick.paid && !options.some(same)) this.dropPick(key, side);
         }
       }
     }
@@ -482,7 +492,7 @@
       if (family !== 'field') return true;
       if (FootballGame.WEATHERS.includes(move)) return this.field.weather?.kind !== move;
       if (move === 'spikes') return !this.field[this.opponent(side)].spikes;
-      if (move === 'haze') return Object.values(this.rosters).some((roster) => roster.hasStages());
+      if (move === 'haze') return this.rosters[this.opponent(side)].stageTotal() > this.rosters[side].stageTotal();
       return !this.field[side][move];
     }
 
@@ -567,6 +577,7 @@
       const runoff = this.runoff(resolved, options.tempo || 'normal');
       if (runoff >= this.seconds) return this.expireBeforeSnap(resolved, defense, runoff);
       this.seconds -= runoff;
+      for (const side of ['home', 'away']) this.seatTeam(side, resolved, defense);
       if (this.phase) this.commitChoices(resolved, defense);
       const result = this.resolvePlay(resolved, defense, options);
       result.moves ??= [];
