@@ -351,6 +351,20 @@ describe('Strikes on the field', () => {
   });
 });
 
+describe('Roster move validation', () => {
+  test('a roster rejects an unlearnable move, a fifth move, and a repeat', () => {
+    const roster = Moves.roster();
+    const mon = Moves.mon('Pikachu');
+    roster.assign(0, mon);
+    const learnable = MoveBook.learnable(mon);
+    assert.throws(() => roster.setMoveset(mon, ['hydro-pump']), /cannot learn/);
+    assert.throws(() => roster.setMoveset(mon, learnable.slice(0, 5)), /at most four/);
+    assert.throws(() => roster.setMoveset(mon, [learnable[0], learnable[0]]), /repeat/);
+    roster.setMoveset(mon, learnable.slice(0, 4));
+    assert.deepEqual(roster.moveset(mon), learnable.slice(0, 4));
+  });
+});
+
 describe('Move cues', () => {
   test('the cue plays between 0.22 and 0.5, veers off on a miss, and the caption names the move', () => {
     for (const [move, random, missed] of [

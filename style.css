@@ -715,6 +715,29 @@ a:focus-visible {
 .stat-row strong {
   text-align: right;
 }
+.move-picker {
+  display: grid;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.move-pick {
+  text-align: left;
+  padding: 8px;
+  border: 1px solid var(--edge);
+  background: var(--panel2);
+  color: var(--ink);
+  cursor: pointer;
+}
+.move-pick.active {
+  border-color: var(--lime);
+  box-shadow: inset 3px 0 var(--lime);
+}
+.move-pick b,
+.move-pick span {
+  display: block;
+  font: 10px/1.5 var(--mono);
+}
 .detail-note {
   font-size: 9px;
   color: var(--muted);

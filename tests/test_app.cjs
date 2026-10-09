@@ -400,3 +400,38 @@ test('a MOVES button records a strike that the snap spends and reports', async (
     await harness.close();
   }
 });
+
+test('the draft detail panel lists learnable moves, swaps picks, and handles Magikarp and Ditto', async () => {
+  const harness = await AppHarness.create();
+  try {
+    const app = harness.app;
+    const show = (name, slot) => {
+      const mon = app.pokemon.find((entry) => entry.name === name);
+      app.home.assign(slot, mon);
+      app.selectedPokemon = mon;
+      app.renderDetail();
+      return mon;
+    };
+    const chosen = () => [...harness.document.querySelectorAll('[data-pick][aria-pressed="true"]')];
+    const pikachu = show('Pikachu', 0);
+    assert.equal(chosen().length, 4);
+    assert.ok(harness.document.querySelectorAll('[data-pick]').length > 4);
+    assert.ok(
+      [...harness.document.querySelectorAll('[data-pick]:not([aria-pressed="true"])')].every((b) => b.disabled),
+    );
+    chosen()[0].click();
+    assert.equal(app.home.moveset(pikachu).length, 3);
+    harness.document.querySelector('[data-pick]:not([aria-pressed="true"])').click();
+    assert.equal(app.home.moveset(pikachu).length, 4);
+    show('Magikarp', 1);
+    assert.equal(harness.document.querySelectorAll('[data-pick]').length, 2);
+    assert.equal(chosen().length, 2);
+    show('Ditto', 2);
+    assert.match(harness.element('playerDetail').textContent, /No moves/);
+    app.selectedPokemon = app.pokemon.find((entry) => entry.name === 'Mew');
+    app.renderDetail();
+    assert.ok([...harness.document.querySelectorAll('[data-pick]')].every((button) => button.disabled));
+  } finally {
+    await harness.close();
+  }
+});

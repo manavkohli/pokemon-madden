@@ -93,6 +93,10 @@
         this.renderDetail();
         this.showPanel('playerDetail');
       });
+      this.el('playerDetail').addEventListener('click', (event) => {
+        const pick = event.target.closest('[data-pick]');
+        if (pick && !pick.disabled) this.toggleMove(pick.dataset.pick);
+      });
       this.el('searchInput').addEventListener('input', () => this.renderCatalog());
       this.el('typeFilter').addEventListener('change', () => this.renderCatalog());
       this.el('sortSelect').addEventListener('change', () => this.renderCatalog());
@@ -454,6 +458,33 @@
         : '<p class="catalog-empty">No Pokémon match those filters.</p>';
     }
 
+    toggleMove(name) {
+      const mon = this.selectedPokemon;
+      const chosen = this.home.moveset(mon);
+      this.home.setMoveset(mon, chosen.includes(name) ? chosen.filter((entry) => entry !== name) : [...chosen, name]);
+      this.renderDetail();
+    }
+
+    renderMovePicker(mon) {
+      const learnable = MoveBook.learnable(mon);
+      if (!learnable.length) return '<div class="detail-label">MOVES</div><p class="detail-note">No moves</p>';
+      const onTeam = this.home.players.includes(mon);
+      const chosen = this.home.moveset(mon);
+      const full = chosen.length >= MoveBook.MOVESET_SIZE;
+      const rows = MoveBook.ranked(learnable, mon)
+        .map((name) => {
+          const move = MoveBook.get(name);
+          const picked = onTeam && chosen.includes(name);
+          const locked = !onTeam || (full && !picked);
+          return `<button type="button" class="move-pick ${picked ? 'active' : ''}" data-pick="${name}" aria-pressed="${picked}" ${locked ? 'disabled' : ''}><b>${move.display_name}</b><span>${move.type.toUpperCase()} · ${MoveBook.family(name).toUpperCase()} · PWR ${move.power ?? '—'} · ACC ${move.accuracy ?? '—'} · ${MoveBook.uses(name)} PP</span></button>`;
+        })
+        .join('');
+      const label = onTeam
+        ? `MOVES · ${chosen.length}/${MoveBook.MOVESET_SIZE} CHOSEN`
+        : 'LEARNABLE MOVES · ASSIGN TO CHOOSE';
+      return `<div class="detail-label">${label}</div><div class="move-picker">${rows}</div>`;
+    }
+
     renderDetail() {
       const mon = this.selectedPokemon;
       const position = POSITIONS[this.selectedSlot];
@@ -467,7 +498,7 @@
         ['SPEED', s.speed],
       ];
       this.el('playerDetail').innerHTML =
-        `<div class="detail-content"><div class="detail-hero">${SpriteArt.frame(mon, 'big')}<div><h3>${mon.name}</h3><p>#${String(mon.id).padStart(3, '0')} · ${mon.types.join(' / ')}</p></div></div><div class="detail-cost"><span>${position.code} FIT ${Roster.rating(mon, position.code)}</span><strong>${Roster.salary(mon)} CR</strong></div><div class="detail-label">BASE STATS · ${s.total} TOTAL</div>${stats.map(([name, value]) => `<div class="stat-row"><span>${name}</span><div class="stat-track"><i style="width:${Math.min(100, (value / 255) * 100)}%"></i></div><strong>${value}</strong></div>`).join('')}<p class="detail-note">Base stats are from Pokémon Database. Position fit and salary are Pokéballers game ratings.</p><button id="assignButton" class="button primary" type="button">Put at ${position.code}${position.depth} ▶</button></div>`;
+        `<div class="detail-content"><div class="detail-hero">${SpriteArt.frame(mon, 'big')}<div><h3>${mon.name}</h3><p>#${String(mon.id).padStart(3, '0')} · ${mon.types.join(' / ')}</p></div></div><div class="detail-cost"><span>${position.code} FIT ${Roster.rating(mon, position.code)}</span><strong>${Roster.salary(mon)} CR</strong></div><div class="detail-label">BASE STATS · ${s.total} TOTAL</div>${stats.map(([name, value]) => `<div class="stat-row"><span>${name}</span><div class="stat-track"><i style="width:${Math.min(100, (value / 255) * 100)}%"></i></div><strong>${value}</strong></div>`).join('')}${this.renderMovePicker(mon)}<p class="detail-note">Base stats are from Pokémon Database. Position fit and salary are Pokéballers game ratings.</p><button id="assignButton" class="button primary" type="button">Put at ${position.code}${position.depth} ▶</button></div>`;
       this.el('assignButton').addEventListener('click', () => {
         this.home.assign(this.selectedSlot, mon);
         this.renderDraft();
