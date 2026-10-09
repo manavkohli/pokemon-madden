@@ -45,7 +45,7 @@ Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset, chose
 
 `Roster` stores a moveset per player: up to four move ids from that player's learnable moves. Learnable moves are the learnset filtered to moves with a family. A Pokémon with fewer learnable moves carries all of them; Ditto and Smeargle carry none, and their draft card states "No moves".
 
-Every new player receives a default moveset, so `Roster.random()` teams and the CPU are complete without input. The default takes, in order: the strongest same-type (STAB) strike, the strongest strike of a different type, the best status or stat move, and the next-strongest remaining move. The draft detail panel lists every learnable move with its type, family, power, accuracy, and uses per game, and the coach swaps any of the four. Movesets survive a rematch and reset only when the player leaves the roster.
+Every new player receives a default moveset, so `Roster.random()` teams and the CPU are complete without input. The default takes the strongest same-type (STAB) strike, the strongest strike of a different type, and the best move from each of two different non-strike families. The Pokémon's highest base stat orders the families (`MoveBook.FAMILY_PREFERENCE`: HP favors heal and Protect, speed favors stat moves and status, and so on); missing families fall back to the next-strongest strikes. The draft detail panel lists every learnable move with its type, family, power, accuracy, and uses per game, and the coach swaps any of the four. Movesets survive a rematch and reset only when the player leaves the roster.
 
 ## Activation, PP, and accuracy
 

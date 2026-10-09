@@ -72,6 +72,7 @@ Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset. Befor
 - **Cost.** A move costs stamina (6, plus more for powerful strikes) and needs at least 20 stamina to fire.
 - **The user takes the contest.** Firing a move puts its user into the play: a defensive lineman becomes the rusher, a linebacker or defensive back becomes the cover man or tackler, and a lineman becomes the featured blocker.
 - **Accuracy.** A move can miss; a miss still costs its PP and stamina.
+- **Default set.** A player's default four moves are its best same-type strike, its best strike of another type, and one move from each of two non-strike families, chosen by its highest base stat (a high-HP player favors heal and Protect, a fast one stat moves).
 
 | Kind | Examples | Effect |
 | --- | --- | --- |

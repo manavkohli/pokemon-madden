@@ -189,6 +189,31 @@ describe('Roster movesets', () => {
     assert.deepEqual(MoveBook.defaultMoveset(Moves.mon('Ditto')), []);
   });
 
+  test('default slots 3 and 4 follow the highest base stat and never share a family', () => {
+    const families = (name) => MoveBook.defaultMoveset(Moves.mon(name)).map((move) => MoveBook.family(move));
+    assert.ok(families('Chansey').includes('heal'));
+    assert.ok(families('Jolteon').includes('stat'));
+    assert.ok(families('Electrode').includes('stat'));
+    assert.deepEqual(MoveBook.defaultMoveset(Moves.mon('Magikarp')), ['flail', 'tackle']);
+    for (const mon of data) {
+      const kinds = MoveBook.defaultMoveset(mon)
+        .map((move) => MoveBook.family(move))
+        .filter((family) => family !== 'strike');
+      const available = new Set(
+        MoveBook.learnable(mon)
+          .filter((move) => !MoveBook.SELF_FAINT.includes(move))
+          .map((move) => MoveBook.family(move))
+          .filter((family) => family !== 'strike'),
+      );
+      assert.equal(new Set(kinds).size, kinds.length, mon.name);
+      assert.equal(
+        kinds.length >= Math.min(2, available.size) || MoveBook.defaultMoveset(mon).length < 4,
+        true,
+        mon.name,
+      );
+    }
+  });
+
   test('a roster copy keeps its picks and a replaced player loses them', () => {
     const roster = Moves.roster();
     const mon = roster.players[0];

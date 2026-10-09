@@ -147,6 +147,24 @@
       return [...names].sort((a, b) => MoveBook.rank(b, mon) - MoveBook.rank(a, mon) || a.localeCompare(b));
     }
 
+    // Slots 3 and 4 follow the stat a Pokémon is best at, so its default moveset reflects its role.
+    static FAMILY_PREFERENCE = {
+      hp: ['heal', 'protect', 'ailment'],
+      attack: ['stat', 'ohko', 'switch'],
+      defense: ['protect', 'field', 'stat'],
+      special_attack: ['ailment', 'field', 'stat'],
+      special_defense: ['field', 'heal', 'ailment'],
+      speed: ['stat', 'ailment', 'switch'],
+    };
+
+    static familyOrder(mon) {
+      const stats = Object.keys(MoveBook.FAMILY_PREFERENCE);
+      const top = stats.reduce((best, key) => (mon.base_stats[key] > mon.base_stats[best] ? key : best));
+      const preferred = MoveBook.FAMILY_PREFERENCE[top];
+      const rest = Object.keys(MoveBook.STATUS_RANK).filter((family) => !preferred.includes(family));
+      return [...preferred, ...rest];
+    }
+
     static defaultMoveset(mon) {
       if (MoveBook.defaults.has(mon)) return MoveBook.defaults.get(mon);
       const learnable = MoveBook.learnable(mon).filter((name) => !MoveBook.SELF_FAINT.includes(name));
@@ -154,24 +172,35 @@
         learnable.filter((name) => MoveBook.family(name) === 'strike'),
         mon,
       );
+      const picks = [
+        strikes.find((name) => MoveBook.isStab(name, mon)),
+        strikes.find((name) => !MoveBook.isStab(name, mon)),
+        ...MoveBook.statusPicks(learnable, mon),
+      ].filter(Boolean);
+      const leftover = learnable.filter((name) => !picks.includes(name));
+      const isStrike = (name) => MoveBook.family(name) === 'strike';
+      const rest = [
+        ...MoveBook.ranked(leftover.filter(isStrike), mon),
+        ...MoveBook.ranked(
+          leftover.filter((name) => !isStrike(name)),
+          mon,
+        ),
+      ];
+      const moveset = [...picks, ...rest].slice(0, MoveBook.MOVESET_SIZE);
+      MoveBook.defaults.set(mon, moveset);
+      return moveset;
+    }
+
+    // The best move of each of the first two non-strike families the Pokémon can learn.
+    static statusPicks(learnable, mon) {
       const status = MoveBook.ranked(
         learnable.filter((name) => MoveBook.family(name) !== 'strike'),
         mon,
       );
-      const picks = new Set(
-        [
-          strikes.find((name) => MoveBook.isStab(name, mon)),
-          strikes.find((name) => !MoveBook.isStab(name, mon)),
-          status[0],
-        ].filter(Boolean),
-      );
-      const rest = MoveBook.ranked(
-        learnable.filter((name) => !picks.has(name)),
-        mon,
-      );
-      const moveset = [...picks, ...rest].slice(0, MoveBook.MOVESET_SIZE);
-      MoveBook.defaults.set(mon, moveset);
-      return moveset;
+      return MoveBook.familyOrder(mon)
+        .map((family) => status.find((name) => MoveBook.family(name) === family))
+        .filter(Boolean)
+        .slice(0, 2);
     }
   }
 
