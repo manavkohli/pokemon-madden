@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pokéballers — Pocket Gridiron</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="ballmark">◓</span><div><strong>POKÉ<span>BALLERS</span></strong><small>POCKET GRIDIRON LEAGUE</small></div></div>
+    <div class="top-actions"><span class="edition">KANTO × JOHTO</span><button id="pauseButton" class="button ghost" type="button">Ⅱ Pause</button></div>
+  </header>
+
+  <section id="draftScreen" class="screen draft-screen">
+    <div class="page-title"><div><small>EXHIBITION · TEAM BUILDER</small><h1>Draft your squad.</h1><p>Every Gen I–II Pokémon is eligible at every position. Pick a slot, inspect a player, then swap them in.</p></div><div class="title-spark">⚡</div></div>
+    <div class="draft-layout">
+      <aside class="surface lineup-panel"><div class="panel-heading"><div><small>01 / YOUR TEAM</small><h2>Starting eleven</h2></div><span id="rosterCount" class="badge">11 / 11</span></div><div id="draftSlots" class="draft-slots"></div><div class="budget-box"><div><span>TEAM SALARY</span><strong id="salaryValue">—</strong></div><div class="meter"><i id="salaryMeter"></i></div><label><input id="noCap" type="checkbox"> Testing mode: no cap</label><small id="salaryNote">Cap: 13,000 credits</small></div></aside>
+      <section class="surface catalog-panel"><div class="panel-heading"><div><small>02 / POKÉDEX</small><h2 id="catalogTitle">Quarterback prospects</h2></div><span id="catalogCount" class="badge">251 players</span></div><div class="catalog-tools"><input id="searchInput" type="search" placeholder="Search by name or Pokédex #"><select id="typeFilter"><option value="">All types</option></select><select id="sortSelect"><option value="fit">Best fit</option><option value="salary">Lowest salary</option><option value="speed">Speed</option><option value="total">Base stat total</option><option value="name">Name A–Z</option></select></div><div id="catalogList" class="catalog-list"></div></section>
+      <aside class="surface detail-panel"><div class="panel-heading"><div><small>03 / SCOUTING REPORT</small><h2>Player card</h2></div></div><div id="playerDetail"></div></aside>
+    </div>
+    <div class="draft-footer"><div class="game-options"><label>Quarter length <select id="quarterLength"><option value="180">3 min</option><option value="300" selected>5 min</option><option value="480">8 min</option><option value="720">12 min</option></select></label><span id="draftMessage">Ready for kickoff.</span></div><div class="footer-actions"><button id="randomizeButton" class="button ghost" type="button">⚄ Randomize both teams</button><button id="kickoffButton" class="button primary" type="button">Kick off <span>▶</span></button></div></div>
+  </section>
+
+  <section id="gameScreen" class="screen game-screen hidden">
+    <div class="page-title game-title"><div><small>ROUTE 1 BOWL · EXHIBITION</small><h1>The grass is lava.</h1><p>Choose your call. The opposing scheme appears at the snap.</p></div><button id="editTeamButton" class="button ghost" type="button">Edit team</button></div>
+    <div class="game-layout"><main class="game-main"><div class="surface stadium"><div class="scoreboard"><div class="score-team"><span class="team-crest home">⚡</span><div><strong>VIRIDIAN VOLTS</strong><small>YOU · HOME</small></div></div><div class="score-center"><span id="homeScore">00</span><b>:</b><span id="awayScore">00</span></div><div class="score-team away"><div><strong>CERULEAN SURF</strong><small>CPU · AWAY</small></div><span class="team-crest away">🌊</span></div></div><div class="score-strip"><span id="periodLabel">Q1</span><strong id="clockLabel">5:00</strong><span id="possessionLabel">VOLTS BALL</span><span id="downLabel">1ST & 10</span></div><div class="field" id="field"><div class="endzone">POKÉ</div><div class="yard-labels"><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>40</span><span>30</span><span>20</span><span>10</span></div><div id="firstDownLine" class="first-down-line"></div><div id="scrimmageLine" class="scrimmage-line"></div><div id="fieldPlayers" class="field-players"></div><div id="football" class="football">🏈</div><div id="resultBanner" class="result-banner hidden"></div></div><div class="field-footer"><span>DRIVE <b id="driveLabel">01</b></span><span id="fieldPositionLabel">OWN 25</span><span>BALL ON <b id="ballSpotLabel">25</b></span></div></div>
+      <div class="surface call-panel"><div class="call-top"><div><small id="callKicker">YOUR OFFENSE</small><h2 id="callHeading">Call your play</h2></div><div id="playbookWrap"><label>PLAYBOOK <select id="playbookSelect"><option value="all">All plays</option><option value="run">Ground game</option><option value="pass">Passing game</option><option value="trick">Trick room</option></select></label></div></div><div id="playList" class="play-grid"></div><div id="playInspector" class="play-inspector"></div><div class="snap-footer"><p id="callHint">Choose a play, then reveal the defense at the snap.</p><button id="snapButton" class="button primary" type="button">Snap ball ▶</button></div></div></main>
+      <aside class="game-side"><div class="surface drive-panel"><div class="panel-heading"><div><small>LIVE SITUATION</small><h2>Down & distance</h2></div></div><div class="situation"><div><small>DOWN</small><strong id="sideDown">1ST</strong></div><div><small>TO GO</small><strong id="sideDistance">10 YDS</strong></div><div><small>FIELD POS.</small><strong id="sidePosition">OWN 25</strong></div></div><div class="meter"><i id="firstDownMeter"></i></div></div><div class="surface log-panel"><div class="panel-heading"><div><small>THE DRIVE SO FAR</small><h2>Play-by-play</h2></div></div><div id="playLog" class="play-log"></div></div><div class="surface roster-panel"><div class="panel-heading"><div><small>SCOUTING</small><h2>Your starters</h2></div></div><div id="gameRoster" class="game-roster"></div></div></aside></div>
+  </section>
+
+  <div id="pauseOverlay" class="overlay hidden"><div class="overlay-card"><span class="overlay-icon">Ⅱ</span><h2>Game paused</h2><p>The clock only moves when a play resolves.</p><button id="resumeButton" class="button primary" type="button">Resume ▶</button></div></div>
+  <div id="finalOverlay" class="overlay hidden"><div class="overlay-card"><span class="overlay-icon">🏆</span><h2 id="finalTitle">Final whistle</h2><p id="finalScore"></p><div class="final-actions"><button id="rematchButton" class="button primary" type="button">Play again</button><button id="redraftButton" class="button ghost" type="button">Redraft</button></div></div></div>
+  <script src="pokemon_gen1_2.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
