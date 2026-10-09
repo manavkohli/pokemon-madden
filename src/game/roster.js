@@ -1,5 +1,6 @@
 {
   const { POSITIONS, SALARY_CAP } = typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
+  const { MoveBook } = typeof module !== 'undefined' ? require('./moves.js') : window.Pokeballers;
 
   class Roster {
     static FATIGUE_THRESHOLD = 70;
@@ -10,12 +11,26 @@
       this.pokemon = pokemon;
       this.players = ids.map((id) => pokemon[id - 1]);
       this.stamina = new Map();
+      this.movesets = new Map();
     }
 
     copy() {
       const roster = new Roster(this.pokemon, []);
       roster.players = [...this.players];
+      roster.movesets = new Map(this.movesets);
       return roster;
+    }
+
+    moveset(mon) {
+      return this.movesets.get(mon.id) ?? MoveBook.defaultMoveset(mon);
+    }
+
+    setMoveset(mon, names) {
+      const learnable = MoveBook.learnable(mon);
+      if (names.length > MoveBook.MOVESET_SIZE) throw new RangeError('A moveset holds at most four moves');
+      if (new Set(names).size !== names.length) throw new RangeError('A moveset cannot repeat a move');
+      if (!names.every((name) => learnable.includes(name))) throw new RangeError(`${mon.name} cannot learn that move`);
+      this.movesets.set(mon.id, [...names]);
     }
 
     energy(mon) {
@@ -230,6 +245,7 @@
       const otherIndex = this.players.findIndex((player) => player.id === mon.id);
       if (otherIndex === slotIndex) return;
       if (otherIndex >= 0) this.players[otherIndex] = this.players[slotIndex];
+      else this.movesets.delete(this.players[slotIndex].id);
       this.players[slotIndex] = mon;
     }
   }
