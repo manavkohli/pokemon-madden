@@ -10,48 +10,57 @@
   <body>
     <header class="topbar">
       <div class="brand">
-        <span class="ballmark">◓</span>
+        <span class="ballmark" aria-hidden="true"></span>
         <div>
           <strong>POKÉ<span>BALLERS</span></strong
           ><small>POCKET GRIDIRON LEAGUE</small>
         </div>
       </div>
       <div class="top-actions">
-        <span class="edition">KANTO × JOHTO</span
-        ><button id="pauseButton" class="button ghost" type="button">Ⅱ Pause</button>
+        <span class="edition">KANTO + JOHTO <b>RED EDITION</b></span
+        ><button id="pauseButton" class="button ghost" type="button" disabled>Ⅱ Pause</button>
       </div>
     </header>
 
     <section id="draftScreen" class="screen draft-screen">
-      <div class="page-title">
-        <div>
-          <small>TEAM BUILDER</small>
-          <h1>Build your depth chart.</h1>
-          <p>Pick a slot. Scout a Pokémon. Swap them in.</p>
+      <div class="draft-intro">
+        <div class="intro-copy">
+          <small class="eyebrow"><i aria-hidden="true"></i> INDIGO STADIUM IS CALLING</small>
+          <h1>Small monsters.<br /><span>Big league.</span></h1>
+          <p>Your dream team. Their home turf. Build your roster and take the field.</p>
+          <div class="intro-tags"><span>251 Pokémon</span><span>31 roster spots</span><span>One rivalry</span></div>
         </div>
-        <div class="title-spark">⚡</div>
+        <div class="rival-ticket">
+          <div class="rival-scene" aria-hidden="true"><img src="assets/trainer-ace.svg" alt="" /></div>
+          <div class="rival-copy">
+            <small>YOUR CHALLENGER</small>
+            <h2>The Cerulean Ace</h2>
+            <p>“Hope you brought more than luck.”</p>
+            <div id="rivalParty" class="rival-party" aria-label="Rival's key players"></div>
+            <span class="ticket-team">CERULEAN SURF <b>VS</b> VIRIDIAN VOLTS</span>
+          </div>
+        </div>
       </div>
       <div class="draft-layout">
         <aside class="surface lineup-panel">
           <div class="panel-heading">
             <div>
-              <small>01 / YOUR TEAM</small>
-              <h2>Depth chart</h2>
+              <h2>Your roster</h2>
             </div>
-            <span id="rosterCount" class="badge">31 / 31</span>
+            <span id="rosterCount" class="badge">31 ready</span>
           </div>
           <div id="draftSlots" class="draft-slots"></div>
           <div class="budget-box">
             <div><span>TEAM SALARY</span><strong id="salaryValue">—</strong></div>
             <div class="meter"><i id="salaryMeter"></i></div>
-            <label><input id="noCap" type="checkbox" /> Testing mode: no cap</label
+            <label><input id="noCap" type="checkbox" /> Free play · no salary cap</label
             ><small id="salaryNote">Cap: 26,000 credits</small>
           </div>
         </aside>
         <section class="surface catalog-panel">
           <div class="panel-heading">
             <div>
-              <small>02 / POKÉDEX</small>
+              <small>SCOUT FOR</small>
               <h2 id="catalogTitle">Quarterback prospects</h2>
             </div>
             <span id="catalogCount" class="badge">251 players</span>
@@ -77,8 +86,7 @@
         <aside class="surface detail-panel">
           <div class="panel-heading">
             <div>
-              <small>03 / SCOUTING REPORT</small>
-              <h2>Player card</h2>
+              <h2>Player profile</h2>
             </div>
           </div>
           <div id="playerDetail"></div>
@@ -94,10 +102,10 @@
               <option value="480">8 min</option>
               <option value="720">12 min</option>
             </select></label
-          ><span id="draftMessage">Ready for kickoff.</span>
+          ><span id="draftMessage" role="status">Ready for kickoff.</span>
         </div>
         <div class="footer-actions">
-          <button id="randomizeButton" class="button ghost" type="button">⚄ Randomize both teams</button
+          <button id="randomizeButton" class="button ghost" type="button">⚄ Shuffle teams</button
           ><button id="kickoffButton" class="button primary" type="button">Kick off <span>▶</span></button>
         </div>
       </div>
@@ -106,8 +114,8 @@
     <section id="gameScreen" class="screen game-screen hidden">
       <div class="page-title game-title">
         <div>
-          <small>EXHIBITION</small>
-          <h1>Route 1 Bowl</h1>
+          <small>TRAINER EXHIBITION</small>
+          <h1>Indigo Stadium</h1>
         </div>
         <button id="editTeamButton" class="button ghost" type="button">Edit team</button>
       </div>
@@ -116,13 +124,13 @@
           <div class="surface stadium">
             <div class="scoreboard">
               <div class="score-team">
-                <span class="team-crest home">⚡</span>
-                <div><strong>VIRIDIAN VOLTS</strong><small>YOU · HOME</small></div>
+                <span class="team-crest home" aria-hidden="true">V</span>
+                <div><strong>VIRIDIAN VOLTS</strong><small>YOU · THE CHALLENGER</small></div>
               </div>
               <div class="score-center"><span id="homeScore">00</span><b>:</b><span id="awayScore">00</span></div>
               <div class="score-team away">
-                <div><strong>CERULEAN SURF</strong><small>CPU · AWAY</small></div>
-                <span class="team-crest away">🌊</span>
+                <div><strong>CERULEAN SURF</strong><small>THE CERULEAN ACE · CPU</small></div>
+                <span class="team-crest away" aria-hidden="true">C</span>
               </div>
             </div>
             <div class="score-strip">
@@ -139,6 +147,7 @@
               <div id="resultBanner" class="result-banner hidden" role="status"></div>
               <div id="battleStage" class="battle-stage hidden" aria-label="Play animation">
                 <div class="battle-backdrop" aria-hidden="true">
+                  <div class="battle-lights"></div>
                   <div class="battle-crowd"></div>
                   <div class="battle-turf"></div>
                   <div class="battle-goal"></div>
@@ -169,31 +178,41 @@
                 <small id="callKicker">YOUR OFFENSE</small>
                 <h2 id="callHeading">Call your play</h2>
               </div>
-              <div id="playbookWrap">
-                <label
-                  >PLAYBOOK
-                  <select id="playbookSelect">
-                    <option value="all">All</option>
-                    <option value="run">Run</option>
-                    <option value="pass">Pass</option>
-                    <option value="trick">Trick</option>
-                  </select></label
-                >
+              <div class="call-controls">
+                <div id="playbookWrap">
+                  <label
+                    >PLAYBOOK
+                    <select id="playbookSelect">
+                      <option value="all">All</option>
+                      <option value="run">Run</option>
+                      <option value="pass">Pass</option>
+                      <option value="trick">Trick</option>
+                    </select></label
+                  >
+                </div>
+                <button id="snapButton" class="button primary" type="button">Snap ▶</button>
               </div>
             </div>
-            <div id="playList" class="play-grid"></div>
-            <div id="playInspector" class="play-inspector"></div>
+            <div class="call-workspace">
+              <div id="playList" class="play-grid"></div>
+              <div id="playInspector" class="play-inspector"></div>
+            </div>
             <div class="snap-footer">
               <p id="callHint">Rival call revealed at snap.</p>
-              <button id="snapButton" class="button primary" type="button">Snap ▶</button>
             </div>
           </div>
         </main>
         <aside class="game-side">
+          <div class="surface rival-panel">
+            <div class="rival-portrait" aria-hidden="true"><img src="assets/trainer-ace.svg" alt="" /></div>
+            <small>YOUR RIVAL</small>
+            <h2>The Cerulean Ace</h2>
+            <p id="rivalReaction">“Show me what your team can do.”</p>
+            <div id="matchRivalParty" class="rival-party" aria-label="Rival's key players"></div>
+          </div>
           <div class="surface drive-panel">
             <div class="panel-heading">
               <div>
-                <small>FIELD</small>
                 <h2>Situation</h2>
               </div>
             </div>
@@ -207,7 +226,6 @@
           <div class="surface log-panel">
             <div class="panel-heading">
               <div>
-                <small>LAST PLAYS</small>
                 <h2>Drive log</h2>
               </div>
             </div>
@@ -216,6 +234,11 @@
         </aside>
       </div>
     </section>
+
+    <footer class="site-footer">
+      <span>POKÉBALLERS <b>AN UNOFFICIAL POKÉMON FAN GAME.</b></span
+      ><span>KANTO + JOHTO · FOR THE LOVE OF THE GAME</span>
+    </footer>
 
     <dialog id="pauseOverlay" class="overlay" aria-labelledby="pauseTitle">
       <div class="overlay-card">

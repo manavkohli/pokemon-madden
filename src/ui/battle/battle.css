@@ -1,56 +1,80 @@
 .battle-stage {
+  --light-sweep: 0deg;
   position: absolute;
   inset: 0;
   z-index: 15;
   overflow: hidden;
   isolation: isolate;
-  color: #fff8dd;
-  background: #132d3b;
+  color: #263d30;
+  background: #9faf7c;
   container-type: inline-size;
 }
-
 .battle-backdrop {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  background: url('../../../assets/stadium.svg') center top / cover;
 }
 .battle-crowd {
   position: absolute;
-  inset: 0 0 55%;
+  inset: 0 0 51%;
   background:
-    radial-gradient(ellipse at 50% 100%, #f5e4a64a, transparent 70%),
-    radial-gradient(circle, #d3bd85 2px, transparent 3px) 0 0 / 18px 16px,
-    radial-gradient(circle, #728da3 2px, transparent 3px) 9px 8px / 18px 16px,
-    repeating-linear-gradient(0deg, #263f53 0 24px, #142a3e 24px 28px);
-  border-bottom: 8px solid #e6d69b;
-  transform: perspective(450px) rotateX(-8deg) scale(1.1);
-  opacity: 0.75;
+    radial-gradient(circle, #bbc89b 2px, transparent 2px) 0 0 / 12px 12px,
+    radial-gradient(circle, #657e59 2px, transparent 2px) 6px 6px / 12px 12px,
+    repeating-linear-gradient(0deg, #415b43 0 20px, #283f34 20px 24px);
+  border-bottom: 6px solid #beca98;
+  opacity: 0.8;
+}
+.battle-lights {
+  position: absolute;
+  inset: -15% -10% 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.battle-lights::before,
+.battle-lights::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 30%;
+  height: 120%;
+  background: linear-gradient(#edf1c847, transparent);
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+}
+.battle-lights::before {
+  left: 10%;
+  transform: rotate(calc(-18deg + var(--light-sweep)));
+}
+.battle-lights::after {
+  right: 10%;
+  transform: rotate(calc(18deg - var(--light-sweep)));
 }
 .battle-turf {
   position: absolute;
-  inset: 35% -20% -35%;
+  inset: 37% -20% -35%;
   background:
-    linear-gradient(#10293777, transparent 50%),
-    repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 2px), #e3edb555 calc(12.5% - 2px) 12.5%),
-    repeating-linear-gradient(0deg, #32684f 0 48px, #3d7958 48px 96px);
-  border-top: 4px solid #adc785;
+    linear-gradient(#29453655, transparent 55%),
+    repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 2px), #e3ebba55 calc(12.5% - 2px) 12.5%),
+    repeating-linear-gradient(0deg, #9caf7a 0 48px, #aabc86 48px 96px);
+  border-top: 3px solid #d3deb0;
   transform: perspective(400px) rotateX(26deg);
 }
 .battle-turf::after {
   content: '';
   position: absolute;
   inset: 30% 0;
-  border-block: 3px dashed #d3e8a677;
+  border-block: 3px dashed #dce6b9aa;
 }
 .battle-goal {
   position: absolute;
   right: 7%;
-  top: 19%;
+  top: 17%;
   width: 38px;
   height: 53px;
-  border: 4px solid #f0d485;
+  border: 4px solid #d7ddad;
   border-top: 0;
-  opacity: 0.7;
+  opacity: 0.9;
 }
 .battle-goal::after {
   content: '';
@@ -58,56 +82,56 @@
   left: 50%;
   top: 100%;
   height: 32px;
-  border-left: 4px solid #f0d485;
+  border-left: 4px solid #d7ddad;
 }
 .battle-stage::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(0deg, #102036aa, transparent 35% 80%, #10203688);
+  background: repeating-linear-gradient(0deg, #1a382615 0 1px, transparent 1px 4px);
   z-index: 1;
 }
 .battle-head {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 13px;
+  left: 13px;
   right: 100px;
   z-index: 3;
   display: flex;
   align-items: center;
   gap: 12px;
-  font:
-    8px/1.6 'Press Start 2P',
-    monospace;
+  font: 8px/1.7 var(--pixel);
+  color: #f6f1d5;
 }
 .battle-head span:first-child {
   flex-shrink: 0;
   padding: 7px 9px;
-  color: #182a35;
-  background: var(--lime);
-  box-shadow: 3px 3px #102435;
+  color: #263d30;
+  background: #d9e4b6;
+  border: 2px solid #263d30;
+  box-shadow: 2px 2px #182e28;
 }
 .battle-head span:last-child {
-  text-shadow: 2px 2px #102435;
+  text-shadow: 1px 2px #213b2d;
 }
 .battle-action {
   position: absolute;
-  inset: 48px 0 76px;
+  inset: 48px 0 88px;
   z-index: 2;
   pointer-events: none;
 }
 .battle-fighter {
   position: absolute;
-  width: clamp(88px, 17cqw, 172px);
-  height: clamp(88px, 17cqw, 172px);
+  width: clamp(88px, 17cqw, 158px);
+  height: clamp(88px, 17cqw, 158px);
   transform: translate(-50%, -100%);
 }
 .battle-fighter.support,
 .battle-fighter.help {
-  width: clamp(56px, 10cqw, 100px);
-  height: clamp(56px, 10cqw, 100px);
-  opacity: 0.8;
+  width: clamp(56px, 10cqw, 96px);
+  height: clamp(56px, 10cqw, 96px);
+  opacity: 0.85;
 }
 .battle-body {
   position: absolute;
@@ -121,7 +145,7 @@
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
-  filter: drop-shadow(3px 4px #10253566);
+  filter: drop-shadow(2px 3px #2a453466);
 }
 .battle-fallback {
   position: absolute;
@@ -129,15 +153,15 @@
   display: grid;
   place-items: center;
   font-size: clamp(34px, 8cqw, 72px);
-  color: var(--lime);
-  text-shadow: 3px 4px #152939;
+  color: #e9edbc;
+  text-shadow: 3px 4px #294c39;
 }
 .battle-body:has(img.sprite-loaded:not([hidden])) .battle-fallback {
   visibility: hidden;
 }
 .stopper .battle-fallback,
 .help .battle-fallback {
-  color: var(--orange);
+  color: #d8b2a8;
 }
 .battle-shadow {
   position: absolute;
@@ -145,13 +169,13 @@
   left: 18%;
   right: 18%;
   height: 14%;
-  background: #102d3a77;
-  border: 2px solid #9ad19488;
+  background: #3a574c55;
+  border: 2px solid #d5e4b09c;
   border-radius: 50%;
 }
 .stopper .battle-shadow,
 .help .battle-shadow {
-  border-color: #efbd8577;
+  border-color: #52496b88;
 }
 .battle-fighter b {
   position: absolute;
@@ -159,16 +183,16 @@
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 6px;
-  background: #122736da;
-  border-bottom: 2px solid var(--lime);
-  font:
-    7px/1.5 'Press Start 2P',
-    monospace;
+  color: #f7f1d1;
+  background: #304c39;
+  border: 1px solid #b9ca98;
+  font: 7px/1.5 var(--pixel);
   white-space: nowrap;
 }
 .stopper b,
 .help b {
-  border-color: var(--orange);
+  background: #554968;
+  border-color: #c1afc5;
 }
 .lead b {
   left: 0;
@@ -186,10 +210,10 @@
   position: absolute;
   width: 24px;
   height: 15px;
-  border: 2px solid #f1c68b;
+  border: 2px solid #efdbb1;
   border-radius: 50%;
   background: #914f34;
-  box-shadow: 2px 3px #14293955;
+  box-shadow: 2px 3px #29473a55;
   z-index: 4;
   opacity: 0;
 }
@@ -199,7 +223,7 @@
   right: 6px;
   top: 5px;
   height: 2px;
-  background: white;
+  background: #faf4d8;
 }
 .battle-effects {
   position: absolute;
@@ -211,14 +235,14 @@
   position: absolute;
   width: 7px;
   height: 7px;
-  background: #fbeab0;
-  box-shadow: 1px 1px #be9653;
+  background: #f8e8b0;
+  box-shadow: 1px 1px #43654a;
 }
 .battle-effects i:nth-child(3n) {
-  background: var(--orange);
+  background: #b24b42;
 }
 .scoring .battle-effects i:nth-child(2n) {
-  background: var(--lime);
+  background: #d0df8d;
 }
 .battle-impact {
   position: absolute;
@@ -226,19 +250,17 @@
   left: 50%;
   z-index: 4;
   padding: 10px 14px;
-  background: #e07658;
-  color: #fff7d6;
-  border: 3px solid #fff0ae;
-  box-shadow: 4px 4px #1a2738;
-  font:
-    clamp(9px, 1.6cqw, 15px)/1.5 'Press Start 2P',
-    monospace;
+  background: #b3443e;
+  color: #fff2cc;
+  border: 3px solid #fff0bd;
+  box-shadow: 4px 4px #294537;
+  font: clamp(9px, 1.6cqw, 15px)/1.5 var(--pixel);
   white-space: nowrap;
   opacity: 0;
 }
 .scoring .battle-impact {
-  background: var(--lime);
-  color: #21392f;
+  background: #d3df9e;
+  color: #284132;
 }
 .battle-caption {
   position: absolute;
@@ -246,26 +268,30 @@
   left: 14px;
   right: 14px;
   z-index: 4;
-  min-height: 54px;
-  padding: 10px 13px;
-  border: 2px solid #dcd9b0;
-  border-left: 5px solid var(--lime);
-  background: #18283dee;
-  box-shadow: 3px 3px #102035;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 5px double #334b36;
+  color: #304831;
+  background: #f3efd4;
+  box-shadow: 3px 3px #233c30;
+}
+.battle-caption::after {
+  content: '▼';
+  position: absolute;
+  bottom: 7px;
+  right: 12px;
+  font-size: 12px;
+  color: #6a7853;
 }
 .battle-caption strong {
   display: block;
-  font:
-    9px/1.6 'Press Start 2P',
-    monospace;
-  color: var(--lime);
+  font: 9px/1.6 var(--pixel);
 }
 .battle-caption span {
   display: block;
-  margin-top: 4px;
-  font:
-    11px/1.3 'DM Mono',
-    monospace;
+  margin-top: 6px;
+  padding-right: 14px;
+  font: 11px/1.4 var(--mono);
 }
 .battle-track {
   position: absolute;
@@ -274,29 +300,28 @@
   right: 0;
   height: 4px;
   z-index: 4;
-  background: #182b38;
+  background: #6f8258;
 }
 .battle-track i {
   display: block;
   height: 100%;
-  background: var(--lime);
+  background: #edf0be;
   transform-origin: left;
 }
 .battle-skip {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 13px;
+  right: 13px;
   z-index: 5;
   padding: 9px;
-  border: 1px solid #829593;
-  color: #fff8dd;
-  background: #192c40;
-  font:
-    7px 'Press Start 2P',
-    monospace;
+  border: 2px solid #263d30;
+  color: #263d30;
+  background: #e1e8b9;
+  font: 7px var(--pixel);
+  box-shadow: 2px 2px #182e28;
 }
 .battle-skip:hover {
-  background: #354d5c;
+  background: #f3f0d5;
 }
 .reduced-motion .battle-effects {
   display: none;
@@ -306,7 +331,7 @@
   .battle-head {
     left: 9px;
     top: 9px;
-    right: 78px;
+    right: 80px;
     gap: 6px;
     font-size: 6px;
   }
@@ -331,7 +356,7 @@
     left: 9px;
     right: 9px;
     bottom: 12px;
-    padding: 7px 9px;
+    padding: 9px 10px;
   }
   .battle-caption strong {
     font-size: 7px;
@@ -346,6 +371,11 @@
   .battle-ball i {
     left: 4px;
     right: 4px;
-    top: 3px;
+    top: 5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .battle-lights {
+    display: none;
   }
 }

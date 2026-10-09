@@ -29,7 +29,7 @@ The animation never computes a football result. Changing animation duration ther
 
 ## Playback guarantees
 
-Pause freezes both poses and progress callbacks. Resume starts from the held position. Skip completes progress exactly once and releases the scheduler. Cancellation resolves the old playback without completing its clock; a token prevents an already queued frame from touching a replacement play. Returning to drafting or starting a rematch also clears the pending result timer.
+Pause freezes both poses and progress callbacks. Stadium lighting uses the same sampled progress in `BattleStage.render()`, with fixed lighting for reduced motion. Resume starts from the held position. Skip completes progress exactly once and releases the scheduler. Cancellation resolves the old playback without completing its clock; a token prevents an already queued frame from touching a replacement play. Returning to drafting or starting a rematch also clears the pending result timer.
 
 The OS/browser `prefers-reduced-motion` setting is read when each play begins. Reduced playback uses fixed poses, a shorter readable timeline, and captions without projectiles, shake, or particles. Missing sprite images reveal a local symbol; no image failure changes the game result. Drawing errors reject playback, and the application displays an error while retaining the resolved result in the drive log.
 

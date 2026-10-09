@@ -11,7 +11,7 @@ class Element {
   constructor() {
     this.nodes = new Map();
     this.classes = new Set();
-    this.style = {};
+    this.style = { setProperty: (name, value) => (this.style[name] = value) };
     this.children = [];
     this.classList = {
       add: (...names) => names.forEach((name) => this.classes.add(name)),
@@ -148,10 +148,13 @@ class BattleChecks {
     clock.advance(15);
     assert.ok(stage.leadNode.innerHTML.includes(context.attack.player('RB').name));
     const frozen = JSON.stringify(stage.leadNode.style);
+    const lights = root.style['--light-sweep'];
+    assert.notEqual(lights, '0deg', 'stadium lights move with playback');
     const progress = ticks.at(-1);
     stage.setPaused(true);
     clock.advance(30);
     assert.equal(JSON.stringify(stage.leadNode.style), frozen);
+    assert.equal(root.style['--light-sweep'], lights, 'pause holds stadium lighting');
     assert.equal(ticks.at(-1), progress, 'pause freezes clock and drawing');
     stage.skip();
     assert.equal(root.classList.contains('hidden'), false, 'skip respects pause');
@@ -190,6 +193,7 @@ class BattleChecks {
     await reduced;
     assert.equal(stage.ballNode.style.opacity, '0');
     assert.equal(stage.effectsNode.style.opacity, 0);
+    assert.equal(root.style['--light-sweep'], '0deg', 'reduced motion holds stadium lighting');
     console.log('Battle motion, casting, pause, skip, cancellation, reduced motion, and error propagation passed.');
   }
 }

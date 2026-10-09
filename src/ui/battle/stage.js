@@ -103,6 +103,10 @@
       this.callout.textContent = state.caption.title;
       this.subline.textContent = state.caption.detail;
       this.progressNode.style.transform = `scaleX(${state.progress})`;
+      this.element.style.setProperty(
+        '--light-sweep',
+        `${this.reduced ? 0 : Math.sin(state.progress * Math.PI * 2) * 12}deg`,
+      );
       this.renderParticles(state);
     }
 

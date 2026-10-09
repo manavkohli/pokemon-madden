@@ -1,5 +1,7 @@
 # Pokéballers
 
+A Pokémon football fan game with Red-inspired menus, a Game Boy palette, and a rival waiting at Indigo Stadium.
+
 Open `index.html` in a browser to play. No server or install is required. Internet access adds Pokémon sprites; the game falls back to local symbols when sprites are unavailable.
 
 ## Screenshots
@@ -10,15 +12,15 @@ Scout the Pokédex and build a 31-player depth chart.
 
 Choose a call, inspect its routes and personnel, and follow the drive.
 
-![Exhibition game with the scoreboard, field, playbook, Inside Zone diagram, and drive log](docs/screenshots/playbook.jpg)
+![Indigo Stadium with the scoreboard, field, playbook, route diagram, and rival trainer](docs/screenshots/playbook.jpg)
 
 Watch each snap unfold in a Pokémon battle scene.
 
-![A live Jet Sweep battle with Lapras carrying the football against Pinsir, supported by Miltank](docs/screenshots/battle.jpg)
+![A quarterback battle with moving stadium lights and a Game Boy-style dialogue box](docs/screenshots/battle.jpg)
 
 ## Playing
 
-Build a 31-Pokémon depth chart from the first 251 Pokédex entries. Click a slot, inspect candidates in the right sidebar, and assign one. Randomize both teams or disable the 26,000-credit cap for testing. Choose a quarter length before kickoff. Each call fields 11 Pokémon from the chart; packages include two tight ends, four wide receivers, two backs, and two quarterbacks.
+Build a 31-Pokémon depth chart from the first 251 Pokédex entries. Click a slot, scout candidates, and assign one from their player profile. On a phone, swipe through the roster; selecting a slot or prospect takes you to the next panel. Shuffle both teams or choose free play to disable the 26,000-credit cap. Choose a quarter length before kickoff. Each call fields 11 Pokémon from the chart; packages include two tight ends, four wide receivers, two backs, and two quarterbacks.
 
 During a game, click an offensive or defensive call to see its route or coverage diagram, matchup notes, and personnel. The CPU reveals its call at the snap. A short battle scene features the ball carrier or target and the defender most likely to make the play. Skip advances directly to the result; Pause freezes the scene. The quarter clock deducts play time as the battle animates and does not run between turns.
 
@@ -48,7 +50,7 @@ Football rules and roster logic live in `src/game/`; drafting, diagrams, sprites
 
 Special thanks to **Anshu Chimala** and [**Pocket Aces**](https://github.com/achimala/pocket-aces), the open source creature-collecting poker roguelike that inspired this game's animation direction. Its [PipSprite](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/PipSprite.tsx) and [BattleScene](https://github.com/achimala/pocket-aces/blob/main/src/ui/components/BattleScene.tsx) demonstrate how procedural breathing, bobbing, grounded sprites, lunges, recoil, and expressive impact timing bring static pixel art to life. Pokéballers applies those ideas through its own football choreography and animation clock. No Pocket Aces source code, generated art, or fonts are bundled here. Pocket Aces credits its code under MIT and its art under CC BY 4.0; see its [licensing notes](https://github.com/achimala/pocket-aces#license).
 
-Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites). Base stats come from [Pokémon Database](https://pokemondb.net/pokedex/all). The interface requests Nunito, DM Mono, and Press Start 2P through [Google Fonts](https://fonts.google.com/), with local font fallbacks when offline.
+Pokémon sprites are loaded from the [PokeAPI sprites repository](https://github.com/PokeAPI/sprites). Base stats come from [Pokémon Database](https://pokemondb.net/pokedex/all). The trainer portrait and stadium scenery in `assets/` are original SVG artwork bundled with the project. The interface requests DM Mono and Press Start 2P through [Google Fonts](https://fonts.google.com/), with local font fallbacks when offline.
 
 ## License
 

@@ -48,6 +48,7 @@
         this.selectedSlot = Number(slot.dataset.slot);
         this.selectedPokemon = this.home.players[this.selectedSlot];
         this.renderDraft();
+        this.showPanel('catalogTitle');
       });
       this.el('catalogList').addEventListener('click', (event) => {
         const card = event.target.closest('[data-pokemon]');
@@ -55,6 +56,7 @@
         this.selectedPokemon = this.pokemon[Number(card.dataset.pokemon) - 1];
         this.renderCatalog();
         this.renderDetail();
+        this.showPanel('playerDetail');
       });
       this.el('searchInput').addEventListener('input', () => this.renderCatalog());
       this.el('typeFilter').addEventListener('change', () => this.renderCatalog());
@@ -91,6 +93,10 @@
       this.el('redraftButton').addEventListener('click', () => this.openDraft());
     }
 
+    showPanel(id) {
+      if (matchMedia('(max-width: 700px)').matches) this.el(id).scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+
     renderDraft() {
       this.el('draftSlots').innerHTML = POSITIONS.map((position, index) => {
         const mon = this.home.players[index];
@@ -98,7 +104,7 @@
           position.depth === 1
             ? `<div class="depth-heading">${position.name.toUpperCase()} · ${POSITION_GROUPS.find((group) => group.code === position.code).slots} SLOTS</div>`
             : '';
-        return `${heading}<button class="draft-slot ${index === this.selectedSlot ? 'active' : ''}" data-slot="${index}"><span class="position-tag">${position.code}${position.depth}</span>${SpriteArt.frame(mon)}<span><b>${mon.name}</b><small>${mon.types.join(' / ')}</small></span><span class="rating">${Roster.rating(mon, position.code)}</span></button>`;
+        return `${heading}<button class="draft-slot ${index === this.selectedSlot ? 'active' : ''}" data-slot="${index}" aria-pressed="${index === this.selectedSlot}"><span class="position-tag">${position.code}${position.depth}</span>${SpriteArt.frame(mon)}<span><b>${mon.name}</b><small>${mon.types.join(' / ')}</small></span><span class="rating">${Roster.rating(mon, position.code)}</span></button>`;
       }).join('');
       const filter = this.el('typeFilter');
       if (filter.options.length === 1) {
@@ -110,6 +116,14 @@
       this.renderCatalog();
       this.renderDetail();
       this.renderBudget();
+      const rivals = ['QB', 'RB', 'WR']
+        .map((role) => {
+          const mon = this.away.player(role);
+          return `<span title="${mon.name} · ${role}" aria-label="${mon.name} · ${role}">${SpriteArt.frame(mon)}</span>`;
+        })
+        .join('');
+      this.el('rivalParty').innerHTML = rivals;
+      this.el('matchRivalParty').innerHTML = rivals;
     }
 
     renderBudget() {
@@ -124,11 +138,11 @@
         : `Cap: ${cap.toLocaleString()} credits`;
       this.el('draftMessage').textContent =
         salary > cap && !this.el('noCap').checked
-          ? 'Over cap: swap a player or enable testing mode.'
+          ? 'Over cap: swap a player or choose free play.'
           : 'Ready for kickoff.';
       this.el('draftMessage').classList.toggle('error', salary > cap && !this.el('noCap').checked);
       this.el('kickoffButton').disabled = salary > cap && !this.el('noCap').checked;
-      this.el('rosterCount').textContent = `${this.home.players.length} / ${POSITIONS.length}`;
+      this.el('rosterCount').textContent = `${this.home.players.length} ready`;
     }
 
     renderCatalog() {
@@ -153,7 +167,7 @@
         ? candidates
             .map(
               (mon) =>
-                `<button class="catalog-card ${mon.id === this.selectedPokemon.id ? 'active' : ''}" data-pokemon="${mon.id}">${SpriteArt.frame(mon)}<span class="meta"><b>${mon.name}</b><small>#${String(mon.id).padStart(3, '0')} · ${mon.types.join(' / ')}</small></span><span class="fit">${Roster.rating(mon, position)}</span></button>`,
+                `<button class="catalog-card ${mon.id === this.selectedPokemon.id ? 'active' : ''}" data-pokemon="${mon.id}" aria-pressed="${mon.id === this.selectedPokemon.id}">${SpriteArt.frame(mon)}<span class="meta"><b>${mon.name}</b><small>#${String(mon.id).padStart(3, '0')} · ${mon.types.join(' / ')}</small></span><span class="fit">${Roster.rating(mon, position)}<small>${position} FIT</small></span></button>`,
             )
             .join('')
         : '<p class="catalog-empty">No Pokémon match those filters.</p>';
@@ -177,6 +191,7 @@
         this.home.assign(this.selectedSlot, mon);
         this.renderDraft();
         this.el('draftMessage').textContent = `${mon.name} assigned to ${position.code}.`;
+        this.showPanel('draftSlots');
       });
     }
 
@@ -193,11 +208,13 @@
       this.paused = false;
       this.pendingSnap = null;
       this.el('snapButton').disabled = false;
+      this.el('pauseButton').disabled = false;
       this.el('draftScreen').classList.add('hidden');
       this.el('gameScreen').classList.remove('hidden');
       this.el('pauseOverlay').close();
       this.el('finalOverlay').close();
       this.renderGame();
+      this.el('gameScreen').scrollIntoView({ block: 'start', behavior: 'auto' });
     }
 
     openDraft() {
@@ -212,7 +229,9 @@
       this.el('finalOverlay').close();
       this.el('pauseOverlay').close();
       this.paused = false;
+      this.el('pauseButton').disabled = true;
       this.renderDraft();
+      this.el('draftScreen').scrollIntoView({ block: 'start', behavior: 'auto' });
     }
 
     pause() {
@@ -253,7 +272,7 @@
       this.el('playList').innerHTML = choices
         .map(
           (play) =>
-            `<button class="play-card ${play.id === (offense ? this.selectedOffense : this.selectedDefense).id ? 'active' : ''}" data-play="${play.id}" aria-pressed="${play.id === (offense ? this.selectedOffense : this.selectedDefense).id}"><span>${play.icon}</span><strong>${play.name}</strong></button>`,
+            `<button class="play-card ${play.id === (offense ? this.selectedOffense : this.selectedDefense).id ? 'active' : ''}" data-play="${play.id}" aria-pressed="${play.id === (offense ? this.selectedOffense : this.selectedDefense).id}"><span class="play-kind">${offense ? play.group.toUpperCase() : 'DEFENSE'}</span><strong>${play.name}</strong></button>`,
         )
         .join('');
       this.renderPlayInspector(offense ? this.selectedOffense : this.selectedDefense, offense);
@@ -284,7 +303,7 @@
         .map((role) => `${lineup.filter((slot) => slot.role === role).length} ${role}`)
         .join(' · ');
       this.el('playInspector').innerHTML =
-        `<div class="inspector-diagram">${diagram}<div class="diagram-legend">${labels}</div></div><div class="inspector-copy"><small>PLAY SCOUT</small>${notes}<div class="play-personnel">${mix}</div><div class="play-context">${this.playSituation(play, offense)}</div></div>`;
+        `<div class="inspector-diagram">${diagram}<div class="diagram-legend">${labels}</div></div><div class="inspector-copy">${notes}<div class="play-personnel">${mix}</div><div class="play-context">${this.playSituation(play, offense)}</div></div>`;
     }
 
     defenseSituation(play) {
@@ -369,6 +388,14 @@
       this.el('ballSpotLabel').textContent = String(game.spot);
       this.el('driveLabel').textContent = String(game.drive).padStart(2, '0');
       this.el('firstDownMeter').style.width = `${Math.max(3, Math.min(100, (10 - game.toGo) * 10))}%`;
+      this.el('rivalReaction').textContent =
+        game.score.home > game.score.away
+          ? '“Fine. Make me earn it.”'
+          : game.down === 4
+            ? '“Fourth down. What have you got?”'
+            : game.possession === 'away'
+              ? '“My turn. Keep up.”'
+              : '“Show me what your team can do.”';
       this.el('playLog').innerHTML = game.log
         .slice(0, 8)
         .map((line) => `<p>${line}</p>`)
