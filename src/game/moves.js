@@ -68,6 +68,7 @@
 
     static effectiveness(name, target) {
       const row = MoveBook.chart[MoveBook.get(name).type];
+      if (!row) return 1;
       return target.types.reduce((product, type) => product * (row[type] ?? 1), 1);
     }
 

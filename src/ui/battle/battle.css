@@ -416,16 +416,9 @@
   background: var(--layer, none);
   box-shadow: none;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .battle-stage:not(.reduced-motion) .battle-backdrop::after,
-  .battle-cue.field {
-    animation: weather-drift 0.6s linear infinite;
-  }
-}
-@keyframes weather-drift {
-  to {
-    background-position: 0 24px;
-  }
+.battle-backdrop::after,
+.battle-cue.field {
+  background-position: 0 var(--drift, 0px);
 }
 .battle-impact {
   position: absolute;

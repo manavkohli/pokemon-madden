@@ -98,6 +98,7 @@
       });
       this.renderCue(state.cue);
       this.renderBadges(state.progress);
+      this.element.style.setProperty('--drift', `${this.reduced ? 0 : Math.round(state.progress * 160)}px`);
       this.actionNode.style.transform = `translateX(${state.shake}px)`;
       this.ballNode.style.left = `${state.ball.x}%`;
       this.ballNode.style.top = `${state.ball.y}%`;

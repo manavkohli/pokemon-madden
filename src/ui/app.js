@@ -172,6 +172,7 @@
         const button = event.target.closest('[data-ability]');
         if (!button || button.disabled) return;
         const pending = this.game.phase.abilities.home;
+        if (pending?.paid) return;
         if (pending) this.game.cancelAbility('home');
         if (pending?.id !== button.dataset.ability)
           this.game.activateAbility('home', button.dataset.ability, this.playerPreview());
@@ -302,13 +303,13 @@
       const game = this.game;
       const active = game.phase?.abilities.home;
       this.el('abilityBudget').textContent =
-        `${game.charges.home - (active ? 1 : 0)} charges this half · 10 stamina each`;
+        `${game.charges.home - (active && !active.paid ? 1 : 0)} charges this half · 10 stamina each`;
       const abilities = DEAD_KINDS.includes(play.kind) ? [] : game.availableAbilities('home', play);
       this.el('abilityList').innerHTML =
         abilities
           .map(
             (ability) =>
-              `<button type="button" class="ability-button ${active?.id === ability.id ? 'active' : ''}" data-ability="${ability.id}" aria-pressed="${active?.id === ability.id}" ${game.charges.home ? '' : 'disabled'}><b>${ability.name} · ${ability.actor.name}</b><span>${ability.detail}</span></button>`,
+              `<button type="button" class="ability-button ${active?.id === ability.id ? 'active' : ''}" data-ability="${ability.id}" aria-pressed="${active?.id === ability.id}" ${game.charges.home && !active?.paid ? '' : 'disabled'}><b>${ability.name} · ${ability.actor.name}</b><span>${ability.detail}</span></button>`,
           )
           .join('') ||
         '<p>No eligible Electric, Steel, or Psychic player in this unit. Draft one to unlock an ability.</p>';

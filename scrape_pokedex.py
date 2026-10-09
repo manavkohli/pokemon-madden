@@ -17,6 +17,9 @@ TYPES = [
     "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground",
     "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel",
 ]
+# Before Gen 4 a move's damage class followed its type.
+PHYSICAL_TYPES = {"Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel"}
+SPECIAL_TYPES = {"Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark"}
 ROOT = Path(__file__).resolve().parent
 
 
@@ -158,18 +161,37 @@ class PokeApiScraper:
             )
         return learned
 
+    def version_orders(self) -> dict[str, int]:
+        names = [entry["name"] for entry in self.fetch("version-group?limit=100")["results"]]
+        groups = self.fetch_all([f"version-group/{name}" for name in names])
+        return {group["name"]: group["order"] for group in groups}
+
+    @staticmethod
+    def gen2_value(move: dict, field: str, orders: dict[str, int]):
+        """Reads a field as Crystal had it: the earliest later `past_values` entry that sets it, else the current value."""
+        later = [entry for entry in move["past_values"] if orders[entry["version_group"]["name"]] > orders["crystal"]]
+        for entry in sorted(later, key=lambda item: orders[item["version_group"]["name"]]):
+            if entry[field] is not None:
+                return entry[field]
+        return move[field]
+
     def moves(self) -> dict[str, dict]:
         catalog = {}
+        orders = self.version_orders()
         for move in self.fetch_all([f"move/{dex}" for dex in range(1, 252)]):
             meta = move["meta"]
+            kind = self.gen2_value(move, "type", orders)["name"].capitalize()
+            damage_class = move["damage_class"]["name"]
+            if damage_class != "status":
+                damage_class = "physical" if kind in PHYSICAL_TYPES else "special" if kind in SPECIAL_TYPES else damage_class
             catalog[move["name"]] = {
                 "name": move["name"],
                 "display_name": next(entry["name"] for entry in move["names"] if entry["language"]["name"] == "en"),
-                "type": move["type"]["name"].capitalize(),
-                "damage_class": move["damage_class"]["name"],
-                "power": move["power"],
-                "accuracy": move["accuracy"],
-                "pp": move["pp"],
+                "type": kind,
+                "damage_class": damage_class,
+                "power": self.gen2_value(move, "power", orders),
+                "accuracy": self.gen2_value(move, "accuracy", orders),
+                "pp": self.gen2_value(move, "pp", orders),
                 "priority": move["priority"],
                 "effect_chance": move["effect_chance"],
                 "stat_changes": [

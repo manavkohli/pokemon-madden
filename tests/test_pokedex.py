@@ -56,3 +56,18 @@ class PokedexChecks(unittest.TestCase):
         self.assertEqual(types["Dark"]["Steel"], 0.5)
         self.assertEqual(types["Water"]["Fire"], 2)
         self.assertTrue(all(target in types for row in types.values() for target in row))
+
+    def test_moves_carry_gen_2_values(self):
+        moves = self.data["moves"]
+        self.assertEqual(moves["charm"]["type"], "Normal")
+        self.assertEqual(moves["high-jump-kick"]["power"], 85)
+        self.assertEqual(moves["outrage"]["power"], 90)
+        self.assertEqual(moves["petal-dance"]["power"], 70)
+        self.assertEqual(moves["thunder"]["power"], 120)
+        self.assertEqual(moves["tackle"]["power"], 35)
+        self.assertEqual(moves["curse"]["type"], "Unknown")
+        self.assertNotIn("Fairy", {move["type"] for move in moves.values()})
+        self.assertEqual(moves["thunder-punch"]["damage_class"], "special")
+        self.assertEqual(moves["outrage"]["damage_class"], "special")
+        self.assertEqual(moves["bite"]["damage_class"], "special")
+        self.assertEqual(moves["charm"]["damage_class"], "status")

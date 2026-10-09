@@ -9,7 +9,6 @@
   class FootballGame {
     static TEMPOS = { normal: 15, hurry: 3, chew: 30 };
     static ABILITY_CHARGES = 2;
-    static MOVE_FAMILIES = ['strike', 'ailment', 'stat', 'heal', 'field', 'protect', 'ohko', 'switch'];
     static FIELD_SNAPS = 5;
     static SPIKES_COST = 10;
     static SAND_DRAIN = 3;
@@ -28,6 +27,7 @@
       spikes: 'Spikes were scattered around the rival side!',
     };
     static HEAL = 50;
+    static CPU_HEAL_BELOW = 60;
     static CONFUSION_CHANCE = 1 / 3;
     static AILMENT_NOTES = {
       paralysis: 'is paralyzed',
@@ -275,6 +275,7 @@
       if (this.phase.inspected) this.phase.audibled = true;
       this.phase[key] = play;
       delete this.phase.moves.home;
+      if (!this.phase.abilities.home?.paid) delete this.phase.abilities.home;
       if (this.autoRotate.home)
         this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play, this.entryCost('home'));
     }
@@ -345,26 +346,44 @@
       if (committed.id !== play.id) throw new Error('Ability must use the committed call');
       const ability = this.availableAbilities(side, play).find((entry) => entry.id === id);
       if (!ability) throw new Error('Ability is unavailable for this call');
-      this.phase.abilities[side] = { ...ability, side };
-      if (side === 'home' && id === 'read') this.revealTell();
+      this.phase.abilities[side] = { ...ability, side, paid: id === 'read' };
+      if (id === 'read') {
+        this.payAbility(this.phase.abilities[side]);
+        if (side === 'home') this.revealTell();
+      }
       return ability;
+    }
+
+    // The reveal happens at activation, so Psychic Read is paid then and cannot be withdrawn.
+    payAbility(ability) {
+      this.charges[ability.side] -= 1;
+      this.rosters[ability.side].spend(ability.actor, 10);
+      this.log.unshift(
+        `${ability.actor.name} activates ${ability.name}. ${this.charges[ability.side]} charges remain.`,
+      );
     }
 
     commitChoices(call, resolved, defense, options) {
       this.activateCpuAbility(call, defense, options);
       this.activateCpuMove(call, defense, options);
-      this.dropStaleMoves(resolved, defense);
+      this.dropStalePicks(resolved, defense);
       this.spendAbilities();
       this.spendMoves();
     }
 
     // A call, target, or substitution changed after the pick can leave the actor without a legal role.
-    dropStaleMoves(resolved, defense) {
-      for (const [side, pick] of Object.entries(this.phase.moves)) {
-        const play = side === this.possession ? resolved : defense;
-        if (this.availableMoves(side, play).some((e) => e.actor.id === pick.actor.id && e.move === pick.move)) continue;
-        delete this.phase.moves[side];
-        this.log.unshift(`${pick.actor.name} could not use ${MoveBook.get(pick.move).display_name}.`);
+    dropStalePicks(resolved, defense) {
+      for (const key of ['moves', 'abilities']) {
+        for (const [side, pick] of Object.entries(this.phase[key])) {
+          const play = side === this.possession ? resolved : defense;
+          const options = key === 'moves' ? this.availableMoves(side, play) : this.availableAbilities(side, play);
+          const same = (entry) =>
+            entry.actor.id === pick.actor.id && (entry.move ?? entry.id) === (pick.move ?? pick.id);
+          if (pick.paid || options.some(same)) continue;
+          delete this.phase[key][side];
+          const name = key === 'moves' ? MoveBook.get(pick.move).display_name : pick.name;
+          this.log.unshift(`${pick.actor.name} could not use ${name}.`);
+        }
       }
     }
 
@@ -377,13 +396,7 @@
 
     // Charges and stamina are paid at the snap so an expired period or a rejected snap costs nothing.
     spendAbilities() {
-      for (const ability of Object.values(this.phase.abilities)) {
-        this.charges[ability.side] -= 1;
-        this.rosters[ability.side].spend(ability.actor, 10);
-        this.log.unshift(
-          `${ability.actor.name} activates ${ability.name}. ${this.charges[ability.side]} charges remain.`,
-        );
-      }
+      for (const ability of Object.values(this.phase.abilities)) if (!ability.paid) this.payAbility(ability);
     }
 
     activateCpuAbility(offense, defense, options) {
@@ -416,7 +429,6 @@
         .flatMap((actor) =>
           roster
             .moveset(actor)
-            .filter((move) => FootballGame.MOVE_FAMILIES.includes(MoveBook.family(move)))
             .map((move) => ({ actor, move, pp: this.ppLeft(side, actor, move) }))
             .filter((entry) => entry.pp > 0),
         );
@@ -440,10 +452,26 @@
     // The CPU rule for either side: on `cpuMoveChance` of calls, fire the best-ranked eligible move.
     fireCpuMove(side, play) {
       if (this.phase.moves[side] || this.random() >= this.cpuMoveChance) return;
-      const best = this.availableMoves(side, play).sort(
-        (a, b) => MoveBook.rank(b.move, b.actor) - MoveBook.rank(a.move, a.actor),
-      )[0];
-      if (best) this.activateMove(side, best.actor.id, best.move, play);
+      const options = this.availableMoves(side, play).filter((entry) => this.cpuWants(side, entry));
+      const families = [...new Set(options.map((entry) => MoveBook.family(entry.move)))];
+      if (!families.length) return;
+      const weight = (family) => (family === 'strike' ? 2 : 1);
+      let roll = this.random() * families.reduce((sum, family) => sum + weight(family), 0);
+      const family = families.find((entry) => (roll -= weight(entry)) < 0) ?? families.at(-1);
+      const best = options
+        .filter((entry) => MoveBook.family(entry.move) === family)
+        .sort((a, b) => MoveBook.rank(b.move, b.actor) - MoveBook.rank(a.move, a.actor))[0];
+      this.activateMove(side, best.actor.id, best.move, play);
+    }
+
+    // The CPU skips a field condition that is already up and a heal for a player with stamina to spare.
+    cpuWants(side, { actor, move }) {
+      const family = MoveBook.family(move);
+      if (family === 'heal') return this.rosters[side].energy(actor) < FootballGame.CPU_HEAL_BELOW;
+      if (family !== 'field') return true;
+      if (FootballGame.WEATHERS.includes(move)) return this.field.weather?.kind !== move;
+      if (move === 'spikes') return !this.field[this.opponent(side)].spikes;
+      return move === 'haze' || !this.field[side][move];
     }
 
     // Nothing is paid before the snap, so a pending pick can be withdrawn.
@@ -452,6 +480,7 @@
     }
 
     cancelAbility(side) {
+      if (this.phase.abilities[side]?.paid) throw new Error('Psychic Read is already paid');
       delete this.phase.abilities[side];
     }
 
@@ -661,7 +690,8 @@
         'spike',
       ];
       if (stopped.includes(result.outcome)) return false;
-      if (options.sideline && !['sack', 'stuff'].includes(result.outcome) && offense.kind !== 'kneel') {
+      const stuffed = ['sack', 'stuff'].includes(result.outcome) || result.protectedStop;
+      if (options.sideline && !stuffed && offense.kind !== 'kneel') {
         result.outOfBounds = true;
         return false;
       }
@@ -840,9 +870,12 @@
     sendToBench(record, calls) {
       const foe = this.rosters[this.opponent(record.side)];
       const kind = record.offense ? 'defense' : 'offense';
+      const before = new Set(foe.lineup(kind, calls[kind]).map((slot) => slot.mon.id));
       foe.afflict(record.target, 'benched');
-      const stays = foe.lineup(kind, calls[kind]).some((slot) => slot.mon.id === record.target.id);
+      const after = foe.lineup(kind, calls[kind]).map((slot) => slot.mon);
+      const stays = after.some((mon) => mon.id === record.target.id);
       if (stays) foe.release(record.target, 'benched');
+      for (const mon of after) if (!before.has(mon.id)) foe.spend(mon, this.entryCost(this.opponent(record.side)));
       record.notes.push(stays ? 'But it failed!' : `${record.target.name} was sent to the bench!`);
     }
 
@@ -891,10 +924,13 @@
         return { yards: held, seconds: 7, ...this.moveBall(held) };
       }
       if (matchup.protects.offense)
-        return offense.kind === 'run'
-          ? this.tackle(0, 6, 'NO GAIN!', 'stop')
-          : this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
+        return offense.kind === 'run' ? this.protectedStop() : this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
       return offense.kind === 'run' ? this.fumble(0) : this.interception();
+    }
+
+    // A stuff that Protect erased still follows the stuff clock rules.
+    protectedStop() {
+      return { ...this.tackle(0, 6, 'NO GAIN!', 'stop'), protectedStop: true };
     }
 
     fumble(yards) {
@@ -917,9 +953,7 @@
     resolveRun(offense, matchup, odds, scheme, options) {
       const safe = matchup.protects.offense;
       if (this.random() < odds.stuff)
-        return safe
-          ? this.tackle(0, 6, 'NO GAIN!', 'stop')
-          : this.tackle(-1 - Math.floor(this.random() * 4), 6, 'STUFFED!', 'stuff');
+        return safe ? this.protectedStop() : this.tackle(-1 - Math.floor(this.random() * 4), 6, 'STUFFED!', 'stuff');
       const yards = this.gain(offense, matchup, scheme, options);
       if (this.random() < odds.fumble && !safe) return this.fumble(yards);
       return { yards, seconds: 6 + Math.floor(this.random() * 4), ...this.moveBall(yards) };

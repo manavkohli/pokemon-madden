@@ -164,12 +164,27 @@
       if (unit && unit.ids.has(x.id) !== unit.ids.has(y.id)) this.spend(unit.ids.has(x.id) ? y : x, unit.cost);
     }
 
+    hasMajor(mon) {
+      return Roster.MAJOR.some((kind) => this.has(mon, kind));
+    }
+
+    // Under 70 stamina or any major ailment makes a starter a rotation candidate.
+    needsRest(mon) {
+      return this.energy(mon) < Roster.FATIGUE_THRESHOLD || this.hasMajor(mon);
+    }
+
+    // Position among the role's depth slots; a benched player's replacement sits at its own depth, not the slot's.
+    depthOf(mon, role) {
+      return POSITIONS.filter((slot) => slot.code === role).findIndex(
+        (slot) => this.player(role, slot.depth - 1).id === mon.id,
+      );
+    }
+
     rotate(side, play, entryCost = 0) {
       const active = this.lineup(side, play);
       const activeIds = new Set(active.map((slot) => slot.mon.id));
       for (const slot of active) {
-        if (this.has(slot.mon, 'trap')) continue;
-        if (this.energy(slot.mon) >= Roster.FATIGUE_THRESHOLD && this.penalty(slot.mon) === 0) continue;
+        if (this.has(slot.mon, 'trap') || !this.needsRest(slot.mon)) continue;
         const bench = POSITIONS.map((position) => ({
           ...position,
           mon: this.player(position.code, position.depth - 1),
@@ -179,14 +194,15 @@
               candidate.code === slot.role &&
               !activeIds.has(candidate.mon.id) &&
               !this.has(candidate.mon, 'trap') &&
-              !this.has(candidate.mon, 'benched'),
+              !this.has(candidate.mon, 'benched') &&
+              !this.hasMajor(candidate.mon),
           )
           .sort((a, b) => this.effectiveRating(b.mon, b.code) - this.effectiveRating(a.mon, a.code));
         if (!bench.length || this.effectiveRating(bench[0].mon, slot.role) <= this.effectiveRating(slot.mon, slot.role))
           continue;
         this.substitute(
           slot.role,
-          slot.depth - 1,
+          this.depthOf(slot.mon, slot.role),
           bench[0].depth - 1,
           entryCost ? { ids: activeIds, cost: entryCost } : null,
         );

@@ -129,9 +129,11 @@
 
     // A move's user takes its role's contest, so a fired move always lands on a real opponent.
     overrideLine(pair) {
-      const blocker = this.line.find(
-        (slot) => slot.mon.id === this.moves.attack?.actor.id && ['OL', 'TE'].includes(slot.role),
-      );
+      const user = this.moves.attack?.actor;
+      const carries = user && [this.carrier.id, this.offense.kind !== 'run' && this.passer.id].includes(user.id);
+      const blocker = carries
+        ? null
+        : this.line.find((slot) => slot.mon.id === user?.id && ['OL', 'TE'].includes(slot.role));
       const rusher = this.cover.find((slot) => slot.mon.id === this.moves.defend?.actor.id && slot.role === 'DL');
       if (!blocker && !rusher) return;
       if (blocker) pair.blocker = { ...blocker, role: 'OL' };

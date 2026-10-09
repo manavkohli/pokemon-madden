@@ -15,7 +15,7 @@ Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset, chose
 | Move categories across the 251 moves: damage 98, damage-ailment 34, unique 31, net-good-stats 26, ailment 19, damage-lower 13, heal 6, field-effect 5, damage-heal 5, damage-raise 4, whole-field-effect 4, ohko 3, force-switch 2, swagger 1. | same pull |
 | Crystal learnsets (level-up, TM/HM, tutor, egg) hold 1–65 moves per Pokémon, median 36. | `pokeapi.co/api/v2/pokemon/1..251`, `version_group = crystal` |
 | Under the family rules below, 218 of 251 moves map to a football effect. After that filter, the median Pokémon has 29 learnable moves. Nine Pokémon have fewer than four: Caterpie, Weedle, Metapod, Kakuna, Magikarp, Unown, Wobbuffet, Ditto (0), Smeargle (0). | same pull |
-| 17 damage moves have no fixed power (Seismic Toss, Flail, Return, Counter, Low Kick, and others). | same pull |
+| 18 damage moves have no fixed power (Seismic Toss, Flail, Return, Counter, Low Kick, and others). | same pull |
 | PokeAPI records the Gen 2–4 type chart through `past_damage_relations` (Steel resists Ghost and Dark before Gen 5). | `pokeapi.co/api/v2/type/steel` |
 | `PlayMatchup` reduces every play to three contest margins (`protection`, `separation`, `tackle`) that set the odds and the yard bonus. Abilities add flat values to those margins. | `src/game/matchup.js` |
 | Abilities: two charges per half per team, one ability per call, 10 stamina, available only to a typed player in the right role. The CPU fires one on 35% of calls. | `src/game/football.js` (`ABILITIES`, `activateAbility`, `activateCpuAbility`) |
@@ -39,7 +39,7 @@ Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset, chose
 - Each Pokémon gains `moves`: the move ids it learns in the `crystal` version group by any method.
 - The data file gains a `moves` catalog of the 251 Gen 2 moves with the raw PokeAPI fields listed under Evidence, and a `types` chart built from the Gen 2 damage relations.
 - The scraper stores raw fields only. `MoveBook` derives families in JavaScript, so tests cover the derivation and the browser and Node read the same rule.
-- A move with no fixed power uses power 60. `damage_class` comes from PokeAPI as published.
+- A move with no fixed power uses power 60. The catalog stores Crystal's values: power, accuracy, PP, and type come from the earliest later `past_values` entry that sets the field, and `damage_class` follows the Gen 2 rule (Normal, Fighting, Flying, Poison, Ground, Rock, Bug, Ghost, and Steel are physical; Fire, Water, Grass, Electric, Psychic, Ice, Dragon, and Dark are special). A typeless move (`Unknown`) takes no type effectiveness.
 
 ## Movesets: the coach picks four at the draft
 
@@ -56,7 +56,7 @@ A coach fires a move after committing the call, in the same pre-snap panel as ab
 - **The actor takes its role's contest.** On offense, a carrier actor fights the coverage or tackle contest, a passer actor fights completion, and an OL or TE actor becomes the featured blocker. On defense, a DL actor becomes the rusher, and an LB, CB, or S actor becomes the marker on a pass and the tackler on a run. The offense does not know the defensive call before the snap, so this rule guarantees that a fired move always lands, and the move's user always appears in the battle.
 - **Accuracy** rolls at the snap. A miss spends the PP and the stamina and changes nothing ("Pikachu's Thunder missed!").
 - **Secondary effects** roll automatically when the move hits, at twice the PokeAPI chance, capped at 100%. A game holds about 70 snaps, so a raw 10% paralysis chance on three uses would almost never appear.
-- **The CPU** fires a move on 40% of eligible calls and picks its eligible move with the highest default-moveset rank. The rival's move stays hidden until the snap.
+- **The CPU** fires a move on 40% of calls. It first draws a family at random from the families available that call (strike weight 2, every other family weight 1), skipping a field move whose condition is already active and a heal unless the actor is under 60 stamina, then fires the best-ranked move of that family. The rival's move stays hidden until the snap.
 - **The drive log** records the move: "Pikachu used Thunderbolt! It's super effective! Starmie is paralyzed."
 
 ## Effect families
@@ -78,7 +78,7 @@ Swagger confuses the opponent and raises its attack two stages. The 33 moves wit
 
 ## Conditions: lasting effects on players
 
-`Roster` stores conditions per player beside stamina. A condition counts down on each snap that player's team plays, on the field or on the bench, so a substitution protects the team but does not cure the player. Conditions add to `Roster.penalty()`, so the existing auto-rotation already benches a sleeping or paralyzed starter.
+`Roster` stores conditions per player beside stamina. A condition counts down on each snap that player's team plays, on the field or on the bench, so a substitution protects the team but does not cure the player. Sleep and freeze add to `Roster.penalty()`. Auto-rotation treats a player with any major ailment (paralysis, sleep, freeze, burn, poison) as a rotation candidate, the same as a player under 70 stamina, and benches the starter when a healthy backup rates higher.
 
 | Condition | Effect | Snaps |
 | --- | --- | --- |

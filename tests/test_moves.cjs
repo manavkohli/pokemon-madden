@@ -909,6 +909,135 @@ describe('Review fixes', () => {
   });
 });
 
+describe('Second review fixes', () => {
+  test('Psychic Read is paid at activation and cannot be cancelled', () => {
+    const match = Moves.game();
+    const qb = match.rosters.home.player('QB');
+    qb.types = ['Psychic'];
+    match.prepareCall(Moves.offense());
+    match.activateAbility('home', 'read', Moves.offense());
+    assert.equal(match.charges.home, 1);
+    assert.equal(match.rosters.home.energy(qb), 90);
+    assert.throws(() => match.cancelAbility('home'), /already paid/);
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(match.charges.home, 1);
+  });
+
+  test('an audible or a lost role drops a pending ability at no cost', () => {
+    const audible = Moves.game();
+    audible.rosters.home.player('RB').types = ['Electric'];
+    audible.prepareCall(Moves.offense());
+    audible.activateAbility('home', 'burst', Moves.offense());
+    audible.choosePlayerCall(Moves.offense('quick-slant'));
+    assert.equal(audible.phase.abilities.home, undefined);
+    audible.snap(audible.phase.offense, audible.phase.defense);
+    assert.equal(audible.charges.home, 2);
+    const swapped = Moves.game();
+    const rb = swapped.rosters.home.player('RB');
+    rb.types = ['Electric'];
+    swapped.prepareCall(Moves.offense());
+    swapped.activateAbility('home', 'burst', Moves.offense());
+    swapped.substitute('RB', 0, 1);
+    swapped.snap(swapped.phase.offense, swapped.phase.defense);
+    assert.equal(swapped.charges.home, 2);
+    assert.equal(swapped.rosters.home.energy(rb) >= 100 - 3, true);
+    assert.ok(swapped.log.some((line) => line.includes('could not use Electric Burst')));
+  });
+
+  test('Roar plus Spikes charges the replacement and a benched slot rotates by its real occupant', () => {
+    const match = Moves.game();
+    const [home, away] = [match.rosters.home, match.rosters.away];
+    match.field.home.spikes = true;
+    const backup = home.player('RB', 1);
+    match.prepareCall(Moves.offense());
+    Moves.use(match, 'away', away.player('LB'), 'roar');
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(home.energy(backup), 90);
+    const roster = Moves.game().rosters.home;
+    const [te1, te2, te3] = [0, 1, 2].map((depth) => roster.player('TE', depth));
+    te3.base_stats = { ...te3.base_stats, hp: 200, attack: 200, defense: 200, special_attack: 200 };
+    roster.afflict(te1, 'benched');
+    roster.spend(te2, 60);
+    roster.spend(te3, 70);
+    roster.rotate('offense', Moves.offense(), 10);
+    assert.equal(roster.player('TE', 0).id, te1.id);
+    assert.equal(roster.player('TE', 1).id, te3.id);
+    assert.equal(roster.player('TE', 2).id, te2.id);
+    assert.equal(roster.energy(te3), 20);
+    assert.equal(roster.energy(te2), 40);
+  });
+
+  test('a stuff that Protect erased still keeps the clock running on a sideline finish', () => {
+    const match = Moves.game(() => 0);
+    match.prepareCall(Moves.offense());
+    Moves.use(match, 'home', match.rosters.home.player('RB'), 'protect');
+    const result = match.snap(match.phase.offense, match.phase.defense, { sideline: true });
+    assert.equal(result.outcome, 'stop');
+    assert.equal(result.outOfBounds, undefined);
+    assert.equal(match.clockRunning, true);
+  });
+
+  test('a paralyzed starter at full stamina rotates out for a better healthy backup', () => {
+    const roster = Moves.game().rosters.home;
+    const [starter, backup] = [roster.player('WR'), roster.player('WR', 3)];
+    backup.base_stats = { ...backup.base_stats, speed: 200, attack: 200, special_attack: 200 };
+    roster.afflict(starter, 'paralysis');
+    assert.equal(roster.penalty(starter), 0);
+    roster.rotate('offense', Moves.offense());
+    assert.equal(roster.player('WR').id, backup.id);
+  });
+
+  test('a tight end who carries the ball is not also the blocker', () => {
+    const match = Moves.game();
+    const te = match.rosters.home.player('TE');
+    const play = { ...Moves.offense('quick-slant'), carrier: ['TE', 0] };
+    const args = [match.rosters.home, match.rosters.away, play, Moves.defense(), 'middle', {}];
+    const matchup = new PlayMatchup(...args, { attack: { side: 'home', actor: te, move: 'tackle', hit: true } });
+    assert.notEqual(matchup.blocker.id, te.id);
+    assert.equal(matchup.moveRecords[0].target.id, matchup.marker.mon.id);
+  });
+
+  test('moves carry Crystal values and a typeless move takes no type effectiveness', () => {
+    assert.equal(MoveBook.get('tackle').power, 35);
+    assert.equal(MoveBook.get('thunder').power, 120);
+    assert.equal(MoveBook.get('curse').type, 'Unknown');
+    assert.equal(MoveBook.effectiveness('curse', Moves.mon('Gastly')), 1);
+  });
+
+  test('the CPU draws a family, skips active fields and needless heals, and fires the best move of it', () => {
+    const quiet = Moves.game();
+    quiet.possession = 'away';
+    quiet.prepareCall(Moves.defense());
+    const away = quiet.rosters.away;
+    const rb = away.player('RB');
+    const options = [
+      { actor: rb, move: 'recover' },
+      { actor: rb, move: 'rain-dance' },
+      { actor: rb, move: 'safeguard' },
+    ];
+    assert.equal(quiet.cpuWants('away', options[0]), false);
+    away.spend(rb, 50);
+    assert.equal(quiet.cpuWants('away', options[0]), true);
+    quiet.field.weather = { kind: 'rain-dance', snaps: 3 };
+    quiet.field.away.safeguard = 2;
+    assert.equal(quiet.cpuWants('away', options[1]), false);
+    assert.equal(quiet.cpuWants('away', options[2]), false);
+    const families = new Set();
+    for (const roll of [0.01, 0.5, 0.7, 0.9]) {
+      let calls = 0;
+      const match = Moves.game(() => (calls++ === 0 ? 0 : roll));
+      match.possession = 'away';
+      match.prepareCall(Moves.defense());
+      for (const mon of match.rosters.away.players)
+        match.rosters.away.setMoveset(mon, ['thunderbolt', 'thunder-wave', 'agility', 'protect']);
+      calls = 0;
+      match.fireCpuMove('away', match.resolveOffense(match.phase.offense, {}));
+      families.add(MoveBook.family(match.phase.moves.away.move));
+    }
+    assert.ok(families.has('strike') && families.size > 1);
+  });
+});
+
 describe('Move cues', () => {
   test('the cue plays between 0.22 and 0.5, veers off on a miss, and the caption names the move', () => {
     for (const [move, random, missed] of [
