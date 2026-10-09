@@ -101,7 +101,7 @@ Ditto and Smeargle have no usable moves, and a few Pokémon (Magikarp, Caterpie,
 
 ### The CPU rival
 
-The CPU calls plays from down, distance, field position, score, clock, roster ratings, and your recent tendencies. It kicks and punts on fourth down by field position, calls timeouts late in the half when behind, rotates tired players automatically, fires an ability on about a third of calls, and fires its best available move on 40% of calls.
+The CPU calls plays from down, distance, field position, score, clock, roster ratings, and your recent tendencies. It kicks and punts on fourth down by field position, calls timeouts late in the half when behind, rotates tired players automatically, fires an ability on about a third of calls, and fires a move on 40% of calls: it draws a move kind (strikes twice as often as each other kind), then uses its best move of that kind.
 
 ### Game flow
 
