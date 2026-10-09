@@ -5,6 +5,8 @@
     SALARY_CAP,
     OFFENSE,
     DEFENSE,
+    PASS_KINDS,
+    DEAD_KINDS,
     Roster,
     FootballGame,
     BattleStage,
@@ -126,7 +128,6 @@
     }
 
     bindCoaching() {
-      this.callOptions = { tempo: 'normal', lane: 'middle', sideline: false };
       this.el('subRole').innerHTML = POSITION_GROUPS.map(
         (group) => `<option value="${group.code}">${group.code}</option>`,
       ).join('');
@@ -209,14 +210,13 @@
       return this.game.resolveOffense(this.selectedOffense, this.callOptions);
     }
 
-    renderCoaching() {
+    renderCoaching(preview = this.playerPreview()) {
       this.renderCallStatus();
-      if (this.game.possession === 'home') this.renderDecisions();
-      this.renderClockCoaching();
-      this.renderAbilities();
-      this.renderSubstitutions();
+      if (this.game.possession === 'home') this.renderDecisions(preview);
+      this.renderClockCoaching(preview);
+      this.renderAbilities(preview);
+      this.renderSubstitutions(preview);
       const roster = this.game.rosters.home;
-      const preview = this.playerPreview();
       const mon = this.game.possession === 'home' ? roster.participants(preview).carrier : roster.player('DL');
       this.el('unitStatus').textContent =
         `${mon.name} · ${roster.energy(mon)} stamina · fatigue penalty −${roster.penalty(mon)}. Penalties start below ${Roster.FATIGUE_THRESHOLD}; bench recovery +${Roster.BENCH_RECOVERY} per play.`;
@@ -232,10 +232,10 @@
       this.el('offenseDecisions').classList.toggle('hidden', game.possession !== 'home');
     }
 
-    renderClockCoaching() {
+    renderClockCoaching(play) {
       const game = this.game;
       const offense = game.possession === 'home';
-      const runoff = offense ? game.runoff(this.playerPreview(), this.callOptions.tempo) : 0;
+      const runoff = offense ? game.runoff(play, this.callOptions.tempo) : 0;
       this.el('clockSituation').textContent = offense
         ? `${game.clockRunning ? 'Clock running' : 'Clock stopped'} · ${runoff}s simulated runoff before your next snap. Browsing does not use game time.`
         : `${game.clockRunning ? 'Clock running: a timeout prevents rival runoff.' : 'Clock stopped.'} Rival manages its own tempo.`;
@@ -243,10 +243,9 @@
       this.el('timeoutStatus').textContent = `Timeouts: you ${game.timeouts.home} · rival ${game.timeouts.away}`;
     }
 
-    renderDecisions() {
-      const play = this.playerPreview();
+    renderDecisions(play) {
       const base = this.selectedOffense;
-      const passing = ['short', 'medium', 'deep', 'trick'].includes(play.kind);
+      const passing = PASS_KINDS.includes(play.kind);
       this.el('targetWrap').classList.toggle('hidden', !passing);
       this.el('laneWrap').classList.toggle('hidden', play.kind !== 'run');
       this.el('finishWrap').classList.toggle('hidden', !passing && play.kind !== 'run');
@@ -279,14 +278,12 @@
       this.el('finishSelect').value = this.callOptions.sideline ? 'sideline' : 'fight';
     }
 
-    renderAbilities() {
+    renderAbilities(play) {
       const game = this.game;
       const active = game.phase?.abilities.home;
-      this.el('abilityBudget').textContent = `${game.charges.home} charges this half · 10 stamina each`;
-      const play = this.playerPreview();
-      const abilities = ['kick', 'punt', 'spike', 'kneel'].includes(play.kind)
-        ? []
-        : game.availableAbilities('home', play);
+      this.el('abilityBudget').textContent =
+        `${game.charges.home - (active ? 1 : 0)} charges this half · 10 stamina each`;
+      const abilities = DEAD_KINDS.includes(play.kind) ? [] : game.availableAbilities('home', play);
       this.el('abilityList').innerHTML =
         abilities
           .map(
@@ -300,7 +297,7 @@
         : 'One ability per call. Both teams have two shared charges each half.';
     }
 
-    renderSubstitutions() {
+    renderSubstitutions(play) {
       const roster = this.game.rosters.home;
       const role = this.el('subRole').value;
       const group = POSITION_GROUPS.find((entry) => entry.code === role);
@@ -311,8 +308,8 @@
       this.el('subFrom').innerHTML = options;
       this.el('subTo').innerHTML = options;
       this.el('subTo').value = '1';
+      this.el('subButton').disabled = this.el('subFrom').value === this.el('subTo').value;
       this.el('autoRotate').checked = this.game.autoRotate.home;
-      const play = this.playerPreview();
       const active = new Set(
         roster.lineup(this.game.possession === 'home' ? 'offense' : 'defense', play).map((slot) => slot.mon.id),
       );
@@ -547,7 +544,7 @@
     expireCall() {
       if (this.locked || this.paused || this.game.over) return;
       if (!this.callChosen) {
-        const choices = this.playChoices();
+        const choices = this.playChoices().filter((play) => play.group !== 'clock');
         const play = choices[Math.floor(Math.random() * choices.length)];
         this.choosePlay(play);
       }
@@ -559,7 +556,7 @@
       return this.snap().catch((error) => this.showError(error, sequence));
     }
 
-    renderPlays() {
+    renderPlays(preview = this.playerPreview()) {
       const offense = this.game.possession === 'home';
       const choices = this.playChoices();
       this.el('callKicker').textContent = offense ? 'YOUR OFFENSE' : 'YOUR DEFENSE';
@@ -579,8 +576,8 @@
             `<button class="play-card ${play.id === (offense ? this.selectedOffense : this.selectedDefense).id ? 'active' : ''}" data-play="${play.id}" ${this.locked || !this.game.canChoosePlayerCall(play) ? 'disabled' : ''} aria-pressed="${play.id === (offense ? this.selectedOffense : this.selectedDefense).id}"><span class="play-kind">${offense ? play.group.toUpperCase() : 'DEFENSE'}</span><strong>${play.name}</strong></button>`,
         )
         .join('');
-      this.renderPlayInspector(offense ? this.playerPreview() : this.selectedDefense, offense);
-      this.renderCoaching();
+      this.renderPlayInspector(offense ? preview : this.selectedDefense, offense);
+      this.renderCoaching(preview);
     }
 
     renderPlayInspector(play, offense) {
@@ -640,7 +637,6 @@
       const game = this.game;
       const { offense: call, defense } = game.phase;
       const options = game.possession === 'home' ? this.callOptions : game.cpuOptions(call, defense);
-      game.activateCpuAbility(call, defense, options);
       const beforeSeconds = game.seconds;
       this.el('coachControls').disabled = true;
       const result = game.snap(call, defense, options);
@@ -715,17 +711,18 @@
         .slice(0, 8)
         .map((line) => `<p>${line}</p>`)
         .join('');
-      this.renderField();
-      this.renderPlays();
+      const preview = this.playerPreview();
+      this.renderField(preview);
+      this.renderPlays(preview);
     }
 
-    renderField() {
+    renderField(preview = this.playerPreview()) {
       const game = this.game;
       const x = FootballField.position(game.spot);
       this.el('scrimmageLine').style.left = `${x}%`;
       this.el('firstDownLine').style.left = `${FootballField.position(game.spot + game.toGo)}%`;
       this.el('football').style.left = `${x}%`;
-      const offenseCall = game.possession === 'home' ? this.playerPreview() : OFFENSE[0];
+      const offenseCall = game.possession === 'home' ? preview : OFFENSE[0];
       const defenseCall = game.possession === 'away' ? this.selectedDefense : DEFENSE[0];
       const attack = game.rosters[game.possession].lineup('offense', offenseCall);
       const defend = game.rosters[game.opponent()].lineup('defense', defenseCall);

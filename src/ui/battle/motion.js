@@ -1,4 +1,6 @@
 {
+  const { PASS_KINDS } = typeof module !== 'undefined' ? require('../../game/playbook.js') : window.Pokeballers;
+
   // All movement uses this play clock so pause, skip, and reduced motion share one timeline.
   class BattleMotion {
     static DURATION = 3400;
@@ -11,7 +13,7 @@
       this.featured = featured;
       this.kicking = ['kick', 'punt'].includes(offense.kind);
       this.sacked = result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run');
-      this.passing = ['short', 'medium', 'deep', 'trick'].includes(offense.kind) && !this.sacked;
+      this.passing = PASS_KINDS.includes(offense.kind) && !this.sacked;
       this.stopped = ['stuff', 'stop', 'sack', 'safety'].includes(result.outcome);
       this.missed = result.outcome === 'incomplete' || (result.outcome === 'turnover-downs' && result.yards === 0);
       this.picked = result.outcome === 'interception';

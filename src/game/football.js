@@ -1,5 +1,6 @@
 {
-  const { OFFENSE, DEFENSE } = typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
+  const { OFFENSE, DEFENSE, PASS_KINDS, DEAD_KINDS } =
+    typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
 
   const { PlayMatchup } = typeof module !== 'undefined' ? require('./matchup.js') : window.Pokeballers;
 
@@ -252,7 +253,7 @@
     }
 
     availableAbilities(side, play) {
-      if (['kick', 'punt', 'spike', 'kneel'].includes(play.kind)) return [];
+      if (DEAD_KINDS.includes(play.kind)) return [];
       const offense = side === this.possession;
       const roster = this.rosters[side];
       const lineup = roster.lineup(offense ? 'offense' : 'defense', play);
@@ -284,18 +285,26 @@
       if (committed.id !== play.id) throw new Error('Ability must use the committed call');
       const ability = this.availableAbilities(side, play).find((entry) => entry.id === id);
       if (!ability) throw new Error('Ability is unavailable for this call');
-      this.charges[side] -= 1;
-      this.rosters[side].spend(ability.actor, 10);
       this.phase.abilities[side] = { ...ability, side };
       if (side === 'home' && id === 'read') this.revealTell();
-      this.log.unshift(`${ability.actor.name} activates ${ability.name}. ${this.charges[side]} charges remain.`);
       return ability;
+    }
+
+    // Charges and stamina are paid at the snap so an expired period or a rejected snap costs nothing.
+    spendAbilities() {
+      for (const ability of Object.values(this.phase.abilities)) {
+        this.charges[ability.side] -= 1;
+        this.rosters[ability.side].spend(ability.actor, 10);
+        this.log.unshift(
+          `${ability.actor.name} activates ${ability.name}. ${this.charges[ability.side]} charges remain.`,
+        );
+      }
     }
 
     activateCpuAbility(offense, defense, options) {
       if (!this.charges.away || this.phase.abilities.away || this.random() >= 0.35) return;
       const play = this.possession === 'away' ? this.resolveOffense(offense, options) : defense;
-      if (['kick', 'punt', 'spike', 'kneel'].includes(play.kind)) return;
+      if (DEAD_KINDS.includes(play.kind)) return;
       const ability = this.availableAbilities('away', play).find((entry) => entry.id !== 'read');
       if (ability) this.activateAbility('away', ability.id, play);
     }
@@ -348,7 +357,7 @@
     resolveOffense(offense, options) {
       const defaultRead = offense.id === 'read-option' ? 'keep' : 'pass';
       const resolved = this.optionPlay(offense, options.read || defaultRead);
-      if (!['short', 'medium', 'deep', 'trick'].includes(resolved.kind) || !options.target) return resolved;
+      if (!PASS_KINDS.includes(resolved.kind) || !options.target) return resolved;
       const [role, depth] = options.target;
       const target = this.rosters[this.possession]
         .lineup('offense', resolved)
@@ -371,6 +380,10 @@
       const runoff = this.runoff(resolved, options.tempo || 'normal');
       if (runoff >= this.seconds) return this.expireBeforeSnap(resolved, defense, runoff);
       this.seconds -= runoff;
+      if (this.phase) {
+        this.activateCpuAbility(offense, defense, options);
+        this.spendAbilities();
+      }
       const result = this.resolvePlay(resolved, defense, options);
       result.offense = resolved;
       result.runoff = runoff;
@@ -450,7 +463,6 @@
       }
       this.history.push({ side: prior.side, id: offense.id, kind: offense.kind, defenseId: defense.id });
       this.clockRunning = this.isInBounds(offense, result, options) && this.drive === prior.drive;
-      result.clockStopped = !this.clockRunning;
       this.finishClock(prior, result);
       result.message += result.runoff ? ` ${result.runoff}s runoff.` : '';
       if (result.outOfBounds) result.message += ' Out of bounds: clock stopped.';
@@ -585,7 +597,7 @@
 
     tackle(yards, seconds, label, outcome) {
       const moved = this.moveBall(yards);
-      const terminal = ['safety', 'touchdown', 'turnover-downs'].includes(moved.outcome);
+      const terminal = ['safety', 'touchdown'].includes(moved.outcome);
       return {
         yards,
         seconds,

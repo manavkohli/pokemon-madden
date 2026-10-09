@@ -14,6 +14,9 @@
     Array.from({ length: group.slots }, (_, index) => ({ code: group.code, name: group.name, depth: index + 1 })),
   );
   const SALARY_CAP = 26000;
+  const PASS_KINDS = ['short', 'medium', 'deep', 'trick'];
+  // Calls with no contested scrimmage play: abilities and moves never apply to them.
+  const DEAD_KINDS = ['kick', 'punt', 'spike', 'kneel'];
 
   const OFFENSE = [
     {
@@ -634,6 +637,7 @@
     },
   ];
 
-  if (typeof module !== 'undefined') module.exports = { POSITION_GROUPS, POSITIONS, SALARY_CAP, OFFENSE, DEFENSE };
-  else Object.assign((window.Pokeballers ||= {}), { POSITION_GROUPS, POSITIONS, SALARY_CAP, OFFENSE, DEFENSE });
+  const exported = { POSITION_GROUPS, POSITIONS, SALARY_CAP, PASS_KINDS, DEAD_KINDS, OFFENSE, DEFENSE };
+  if (typeof module !== 'undefined') module.exports = exported;
+  else Object.assign((window.Pokeballers ||= {}), exported);
 }

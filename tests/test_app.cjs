@@ -193,12 +193,13 @@ test('clock, target, option, substitution and ability controls execute their eng
     assert.equal(app.game.timeouts.home, 2);
     assert.equal(app.game.clockRunning, false);
     harness.document.querySelector('[data-ability="burst"]').click();
-    assert.equal(app.game.charges.home, 1);
+    assert.equal(app.game.phase.abilities.home.id, 'burst');
+    assert.equal(app.game.charges.home, 2);
     const tired = team.player('RB');
     harness.select('subRole', 'RB');
     harness.element('subButton').click();
     assert.equal(team.player('RB', 1).id, tired.id);
-    assert.equal(team.energy(tired), 90);
+    assert.equal(team.energy(tired), 100);
     harness.choose('quick-slant');
     harness.select('targetSelect', 'WR:1');
     assert.deepEqual(Array.from(app.callOptions.target), ['WR', 1]);

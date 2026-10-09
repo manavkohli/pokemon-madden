@@ -353,20 +353,22 @@ describe('Limited Pokémon abilities', () => {
     );
   });
 
-  test('activation spends a shared charge and stamina, with one ability per call', () => {
+  test('the snap spends a shared charge and stamina, with one ability per call', () => {
     const game = Mechanics.game();
     Mechanics.abilityTeam(game);
     game.prepareCall(Mechanics.offense());
     const actor = game.rosters.home.player('RB');
     game.activateAbility('home', 'burst', Mechanics.offense());
-    assert.equal(game.charges.home, 1);
-    assert.equal(game.rosters.home.energy(actor), 90);
+    assert.equal(game.charges.home, 2);
+    assert.equal(game.rosters.home.energy(actor), 100);
     assert.throws(() => game.activateAbility('home', 'shield', Mechanics.offense()), /One ability/);
     game.snap(game.phase.offense, game.phase.defense);
+    assert.equal(game.charges.home, 1);
+    assert.ok(game.rosters.home.energy(actor) <= 90);
     game.prepareCall(Mechanics.offense());
     game.activateAbility('home', 'shield', Mechanics.offense());
-    assert.equal(game.charges.home, 0);
     game.snap(game.phase.offense, game.phase.defense);
+    assert.equal(game.charges.home, 0);
     game.prepareCall(Mechanics.offense());
     assert.throws(() => game.activateAbility('home', 'burst', Mechanics.offense()), /No ability charges/);
   });
@@ -426,12 +428,33 @@ describe('Limited Pokémon abilities', () => {
     Mechanics.abilityTeam(game);
     game.prepareCall(Mechanics.offense());
     const { offense, defense } = game.phase;
-    game.activateCpuAbility(offense, defense, {});
+    game.snap(offense, defense, {});
     assert.equal(game.charges.away, 1);
-    assert.equal(game.phase.abilities.away.actor.id, game.rosters.away.player('DL').id);
-    assert.equal(game.rosters.away.energy(game.phase.abilities.away.actor), 90);
-    game.activateCpuAbility(offense, defense, {});
-    assert.equal(game.charges.away, 1);
+    assert.ok(game.log.some((line) => line.includes('activates')));
+    assert.ok(game.rosters.away.energy(game.rosters.away.player('DL')) <= 90);
+  });
+
+  test('an expired period pays no ability charge or stamina', () => {
+    const game = Mechanics.game(() => 0);
+    Mechanics.abilityTeam(game);
+    game.clockRunning = true;
+    game.seconds = 10;
+    game.prepareCall(Mechanics.offense());
+    game.activateAbility('home', 'burst', Mechanics.offense());
+    const result = game.snap(game.phase.offense, game.phase.defense);
+    assert.equal(result.outcome, 'clock-expired');
+    assert.deepEqual(game.charges, { home: 2, away: 2 });
+    assert.equal(game.rosters.home.energy(game.rosters.home.player('RB')), 100);
+  });
+
+  test('a fourth-down sack stays a sack, turns the ball over, and features the passer', () => {
+    const game = Mechanics.game(() => 0);
+    game.down = 4;
+    game.toGo = 5;
+    const result = Mechanics.play(game, Mechanics.offense('quick-slant'));
+    assert.equal(result.outcome, 'sack');
+    assert.equal(game.possession, 'away');
+    assert.equal(result.participants.carrier.id, game.rosters.home.player('QB').id);
   });
 });
 
@@ -490,7 +513,7 @@ describe('Football clock and close finishes', () => {
     assert.equal(kneel.spot, 24);
     assert.equal(kneel.clockRunning, true);
     spike.down = 4;
-    assert.equal(Mechanics.play(spike, Mechanics.offense('spike')).outcome, 'turnover-downs');
+    assert.equal(Mechanics.play(spike, Mechanics.offense('spike')).outcome, 'spike');
     assert.equal(spike.possession, 'away');
   });
 
@@ -631,7 +654,6 @@ describe('Playback and end-to-end invariants', () => {
                 lane: ['left', 'middle', 'right'][snaps % 3],
                 sideline: snaps % 2 === 0,
               };
-        game.activateCpuAbility(offense, defense, options);
         const result = game.snap(offense, defense, options);
         Mechanics.assertState(game, result, side);
         const defensiveIds = new Set(
