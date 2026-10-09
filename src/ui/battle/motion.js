@@ -1,11 +1,14 @@
 {
   const { PASS_KINDS } = typeof module !== 'undefined' ? require('../../game/playbook.js') : window.Pokeballers;
+  const { MoveBook } = typeof module !== 'undefined' ? require('../../game/moves.js') : window.Pokeballers;
 
   // All movement uses this play clock so pause, skip, and reduced motion share one timeline.
   class BattleMotion {
     static DURATION = 3400;
     static REDUCED_DURATION = 1100;
     static CONTACT = 0.56;
+    static CUE_START = 0.22;
+    static CUE_END = 0.5;
 
     constructor(offense, result, featured) {
       this.offense = offense;
@@ -19,6 +22,11 @@
       this.picked = result.outcome === 'interception';
       this.fumbled = result.outcome === 'fumble';
       this.scoring = ['touchdown', 'field-goal-good'].includes(result.outcome);
+      this.move = result.moves?.[0] ?? null;
+    }
+
+    get moveType() {
+      return this.move ? MoveBook.get(this.move.move).type : '';
     }
 
     static interval(time, start, end) {
@@ -56,6 +64,35 @@
       return labels[this.result.outcome];
     }
 
+    moveCaption(progress) {
+      if (!this.move || progress < BattleMotion.CUE_START) return null;
+      const { actor, target, hit, effectiveness } = this.move;
+      const name = MoveBook.get(this.move.move).display_name;
+      const detail = `${this.featured.lead.name} vs ${this.featured.stopper.name}`;
+      if (progress < BattleMotion.CONTACT) return { round: 'MOVE', title: `${actor.name} used ${name}!`, detail };
+      const title = hit ? MoveBook.callout(effectiveness, target.name) || this.impact : `${name} missed!`;
+      return { round: 'MOVE', title, detail };
+    }
+
+    // The move's user and target keep their featured slots; an unfeatured one falls back to its side's lead slot.
+    cue(progress, actors) {
+      if (!this.move || progress < BattleMotion.CUE_START || progress >= BattleMotion.CUE_END) return null;
+      const { actor, target, offense, hit } = this.move;
+      const slots = Object.values(this.featured).map((mon) => mon.id);
+      const find = (mon, fallback) => Math.max(0, slots.indexOf(mon.id) < 0 ? fallback : slots.indexOf(mon.id));
+      const from = actors[find(actor, offense ? 0 : 2)];
+      const to = actors[find(target, offense ? 2 : 0)];
+      const strike = MoveBook.get(this.move.move);
+      return {
+        kind: strike.damage_class === 'special' ? 'beam' : 'lunge',
+        type: strike.type,
+        from: { x: from.x, y: from.y - 8 },
+        to: hit ? { x: to.x, y: to.y - 8 } : { x: to.x + 12, y: -20 },
+        t: BattleMotion.ease(BattleMotion.interval(progress, BattleMotion.CUE_START, BattleMotion.CUE_END)),
+        missed: !hit,
+      };
+    }
+
     caption(progress) {
       if (progress >= 0.79)
         return {
@@ -63,6 +100,8 @@
           title: this.result.message,
           detail: `${this.offense.name} · ${this.featured.lead.name}`,
         };
+      const move = this.moveCaption(progress);
+      if (move) return move;
       if (progress >= BattleMotion.CONTACT)
         return {
           round: 'THE PLAY',
@@ -106,11 +145,13 @@
           }),
         );
       }
+      const cue = reduced ? null : this.cue(progress, actors);
       const shake = !reduced && progress >= 0.56 && progress < 0.63 ? Math.sin(impact * 58) * (1 - impact) * 5 : 0;
       return {
         actors,
         ball: this.ball(progress, action, follow, lead, stopper),
         shake,
+        cue,
         impact,
         progress,
         caption: this.caption(progress),

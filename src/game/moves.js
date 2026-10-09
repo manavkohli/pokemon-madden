@@ -65,6 +65,12 @@
       return target.types.reduce((product, type) => product * (row[type] ?? 1), 1);
     }
 
+    static callout(effectiveness, targetName) {
+      if (effectiveness === 0) return `It doesn't affect ${targetName}…`;
+      if (effectiveness > 1) return "It's super effective!";
+      return effectiveness < 1 ? "It's not very effective…" : '';
+    }
+
     static isStab(name, mon) {
       return mon.types.includes(MoveBook.get(name).type);
     }

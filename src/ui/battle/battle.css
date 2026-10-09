@@ -243,6 +243,80 @@
 .scoring .battle-effects i:nth-child(2n) {
   background: #d0df8d;
 }
+.battle-stage[data-move-type='Normal'] {
+  --move-color: #a8a878;
+}
+.battle-stage[data-move-type='Fire'] {
+  --move-color: #f08030;
+}
+.battle-stage[data-move-type='Water'] {
+  --move-color: #6890f0;
+}
+.battle-stage[data-move-type='Electric'] {
+  --move-color: #f8d030;
+}
+.battle-stage[data-move-type='Grass'] {
+  --move-color: #78c850;
+}
+.battle-stage[data-move-type='Ice'] {
+  --move-color: #98d8d8;
+}
+.battle-stage[data-move-type='Fighting'] {
+  --move-color: #c03028;
+}
+.battle-stage[data-move-type='Poison'] {
+  --move-color: #a040a0;
+}
+.battle-stage[data-move-type='Ground'] {
+  --move-color: #e0c068;
+}
+.battle-stage[data-move-type='Flying'] {
+  --move-color: #a890f0;
+}
+.battle-stage[data-move-type='Psychic'] {
+  --move-color: #f85888;
+}
+.battle-stage[data-move-type='Bug'] {
+  --move-color: #a8b820;
+}
+.battle-stage[data-move-type='Rock'] {
+  --move-color: #b8a038;
+}
+.battle-stage[data-move-type='Ghost'] {
+  --move-color: #705898;
+}
+.battle-stage[data-move-type='Dragon'] {
+  --move-color: #7038f8;
+}
+.battle-stage[data-move-type='Dark'] {
+  --move-color: #705848;
+}
+.battle-stage[data-move-type='Steel'] {
+  --move-color: #b8b8d0;
+}
+.battle-stage:not([data-move-type='']) .battle-caption {
+  border-color: var(--move-color);
+}
+.battle-cue {
+  position: absolute;
+  z-index: 4;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #fff8d8;
+  border-radius: 50%;
+  background: var(--move-color, #fff8d8);
+  box-shadow: 0 0 14px 5px var(--move-color, #fff8d8);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+.battle-cue.lunge {
+  width: 46px;
+  height: 46px;
+  border-radius: 38%;
+}
+.reduced-motion .battle-cue {
+  display: none;
+}
 .battle-impact {
   position: absolute;
   top: 40%;

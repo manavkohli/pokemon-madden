@@ -37,6 +37,7 @@ class Element {
 
   addEventListener() {}
   setAttribute() {}
+  removeAttribute() {}
 }
 
 class FrameClock {

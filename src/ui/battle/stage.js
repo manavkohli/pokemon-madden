@@ -18,6 +18,7 @@
       this.ballNode = element.querySelector('#battleBall');
       this.impactNode = element.querySelector('#battleImpact');
       this.effectsNode = element.querySelector('#battleEffects');
+      this.cueNode = element.querySelector('#battleCue');
       this.progressNode = element.querySelector('#battleProgress');
       this.motionPreference =
         typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
@@ -46,6 +47,7 @@
       this.bodies = this.fighters.map((node) => node.querySelector('.battle-body'));
       this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
       this.impactNode.textContent = motion.impact;
+      this.element.setAttribute('data-move-type', motion.moveType);
       this.effectsNode.innerHTML = Array.from({ length: motion.scoring ? 20 : 10 }, () => '<i></i>').join('');
       this.particles = Array.from(this.effectsNode.children);
       this.reduced = this.motionPreference.matches;
@@ -90,6 +92,7 @@
           `translateY(${actor.bob}px) rotate(${actor.angle}deg) scale(${actor.scaleX}, ${actor.scaleY})`;
         this.shadows[index].style.transform = `scale(${1 + actor.bob * 0.025}, 1)`;
       });
+      this.renderCue(state.cue);
       this.actionNode.style.transform = `translateX(${state.shake}px)`;
       this.ballNode.style.left = `${state.ball.x}%`;
       this.ballNode.style.top = `${state.ball.y}%`;
@@ -108,6 +111,15 @@
         `${this.reduced ? 0 : Math.sin(state.progress * Math.PI * 2) * 12}deg`,
       );
       this.renderParticles(state);
+    }
+
+    renderCue(cue) {
+      this.cueNode.style.opacity = cue ? '1' : '0';
+      if (!cue) return;
+      this.cueNode.classList.toggle('beam', cue.kind === 'beam');
+      this.cueNode.classList.toggle('lunge', cue.kind === 'lunge');
+      this.cueNode.style.left = `${BattleMotion.mix(cue.from.x, cue.to.x, cue.t)}%`;
+      this.cueNode.style.top = `${BattleMotion.mix(cue.from.y, cue.to.y, cue.t)}%`;
     }
 
     renderParticles(state) {

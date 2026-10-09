@@ -2,11 +2,17 @@
   const { OFFENSE, DEFENSE, PASS_KINDS, DEAD_KINDS } =
     typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
 
+  const { MoveBook } = typeof module !== 'undefined' ? require('./moves.js') : window.Pokeballers;
+
   const { PlayMatchup } = typeof module !== 'undefined' ? require('./matchup.js') : window.Pokeballers;
 
   class FootballGame {
     static TEMPOS = { normal: 15, hurry: 3, chew: 30 };
     static ABILITY_CHARGES = 2;
+    static MOVE_FAMILIES = ['strike'];
+    static MOVE_MIN_STAMINA = 20;
+    static CPU_MOVE_CHANCE = 0.4;
+    static CRIT_CHANCE = 0.25;
     static ABILITIES = [
       {
         id: 'burst',
@@ -28,6 +34,7 @@
       this.clockRunning = false;
       this.timeouts = { home: 3, away: 3 };
       this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
+      this.pp = { home: new Map(), away: new Map() };
       this.autoRotate = { home: false, away: true };
       this.quarterSeconds = quarterSeconds;
       this.random = random;
@@ -180,7 +187,16 @@
       const defense = this.possession === 'home' ? this.chooseCpuDefense() : playerCall;
       this.rotateTeam('away', offense, defense);
       const tell = this.formationTell(defense);
-      this.phase = { side: this.possession, offense, defense, inspected: false, audibled: false, tell, abilities: {} };
+      this.phase = {
+        side: this.possession,
+        offense,
+        defense,
+        inspected: false,
+        audibled: false,
+        tell,
+        abilities: {},
+        moves: {},
+      };
       this.rotateTeam('home', offense, defense);
       return this.phase;
     }
@@ -223,6 +239,7 @@
       if (this.phase[key].id === play.id) return;
       if (this.phase.inspected) this.phase.audibled = true;
       this.phase[key] = play;
+      delete this.phase.moves.home;
       if (this.autoRotate.home) this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play);
     }
 
@@ -290,6 +307,31 @@
       return ability;
     }
 
+    commitChoices(call, resolved, defense, options) {
+      this.activateCpuAbility(call, defense, options);
+      this.activateCpuMove(call, defense, options);
+      this.dropStaleMoves(resolved, defense);
+      this.spendAbilities();
+      this.spendMoves();
+    }
+
+    // A call, target, or substitution changed after the pick can leave the actor without a legal role.
+    dropStaleMoves(resolved, defense) {
+      for (const [side, pick] of Object.entries(this.phase.moves)) {
+        const play = side === this.possession ? resolved : defense;
+        if (this.availableMoves(side, play).some((e) => e.actor.id === pick.actor.id && e.move === pick.move)) continue;
+        delete this.phase.moves[side];
+        this.log.unshift(`${pick.actor.name} could not use ${MoveBook.get(pick.move).display_name}.`);
+      }
+    }
+
+    spendMoves() {
+      for (const pick of Object.values(this.phase.moves)) {
+        this.pp[pick.side].set(`${pick.actor.id}:${pick.move}`, this.ppLeft(pick.side, pick.actor, pick.move) - 1);
+        this.rosters[pick.side].spend(pick.actor, MoveBook.cost(pick.move));
+      }
+    }
+
     // Charges and stamina are paid at the snap so an expired period or a rejected snap costs nothing.
     spendAbilities() {
       for (const ability of Object.values(this.phase.abilities)) {
@@ -307,6 +349,53 @@
       if (DEAD_KINDS.includes(play.kind)) return;
       const ability = this.availableAbilities('away', play).find((entry) => entry.id !== 'read');
       if (ability) this.activateAbility('away', ability.id, play);
+    }
+
+    ppLeft(side, mon, name) {
+      return this.pp[side].get(`${mon.id}:${name}`) ?? MoveBook.uses(name);
+    }
+
+    moveActors(roster, lineup, play, offense) {
+      if (!offense) return lineup.map((slot) => slot.mon);
+      const actors = [roster.player(...play.carrier)];
+      if (PASS_KINDS.includes(play.kind)) actors.push(roster.player(...play.passer));
+      actors.push(...lineup.filter((slot) => ['OL', 'TE'].includes(slot.role)).map((slot) => slot.mon));
+      return [...new Map(actors.map((mon) => [mon.id, mon])).values()];
+    }
+
+    availableMoves(side, play) {
+      if (DEAD_KINDS.includes(play.kind)) return [];
+      const offense = side === this.possession;
+      const roster = this.rosters[side];
+      const lineup = roster.lineup(offense ? 'offense' : 'defense', play);
+      return this.moveActors(roster, lineup, play, offense)
+        .filter((mon) => roster.energy(mon) >= FootballGame.MOVE_MIN_STAMINA)
+        .flatMap((actor) =>
+          roster
+            .moveset(actor)
+            .filter((move) => FootballGame.MOVE_FAMILIES.includes(MoveBook.family(move)))
+            .map((move) => ({ actor, move, pp: this.ppLeft(side, actor, move) }))
+            .filter((entry) => entry.pp > 0),
+        );
+    }
+
+    activateMove(side, actorId, name, play) {
+      if (!this.phase || this.over || this.phase.moves[side]) throw new Error('One move per team per call');
+      const committed = side === this.possession ? this.phase.offense : this.phase.defense;
+      if (committed.id !== play.id) throw new Error('Move must use the committed call');
+      const entry = this.availableMoves(side, play).find((item) => item.actor.id === actorId && item.move === name);
+      if (!entry) throw new Error('Move is unavailable for this call');
+      this.phase.moves[side] = { side, actor: entry.actor, move: name };
+      return entry;
+    }
+
+    activateCpuMove(offense, defense, options) {
+      if (this.phase.moves.away || this.random() >= FootballGame.CPU_MOVE_CHANCE) return;
+      const play = this.possession === 'away' ? this.resolveOffense(offense, options) : defense;
+      const best = this.availableMoves('away', play).sort(
+        (a, b) => MoveBook.rank(b.move, b.actor) - MoveBook.rank(a.move, a.actor),
+      )[0];
+      if (best) this.activateMove('away', best.actor.id, best.move, play);
     }
 
     timeout(side) {
@@ -380,11 +469,9 @@
       const runoff = this.runoff(resolved, options.tempo || 'normal');
       if (runoff >= this.seconds) return this.expireBeforeSnap(resolved, defense, runoff);
       this.seconds -= runoff;
-      if (this.phase) {
-        this.activateCpuAbility(offense, defense, options);
-        this.spendAbilities();
-      }
+      if (this.phase) this.commitChoices(offense, resolved, defense, options);
       const result = this.resolvePlay(resolved, defense, options);
+      result.moves ??= [];
       result.offense = resolved;
       result.runoff = runoff;
       this.finishSnap(resolved, defense, result, prior, options);
@@ -435,6 +522,7 @@
         runoff: elapsed,
         outcome: 'clock-expired',
         message: 'The clock expires before the snap.',
+        moves: [],
         offense,
       });
       this.advanceClock(runoff);
@@ -470,6 +558,7 @@
         `${prior.side === 'home' ? 'VOLTS' : 'SURF'}: ${offense.name} vs ${defense.name} — ${result.message}`,
       );
       if (result.explanation) this.log.splice(1, 0, result.explanation);
+      this.log.splice(1, 0, ...(result.moves ?? []).map((record) => this.moveLine(record)));
       this.phase = null;
     }
 
@@ -547,6 +636,7 @@
         defense,
         options.lane || 'middle',
         abilities,
+        this.rollMoves(),
       );
       const scheme = this.matchupScore(offense, defense);
       const odds = matchup.chances(scheme);
@@ -555,9 +645,45 @@
           ? this.resolveRun(offense, matchup, odds, scheme, options)
           : this.resolvePass(offense, matchup, odds, scheme, options);
       result.participants = matchup.participants(result);
+      result.moves = matchup.moveRecords;
+      this.settleMoves(result.moves);
       result.explanation = matchup.explanation();
       result.matchup = { protection: matchup.protection, separation: matchup.separation, tackle: matchup.tackle, odds };
       return result;
+    }
+
+    // Accuracy and critical rolls happen here, offense first, so a seeded game reproduces them exactly.
+    rollMoves() {
+      const entries = {};
+      for (const [key, side] of [
+        ['attack', this.possession],
+        ['defend', this.opponent()],
+      ]) {
+        const pick = this.phase?.moves[side];
+        if (!pick) continue;
+        const { accuracy, meta } = MoveBook.get(pick.move);
+        const hit = accuracy === null || this.random() * 100 < accuracy;
+        const crit = meta.crit_rate > 0 && this.random() < FootballGame.CRIT_CHANCE;
+        entries[key] = { ...pick, hit, crit };
+      }
+      return entries;
+    }
+
+    settleMoves(records) {
+      for (const record of records) {
+        const drain = MoveBook.get(record.move).meta.drain;
+        if (!record.hit || !record.value || !drain) continue;
+        const roster = this.rosters[record.side];
+        if (drain < 0) roster.spend(record.actor, Math.round(record.value / 4));
+        else roster.restore(record.actor, Math.round(record.value / 2));
+      }
+    }
+
+    moveLine(record) {
+      const move = MoveBook.get(record.move).display_name;
+      if (!record.hit) return `${record.actor.name}'s ${move} missed!`;
+      const note = MoveBook.callout(record.effectiveness, record.target.name);
+      return `${record.actor.name} used ${move}!${note ? ` ${note}` : ''}`;
     }
 
     resolveRun(offense, matchup, odds, scheme, options) {

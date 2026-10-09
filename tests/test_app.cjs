@@ -116,7 +116,7 @@ for (const decision of ['keep', 'handoff']) {
       harness.choose('blitz');
       assert.equal(app.callOptions.read, 'keep', 'defensive selection cannot write an offensive option decision');
       app.game.spot = 99;
-      const rolls = [0.99, 0.99, 0.99, 0, 0.5, 0.5];
+      const rolls = [0.99, 0.99, 0.99, 0.99, 0, 0.5, 0.5];
       app.game.random = () => rolls.shift() ?? 0.5;
       await app.requestSnap();
       assert.equal(app.game.score.away, 7);
@@ -141,7 +141,7 @@ test('a player touchdown switches to defense and the next call remains selectabl
     const app = harness.app;
     harness.choose('quick-slant');
     app.game.spot = 99;
-    const rolls = [0.99, 0.99, 0.99, 0, 0.5, 0.5];
+    const rolls = [0.99, 0.99, 0.99, 0.99, 0, 0.5, 0.5];
     app.game.random = () => rolls.shift() ?? 0.5;
     await app.requestSnap();
     assert.equal(app.game.score.home, 7);
@@ -269,7 +269,7 @@ test('a scoring result held by pause opens the next call exactly once on resume'
     const app = harness.app;
     harness.choose('quick-slant');
     app.game.spot = 99;
-    const rolls = [0.99, 0.99, 0.99, 0, 0.5, 0.5];
+    const rolls = [0.99, 0.99, 0.99, 0.99, 0, 0.5, 0.5];
     app.game.random = () => rolls.shift() ?? 0.5;
     await app.requestSnap();
     app.pause();
@@ -366,7 +366,7 @@ test('an animation error after a rival touchdown retains the result and restores
     harness.finishResult();
     harness.choose('blitz');
     app.game.spot = 99;
-    const rolls = [0.99, 0.99, 0.99, 0, 0.5, 0.5];
+    const rolls = [0.99, 0.99, 0.99, 0.99, 0, 0.5, 0.5];
     app.game.random = () => rolls.shift() ?? 0.5;
     app.battle.play = async () => {
       throw new Error('drawing failed');
@@ -381,6 +381,21 @@ test('an animation error after a rival touchdown retains the result and restores
     assert.match(harness.element('playLog').textContent, /TOUCHDOWN/);
     harness.choose('inside-zone');
     assert.equal(app.game.phase.offense.id, 'inside-zone');
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a MOVES button records a strike that the snap spends and reports', async () => {
+  const harness = await AppHarness.create();
+  try {
+    const app = harness.app;
+    harness.document.querySelector('[data-move]').click();
+    assert.ok(app.game.phase.moves.home);
+    assert.equal(harness.document.querySelector('[data-move]').disabled, true);
+    await app.requestSnap();
+    assert.ok(harness.playback.result.moves.some((record) => record.side === 'home'));
+    assert.equal(app.game.pp.home.size, 1);
   } finally {
     await harness.close();
   }

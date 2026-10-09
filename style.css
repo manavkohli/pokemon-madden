@@ -1840,6 +1840,14 @@ a:focus-visible {
   color: var(--ink);
   cursor: pointer;
 }
+.move-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.move-button.active {
+  border-color: var(--lime);
+}
 .ability-button b,
 .ability-button span {
   display: block;

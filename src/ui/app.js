@@ -14,6 +14,7 @@
     PlayDiagram,
     FootballField,
     PlayClock,
+    MoveBook,
   } = window.Pokeballers;
 
   class GameApp {
@@ -170,6 +171,13 @@
         this.callChosen = true;
         this.renderGame();
       });
+      this.el('moveList').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-move]');
+        if (!button || button.disabled) return;
+        this.game.activateMove('home', Number(button.dataset.actor), button.dataset.move, this.playerPreview());
+        this.callChosen = true;
+        this.renderGame();
+      });
       this.el('autoRotate').addEventListener('change', () => {
         this.game.setAutoRotate('home', this.el('autoRotate').checked);
         this.renderGame();
@@ -215,6 +223,7 @@
       if (this.game.possession === 'home') this.renderDecisions(preview);
       this.renderClockCoaching(preview);
       this.renderAbilities(preview);
+      this.renderMoves(preview);
       this.renderSubstitutions(preview);
       const roster = this.game.rosters.home;
       const mon = this.game.possession === 'home' ? roster.participants(preview).carrier : roster.player('DL');
@@ -295,6 +304,22 @@
       this.el('coachNotice').textContent = active
         ? `${active.actor.name}: ${active.name} activated. Physical bonuses apply only while that player remains in the active unit; Burst follows its carrier.`
         : 'One ability per call. Both teams have two shared charges each half.';
+    }
+
+    renderMoves(play) {
+      const active = this.game.phase?.moves.home;
+      this.el('moveBudget').textContent = active
+        ? `${active.actor.name} uses ${MoveBook.get(active.move).display_name} at the snap.`
+        : 'One move per call · uses PP and stamina';
+      this.el('moveList').innerHTML =
+        this.game
+          .availableMoves('home', play)
+          .map(({ actor, move, pp }) => {
+            const entry = MoveBook.get(move);
+            const chosen = active?.actor.id === actor.id && active.move === move;
+            return `<button type="button" class="ability-button move-button ${chosen ? 'active' : ''}" data-actor="${actor.id}" data-move="${move}" ${active ? 'disabled' : ''}><b>${entry.display_name} · ${actor.name}</b><span>${entry.type.toUpperCase()} ${entry.power ?? '—'} · ${pp}/${MoveBook.uses(move)} PP</span></button>`;
+          })
+          .join('') || '<p>No move is available for this call. Players need 20 stamina and PP.</p>';
     }
 
     renderSubstitutions(play) {

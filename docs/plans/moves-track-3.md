@@ -11,8 +11,8 @@ The offense never knows the defensive call before the snap, and the defense neve
 ## What is actually changing
 
 - `FootballGame` gains `pp` (`{ home: Map, away: Map }`, key `${monId}:${moveName}`, filled lazily with `ceil(pp / 5)`), `availableMoves(side, play)`, `activateMove(side, actorId, moveName, play)`, and `activateCpuMove(offense, defense, options)`.
-- `phase` gains `moves: {}`. `activateMove` records `{ side, actor, move }` there and throws `One move per team per call` on a second activation, mirroring `activateAbility`.
-- PP and stamina are spent at activation. The accuracy roll happens at the snap, so a miss has already paid.
+- `phase` gains `moves: {}`. `activateMove` validates the pick and records `{ side, actor, move }` there without spending anything. It throws `One move per team per call` on a second activation, mirroring `activateAbility`.
+- Spending happens inside `FootballGame.snap()`, after validation and after the runoff and expiry check, in this order: the CPU activates its ability and its move; a recorded move whose actor no longer holds a legal role (a changed target, a substitution) is dropped with a log line and costs nothing; ability charges and ability stamina are spent; PP and move stamina are spent; accuracy and critical rolls happen. A miss still pays. A period that expires before the snap pays nothing. Abilities follow the same rule, so the pre-snap panel shows a pending choice and the snap commits it.
 - `scrimmage()` pre-rolls, for each recorded move in a fixed order (offense first, then defense): `hit = random() * 100 < accuracy` (null accuracy always hits), `crit = random() < 0.25` only when `meta.crit_rate > 0`, and passes `{ attack, defend }` move entries with those rolls into `PlayMatchup`.
 - `PlayMatchup` takes a `moves` argument beside `abilities`. After the default contest selection it applies the actor override, then adds the strike value.
 - `result.moves` is an array of `{ side, actor, target, move, hit, effectiveness, value }`. `finishSnap` writes the log line. `BattleMotion` reads the array for the cue and the callout.

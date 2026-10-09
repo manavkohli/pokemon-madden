@@ -41,6 +41,10 @@
       this.stamina.set(mon.id, Math.max(0, this.energy(mon) - amount));
     }
 
+    restore(mon, amount) {
+      this.stamina.set(mon.id, Math.min(100, this.energy(mon) + amount));
+    }
+
     recover(amount) {
       for (const mon of this.players) this.stamina.set(mon.id, Math.min(100, this.energy(mon) + amount));
     }

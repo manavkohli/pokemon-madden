@@ -1,16 +1,20 @@
 {
+  const { MoveBook } = typeof module !== 'undefined' ? require('./moves.js') : window.Pokeballers;
+
   class PlayMatchup {
     // Rating differences move probabilities by one percentage point per five points, with bounded odds.
     static ODDS_SCALE = 0.002;
     static YARDS_SCALE = 0.12;
     static PRESSURE = ['blitz', 'zone-blitz', 'fire-zone', 'cover-0', 'run-blitz'];
 
-    constructor(attack, defend, offense, defense, lane = 'middle', abilities = {}) {
+    constructor(attack, defend, offense, defense, lane = 'middle', abilities = {}, moves = {}) {
       this.attack = attack;
       this.defend = defend;
       this.offense = offense;
       this.defense = defense;
       this.abilities = abilities;
+      this.moves = moves;
+      this.moveRecords = [];
       this.line = attack.lineup('offense', offense);
       this.cover = defend.lineup('defense', defense);
       this.carrier = attack.player(...offense.carrier);
@@ -36,6 +40,7 @@
           this.defend.effectiveRating(front[index % front.length].mon, front[index % front.length].role),
       }));
       const pair = this.offense.kind === 'run' ? pairs[this.lane] : pairs.sort((a, b) => a.margin - b.margin)[0];
+      this.overrideLine(pair);
       this.blocker = pair.blocker.mon;
       this.rusher = pair.rusher.mon;
       const coverageRole = this.offense.carrier[0] === 'WR' ? 'CB' : 'LB';
@@ -43,6 +48,7 @@
       this.marker = markers[this.offense.carrier[1] % markers.length];
       const tacklers = this.cover.filter((slot) => slot.role === 'LB');
       this.tackler = this.offense.kind === 'run' ? tacklers[this.lane % tacklers.length] : this.marker;
+      this.overrideCoverage();
       this.help = this.cover.find((slot) => slot.role === 'S').mon;
       const support = this.line.filter((slot) => slot.role === 'TE' || slot.role === 'RB').length;
       this.protection = pair.margin + support * 2 - (this.pressure ? 12 : 0) - Math.max(0, front.length - 4) * 3;
@@ -57,6 +63,69 @@
         this.defend.effectiveRating(this.tackler.mon, this.tackler.role);
       this.applyAttackAbility();
       this.applyDefenseAbility();
+      this.applyMoves();
+    }
+
+    // A move's user takes its role's contest, so a fired move always lands on a real opponent.
+    overrideLine(pair) {
+      const blocker = this.line.find(
+        (slot) => slot.mon.id === this.moves.attack?.actor.id && ['OL', 'TE'].includes(slot.role),
+      );
+      const rusher = this.cover.find((slot) => slot.mon.id === this.moves.defend?.actor.id && slot.role === 'DL');
+      if (!blocker && !rusher) return;
+      if (blocker) pair.blocker = { ...blocker, role: 'OL' };
+      if (rusher) pair.rusher = rusher;
+      pair.margin =
+        this.attack.effectiveRating(pair.blocker.mon, 'OL') -
+        this.defend.effectiveRating(pair.rusher.mon, pair.rusher.role);
+    }
+
+    overrideCoverage() {
+      const slot = this.cover.find((entry) => entry.mon.id === this.moves.defend?.actor.id);
+      if (!slot || slot.role === 'DL') return;
+      if (this.offense.kind === 'run') this.tackler = slot;
+      else this.marker = this.tackler = slot;
+    }
+
+    offenseContest(actor) {
+      const pass = this.offense.kind !== 'run';
+      if (actor.id === this.carrier.id)
+        return { target: pass ? this.marker.mon : this.tackler.mon, margin: pass ? 'separation' : 'tackle' };
+      if (actor.id === this.passer.id && pass) return { target: this.marker.mon, margin: 'separation' };
+      return { target: this.rusher, margin: 'protection' };
+    }
+
+    defenseContest(actor) {
+      const pass = this.offense.kind !== 'run';
+      if ([this.marker, this.tackler].some((slot) => slot.mon.id === actor.id))
+        return { target: this.carrier, margin: pass ? 'separation' : 'tackle' };
+      return { target: this.blocker, margin: 'protection' };
+    }
+
+    applyMoves() {
+      for (const key of ['attack', 'defend']) {
+        const entry = this.moves[key];
+        if (!entry) continue;
+        const offense = key === 'attack';
+        const { target, margin } = offense ? this.offenseContest(entry.actor) : this.defenseContest(entry.actor);
+        const effectiveness = MoveBook.effectiveness(entry.move, target);
+        const stat = MoveBook.STAT_KEYS[MoveBook.get(entry.move).damage_class];
+        const skill = (offense ? this.attack : this.defend).skill(entry.actor, stat);
+        const value = entry.hit
+          ? MoveBook.strike(entry.move, { actor: entry.actor, skill, effectiveness, crit: entry.crit })
+          : 0;
+        this[margin] += offense ? value : -value;
+        this.moveRecords.push({
+          side: entry.side,
+          offense,
+          actor: entry.actor,
+          target,
+          move: entry.move,
+          hit: entry.hit,
+          effectiveness,
+          value,
+        });
+      }
     }
 
     applyAttackAbility() {
