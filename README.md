@@ -35,7 +35,11 @@ Offense and defense get the same play clock: 40 seconds normally, 25 at kickoff 
 
 The stadium themes are based on [Indigo Stadium in Kanto](https://bulbapedia.bulbagarden.net/wiki/Indigo_Plateau_Conference) and [Silver Stadium in Johto](https://bulbapedia.bulbagarden.net/wiki/Silver_Conference) from the animated series. Each has its own scenery, field colors, and lighting. Venue selection does not change football rules.
 
-CPU calls account for down, distance, field position, score, clock, roster ratings, and recent plays. The [NFL fourth-down decision guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3) informed these simplified rules.
+CPU calls account for down, distance, field position, score, clock, roster ratings, and recent plays. The rival commits before you scout; scouting reveals a partial formation tell and leaves one audible. Read Option supports keep/handoff, RPO supports run/pass, and passing plays let you pick an active receiver. Individual protection, coverage, and tackle contests determine results.
+
+Use the coaching panel to choose a lane, tempo, or sideline finish; manage timeouts and substitutions; and inspect stamina. A running clock consumes simulated runoff before a snap: normal 15 seconds, hurry-up 3, chew-clock 30. A spike costs one second and a down; a kneel costs one yard and keeps the clock running. Browsing uses no game time. Bench players recover stamina, and automatic rotation can replace tired starters.
+
+Electric carriers/front defenders, Steel blockers/front defenders, and Psychic QBs/coverage players unlock limited abilities. Each team gets two shared charges per half; an activation also costs ten stamina. Psychic Read reveals the actual rival call, while Burst and Shield modify the participating player's contest. The [NFL fourth-down decision guide](https://www.nfl.com/news/introducing-the-next-gen-stats-decision-guide-a-new-analytics-tool-for-fourth-do) and [third-down defense overview](https://www.nfl.com/news/breaking-down-the-money-down-for-nfl-defenses-09000d5d810e76f3) informed these simplified rules.
 
 ## Development
 
@@ -48,6 +52,8 @@ npm ci
 npm run lint
 npm run format:check
 npm test
+# Gameplay and UI regressions alone:
+npm run test:mechanics
 python3 -m unittest discover -s tests -p 'test_pokedex.py'
 ```
 

@@ -1,11 +1,33 @@
 {
   const { OFFENSE, DEFENSE } = typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
 
-  const { Roster } = typeof module !== 'undefined' ? require('./roster.js') : window.Pokeballers;
+  const { PlayMatchup } = typeof module !== 'undefined' ? require('./matchup.js') : window.Pokeballers;
 
   class FootballGame {
+    static TEMPOS = { normal: 15, hurry: 3, chew: 30 };
+    static ABILITY_CHARGES = 2;
+    static ABILITIES = [
+      {
+        id: 'burst',
+        type: 'Electric',
+        name: 'Electric Burst',
+        detail: '+12 escape/separation on offense; +12 rush on defense.',
+      },
+      {
+        id: 'shield',
+        type: 'Steel',
+        name: 'Steel Shield',
+        detail: '+18 protection on offense; +18 tackling on defense.',
+      },
+      { id: 'read', type: 'Psychic', name: 'Psychic Read', detail: 'Reveal the committed rival call before you snap.' },
+    ];
     constructor(home, away, quarterSeconds, random = Math.random) {
-      this.rosters = { home, away };
+      this.rosters = { home: home.copy(), away: away.copy() };
+      this.phase = null;
+      this.clockRunning = false;
+      this.timeouts = { home: 3, away: 3 };
+      this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
+      this.autoRotate = { home: false, away: true };
       this.quarterSeconds = quarterSeconds;
       this.random = random;
       this.quarter = 1;
@@ -26,38 +48,6 @@
       return side === 'home' ? 'away' : 'home';
     }
 
-    unitRating(team, side, play, role) {
-      const players = team.lineup(side, play).filter((slot) => slot.role === role);
-      return players.length
-        ? players.reduce((sum, slot) => sum + Roster.rating(slot.mon, role), 0) / players.length
-        : 0;
-    }
-
-    offenseStrength(play) {
-      const team = this.rosters[this.possession];
-      const { carrier, passer } = team.participants(play);
-      const rating = (role) => this.unitRating(team, 'offense', play, role);
-      if (play.kind === 'run')
-        return (
-          Roster.rating(carrier, 'RB') * 0.5 +
-          rating('OL') * 0.3 +
-          (rating('TE') || rating('WR')) * 0.1 +
-          rating('QB') * 0.1
-        );
-      const receiver = Roster.rating(carrier, play.carrier[0]);
-      const quarterback = Roster.rating(passer, 'QB');
-      if (play.kind === 'trick') return quarterback * 0.35 + rating('RB') * 0.27 + receiver * 0.38;
-      if (play.kind === 'deep') return quarterback * 0.48 + receiver * 0.42 + rating('OL') * 0.1;
-      return quarterback * 0.4 + receiver * 0.34 + (rating('TE') || rating('RB')) * 0.16 + rating('OL') * 0.1;
-    }
-
-    defenseStrength(offense, defense) {
-      const team = this.rosters[this.opponent()];
-      const rating = (role) => this.unitRating(team, 'defense', defense, role);
-      if (offense.kind === 'run') return rating('DL') * 0.44 + rating('LB') * 0.38 + rating('S') * 0.18;
-      return rating('DL') * 0.22 + rating('CB') * 0.4 + rating('S') * 0.38;
-    }
-
     get cpuClock() {
       return {
         deficit: this.score.home - this.score.away,
@@ -76,9 +66,12 @@
     }
 
     chooseCpuOffense() {
+      const { late, deficit } = this.cpuClock;
+      if (late && deficit < 0 && this.clockRunning && this.seconds <= 30 && !this.timeouts.home)
+        return OFFENSE.find((play) => play.id === 'kneel');
       const special = this.down === 4 ? this.fourthDownCall() : null;
       if (special) return OFFENSE.find((play) => play.id === special);
-      const ranked = OFFENSE.filter((play) => play.group !== 'special')
+      const ranked = OFFENSE.filter((play) => play.group !== 'special' && !['spike', 'kneel'].includes(play.kind))
         .map((play) => ({
           play,
           score:
@@ -177,50 +170,325 @@
       return 0;
     }
 
-    snap(offense, defense) {
+    prepareCall(playerCall) {
       if (this.over) throw new Error('The game has ended.');
-      const side = this.possession;
-      const wasOvertime = this.quarter === 5;
-      const priorScore = this.score.home + this.score.away;
-      const priorDrive = this.drive;
-      const priorQuarter = this.quarter;
-      const result =
-        offense.kind === 'punt'
-          ? this.punt()
-          : offense.kind === 'kick'
-            ? this.fieldGoal()
-            : this.scrimmage(offense, defense);
-      result.participants = this.playParticipants(side, offense, defense, result);
-      this.history.push({ side, id: offense.id, kind: offense.kind, defenseId: defense.id });
-      this.advanceClock(result.seconds);
-      this.playClockSeconds = this.drive !== priorDrive || this.quarter !== priorQuarter ? 25 : 40;
-      if (wasOvertime && this.score.home + this.score.away > priorScore) this.over = true;
-      this.log.unshift(`${side === 'home' ? 'VOLTS' : 'SURF'}: ${offense.name} vs ${defense.name} — ${result.message}`);
+      if (this.phase) return this.phase;
+      if (!this.isLegalCall(playerCall)) throw new Error('That call is not legal now');
+      this.cpuTimeout();
+      const offense = this.possession === 'away' ? this.chooseCpuOffense() : playerCall;
+      const defense = this.possession === 'home' ? this.chooseCpuDefense() : playerCall;
+      this.rotateTeam('away', offense, defense);
+      const tell = this.formationTell(defense);
+      this.phase = { side: this.possession, offense, defense, inspected: false, audibled: false, tell, abilities: {} };
+      this.rotateTeam('home', offense, defense);
+      return this.phase;
+    }
+
+    rotateTeam(side, offense, defense) {
+      if (!this.autoRotate[side]) return;
+      const attacking = side === this.possession;
+      this.rosters[side].rotate(attacking ? 'offense' : 'defense', attacking ? offense : defense);
+    }
+
+    setAutoRotate(side, enabled) {
+      this.autoRotate[side] = enabled;
+      if (this.phase) this.rotateTeam(side, this.phase.offense, this.phase.defense);
+    }
+
+    formationTell(defense) {
+      if (this.random() < 0.2)
+        return ['Crowded box', 'Two deep safeties', 'Possible pressure'][Math.floor(this.random() * 3)];
+      return this.defensiveShell(defense);
+    }
+
+    defensiveShell(defense) {
+      if (PlayMatchup.PRESSURE.includes(defense.id)) return 'Possible pressure';
+      if (defense.strengths.includes('run')) return 'Crowded box';
+      if (defense.strengths.includes('deep')) return 'Two deep safeties';
+      return 'Tight underneath coverage';
+    }
+
+    canChoosePlayerCall(play) {
+      if (!this.phase || this.over || !this.isLegalCall(play)) return false;
+      const key = this.possession === 'home' ? 'offense' : 'defense';
+      const book = this.possession === 'home' ? OFFENSE : DEFENSE;
+      if (!book.includes(play)) return false;
+      return this.phase[key].id === play.id || !(this.phase.inspected && this.phase.audibled);
+    }
+
+    choosePlayerCall(play) {
+      if (!this.canChoosePlayerCall(play)) throw new Error('That call is unavailable: one audible after scouting');
+      const key = this.possession === 'home' ? 'offense' : 'defense';
+      if (this.phase[key].id === play.id) return;
+      if (this.phase.inspected) this.phase.audibled = true;
+      this.phase[key] = play;
+      if (this.autoRotate.home) this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play);
+    }
+
+    substitute(role, first, second) {
+      if (!this.phase || this.over) throw new Error('Substitutions require an active call');
+      this.rosters.home.substitute(role, first, second);
+    }
+
+    isLegalCall(play) {
+      return play.group !== 'special' || this.down === 4;
+    }
+
+    revealTell() {
+      if (!this.phase || this.over) throw new Error('No active call');
+      this.phase.inspected = true;
+      return this.tell();
+    }
+
+    tell() {
+      if (!this.phase?.inspected) return 'Scout the formation, then make one audible.';
+      const revealed = Object.values(this.phase.abilities).some(
+        (ability) => ability.id === 'read' && ability.side === 'home',
+      );
+      const rival = this.possession === 'home' ? this.phase.defense : this.phase.offense;
+      if (revealed) return `Psychic read: ${rival.name}.`;
+      if (this.possession === 'home') return `${this.phase.tell}. Coverage may be disguised.`;
+      return `Rival personnel: ${this.phase.offense.personnel || '11'}. The exact call is hidden.`;
+    }
+
+    availableAbilities(side, play) {
+      if (['kick', 'punt', 'spike', 'kneel'].includes(play.kind)) return [];
+      const offense = side === this.possession;
+      const roster = this.rosters[side];
+      const lineup = roster.lineup(offense ? 'offense' : 'defense', play);
+      return FootballGame.ABILITIES.map((ability) => ({
+        ...ability,
+        actor: this.abilityActor(roster, lineup, play, ability, offense),
+      })).filter((ability) => ability.actor && roster.energy(ability.actor) >= 20);
+    }
+
+    abilityActor(roster, lineup, play, ability, offense) {
+      if (ability.id === 'burst' && offense) {
+        const carrier = roster.player(...play.carrier);
+        return carrier.types.includes(ability.type) ? carrier : null;
+      }
+      const roles = offense
+        ? ability.id === 'read'
+          ? ['QB']
+          : ['OL', 'TE']
+        : ability.id === 'read'
+          ? ['CB', 'S', 'LB']
+          : ['DL', 'LB'];
+      return lineup.find((slot) => roles.includes(slot.role) && slot.mon.types.includes(ability.type))?.mon;
+    }
+
+    activateAbility(side, id, play) {
+      if (!this.phase || this.over || this.phase.abilities[side]) throw new Error('One ability per team per call');
+      if (!this.charges[side]) throw new Error('No ability charges left this half');
+      const committed = side === this.possession ? this.phase.offense : this.phase.defense;
+      if (committed.id !== play.id) throw new Error('Ability must use the committed call');
+      const ability = this.availableAbilities(side, play).find((entry) => entry.id === id);
+      if (!ability) throw new Error('Ability is unavailable for this call');
+      this.charges[side] -= 1;
+      this.rosters[side].spend(ability.actor, 10);
+      this.phase.abilities[side] = { ...ability, side };
+      if (side === 'home' && id === 'read') this.revealTell();
+      this.log.unshift(`${ability.actor.name} activates ${ability.name}. ${this.charges[side]} charges remain.`);
+      return ability;
+    }
+
+    activateCpuAbility(offense, defense, options) {
+      if (!this.charges.away || this.phase.abilities.away || this.random() >= 0.35) return;
+      const play = this.possession === 'away' ? this.resolveOffense(offense, options) : defense;
+      if (['kick', 'punt', 'spike', 'kneel'].includes(play.kind)) return;
+      const ability = this.availableAbilities('away', play).find((entry) => entry.id !== 'read');
+      if (ability) this.activateAbility('away', ability.id, play);
+    }
+
+    timeout(side) {
+      if (this.over || !this.clockRunning || !this.timeouts[side]) throw new Error('A timeout is not available');
+      this.timeouts[side] -= 1;
+      this.clockRunning = false;
+      for (const roster of Object.values(this.rosters)) roster.recover(6);
+      this.log.unshift(`${side === 'home' ? 'Volts' : 'Surf'} timeout. ${this.timeouts[side]} remain this half.`);
+    }
+
+    cpuTimeout() {
+      const deficit = this.score.home - this.score.away;
+      if (!this.clockRunning || !this.timeouts.away || this.quarter % 2 !== 0 || this.seconds > 45) return;
+      if (deficit > 0) this.timeout('away');
+    }
+
+    cpuOptions(offense, defense) {
+      const { deficit, hurry, late } = this.cpuClock;
+      const tempo = hurry && deficit > 0 ? 'hurry' : late && deficit < 0 ? 'chew' : 'normal';
+      const read = defense.strengths.includes('run') ? 'pass' : 'run';
+      const option = ['spy', 'edge-contain', 'contain-man'].includes(defense.id) ? 'handoff' : 'keep';
+      const receivers = this.rosters.away
+        .lineup('offense', offense)
+        .filter((slot) => ['WR', 'TE', 'RB'].includes(slot.role));
+      receivers.sort(
+        (a, b) => this.rosters.away.effectiveRating(b.mon, b.role) - this.rosters.away.effectiveRating(a.mon, a.role),
+      );
+      return {
+        tempo,
+        read: offense.id === 'read-option' ? option : read,
+        sideline: hurry && deficit > 0,
+        target: [receivers[0].role, receivers[0].depth - 1],
+      };
+    }
+
+    optionPlay(offense, read) {
+      if (offense.id === 'read-option') {
+        if (!['keep', 'handoff'].includes(read)) throw new Error('Choose handoff or keep');
+        return { ...offense, carrier: [read === 'handoff' ? 'RB' : 'QB', 0], name: `${offense.name} (${read})` };
+      }
+      if (offense.id !== 'rpo-slant') return offense;
+      if (!['run', 'pass'].includes(read)) throw new Error('Choose run or pass');
+      return read === 'run'
+        ? { ...offense, kind: 'run', carrier: ['RB', 0], base: 4, name: `${offense.name} (run)` }
+        : offense;
+    }
+
+    resolveOffense(offense, options) {
+      const defaultRead = offense.id === 'read-option' ? 'keep' : 'pass';
+      const resolved = this.optionPlay(offense, options.read || defaultRead);
+      if (!['short', 'medium', 'deep', 'trick'].includes(resolved.kind) || !options.target) return resolved;
+      const [role, depth] = options.target;
+      const target = this.rosters[this.possession]
+        .lineup('offense', resolved)
+        .find((slot) => slot.role === role && slot.depth === depth + 1);
+      if (!target || !['WR', 'TE', 'RB'].includes(role)) throw new Error('Choose a receiver in this personnel package');
+      return { ...resolved, carrier: [role, depth] };
+    }
+
+    snap(offense, defense, options = {}) {
+      if (this.over) throw new Error('The game has ended.');
+      this.validateSnap(offense, defense, options);
+      const resolved = this.resolveOffense(offense, options);
+      const prior = {
+        side: this.possession,
+        drive: this.drive,
+        quarter: this.quarter,
+        seconds: this.seconds,
+        score: this.score.home + this.score.away,
+      };
+      const runoff = this.runoff(resolved, options.tempo || 'normal');
+      if (runoff >= this.seconds) return this.expireBeforeSnap(resolved, defense, runoff);
+      this.seconds -= runoff;
+      const result = this.resolvePlay(resolved, defense, options);
+      result.offense = resolved;
+      result.runoff = runoff;
+      this.finishSnap(resolved, defense, result, prior, options);
       return result;
     }
 
-    featuredDefender(side, offense, defense, result) {
-      const lineup = this.rosters[this.opponent(side)].lineup('defense', defense);
-      const backfield = result.outcome === 'interception' || result.outcome === 'incomplete';
-      const roles = backfield
-        ? ['CB', 'S', 'LB']
-        : offense.kind === 'run' || result.outcome === 'sack'
-          ? ['DL', 'LB']
-          : ['CB', 'S', 'LB'];
-      const candidates = lineup.filter((slot) => roles.includes(slot.role));
-      candidates.sort((a, b) => Roster.rating(b.mon, b.role) - Roster.rating(a.mon, a.role));
-      return candidates[0].mon;
+    runoff(offense, tempo) {
+      return this.clockRunning && offense.kind !== 'spike' ? FootballGame.TEMPOS[tempo] : 0;
     }
 
-    playParticipants(side, offense, defense, result) {
-      const { carrier, passer, blocker } = this.rosters[side].participants(offense);
-      const sacked = result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run');
-      const defender = this.featuredDefender(side, offense, defense, result);
-      const support = sacked || ['run', 'kick', 'punt'].includes(offense.kind) ? blocker : passer;
-      const help = this.rosters[this.opponent(side)]
-        .lineup('defense', defense)
-        .find((slot) => ['S', 'LB', 'CB'].includes(slot.role) && slot.mon.id !== defender.id).mon;
-      return { carrier: sacked ? passer : carrier, support, defender, help };
+    validateSnap(offense, defense, options) {
+      if (options.lane && !['left', 'middle', 'right'].includes(options.lane)) throw new Error('Unknown attack lane');
+      if (!FootballGame.TEMPOS[options.tempo || 'normal']) throw new Error('Unknown tempo');
+      if (!this.isLegalCall(offense)) throw new Error('Special teams calls require fourth down');
+      if (this.phase && (this.phase.offense.id !== offense.id || this.phase.defense.id !== defense.id))
+        throw new Error('Snap must use the committed calls');
+    }
+
+    resolvePlay(offense, defense, options) {
+      const side = this.possession;
+      if (offense.kind === 'punt') return this.specialResult(offense, defense, this.punt(), side);
+      if (offense.kind === 'kick') return this.specialResult(offense, defense, this.fieldGoal(), side);
+      if (offense.kind === 'spike')
+        return this.specialResult(offense, defense, this.tackle(0, 1, 'SPIKE!', 'spike'), side);
+      if (offense.kind === 'kneel')
+        return this.specialResult(offense, defense, this.tackle(-1, 2, 'KNEEL.', 'kneel'), side);
+      return this.scrimmage(offense, defense, options);
+    }
+
+    specialResult(offense, defense, result, side = this.possession) {
+      const attack = this.rosters[side];
+      const matchup = new PlayMatchup(attack, this.rosters[this.opponent(side)], offense, defense);
+      result.participants = {
+        carrier: matchup.carrier,
+        support: matchup.blocker,
+        defender: matchup.rusher,
+        help: matchup.help,
+      };
+      return result;
+    }
+
+    expireBeforeSnap(offense, defense, runoff) {
+      const side = this.possession;
+      const elapsed = this.seconds;
+      const result = this.specialResult(offense, defense, {
+        yards: 0,
+        seconds: elapsed,
+        runoff: elapsed,
+        outcome: 'clock-expired',
+        message: 'The clock expires before the snap.',
+        offense,
+      });
+      this.advanceClock(runoff);
+      this.clockRunning = false;
+      this.phase = null;
+      this.playClockSeconds = 25;
+      this.log.unshift(`${side === 'home' ? 'VOLTS' : 'SURF'}: ${result.message}`);
+      return result;
+    }
+
+    finishSnap(offense, defense, result, prior, options) {
+      const attack = this.rosters[prior.side];
+      const defend = this.rosters[this.opponent(prior.side)];
+      attack.finishPlay(attack.lineup('offense', offense), offense, {
+        carrier: result.participants.carrier,
+        passer: attack.player(...offense.passer),
+      });
+      defend.finishPlay(
+        defend.lineup('defense', defense),
+        { ...defense, pressure: PlayMatchup.PRESSURE.includes(defense.id) },
+        { defender: result.participants.defender },
+      );
+      if (this.drive !== prior.drive) {
+        attack.recover(6);
+        defend.recover(6);
+      }
+      this.history.push({ side: prior.side, id: offense.id, kind: offense.kind, defenseId: defense.id });
+      this.clockRunning = this.isInBounds(offense, result, options) && this.drive === prior.drive;
+      result.clockStopped = !this.clockRunning;
+      this.finishClock(prior, result);
+      result.message += result.runoff ? ` ${result.runoff}s runoff.` : '';
+      if (result.outOfBounds) result.message += ' Out of bounds: clock stopped.';
+      this.log.unshift(
+        `${prior.side === 'home' ? 'VOLTS' : 'SURF'}: ${offense.name} vs ${defense.name} — ${result.message}`,
+      );
+      if (result.explanation) this.log.splice(1, 0, result.explanation);
+      this.phase = null;
+    }
+
+    finishClock(prior, result) {
+      result.playSeconds = result.seconds;
+      const newPeriod = this.advanceClock(result.playSeconds);
+      result.seconds = Math.min(prior.seconds, result.playSeconds + result.runoff);
+      this.playClockSeconds = this.drive !== prior.drive || newPeriod ? 25 : 40;
+      if (prior.quarter === 5 && this.score.home + this.score.away > prior.score) this.over = true;
+      result.clockStopped = !this.clockRunning || this.over;
+    }
+
+    isInBounds(offense, result, options) {
+      const stopped = [
+        'incomplete',
+        'interception',
+        'fumble',
+        'touchdown',
+        'safety',
+        'turnover-downs',
+        'punt',
+        'field-goal-good',
+        'field-goal-miss',
+        'spike',
+      ];
+      if (stopped.includes(result.outcome)) return false;
+      if (options.sideline && !['sack', 'stuff'].includes(result.outcome) && offense.kind !== 'kneel') {
+        result.outOfBounds = true;
+        return false;
+      }
+      return true;
     }
 
     matchupScore(offense, defense) {
@@ -255,69 +523,76 @@
       return matchup ? matchup.bonus : 0;
     }
 
-    scrimmage(offense, defense) {
-      const matchup = this.matchupScore(offense, defense);
-      const advantage = (this.offenseStrength(offense) - this.defenseStrength(offense, defense)) / 10;
-      const pass = ['short', 'medium', 'deep', 'trick'].includes(offense.kind);
-      if (!pass && this.random() < (defense.strengths.includes(offense.kind) ? 0.22 : 0.1)) {
-        return this.tackle(-1 - Math.floor(this.random() * 5), 23, 'STUFFED!', 'stuff');
-      }
-      const difficulty = { deep: 0.22, trick: 0.12, medium: 0.08 }[offense.kind] || 0;
-      const chance = Math.max(0.19, Math.min(0.85, 0.64 + advantage / 100 + matchup / 45 - difficulty));
-      if (pass && this.random() > chance) return this.failedPass(offense, defense);
-      const yards = Math.max(
-        -12,
-        Math.round(offense.base + advantage + matchup + (this.random() - 0.5) * offense.spread),
+    scrimmage(offense, defense, options) {
+      const abilities = {
+        attack: this.phase?.abilities[this.possession],
+        defend: this.phase?.abilities[this.opponent()],
+      };
+      const matchup = new PlayMatchup(
+        this.rosters[this.possession],
+        this.rosters[this.opponent()],
+        offense,
+        defense,
+        options.lane || 'middle',
+        abilities,
       );
-      if (!pass && this.random() < 0.018) {
+      const scheme = this.matchupScore(offense, defense);
+      const odds = matchup.chances(scheme);
+      const result =
+        offense.kind === 'run'
+          ? this.resolveRun(offense, matchup, odds, scheme, options)
+          : this.resolvePass(offense, matchup, odds, scheme, options);
+      result.participants = matchup.participants(result);
+      result.explanation = matchup.explanation();
+      result.matchup = { protection: matchup.protection, separation: matchup.separation, tackle: matchup.tackle, odds };
+      return result;
+    }
+
+    resolveRun(offense, matchup, odds, scheme, options) {
+      if (this.random() < odds.stuff) return this.tackle(-1 - Math.floor(this.random() * 4), 6, 'STUFFED!', 'stuff');
+      const yards = this.gain(offense, matchup, scheme, options);
+      if (this.random() < odds.fumble) {
         this.changePossession(100 - Math.max(1, Math.min(99, this.spot + yards)));
-        return { yards, seconds: 12, message: 'FUMBLE! Defense recovers.', turnover: true, outcome: 'fumble' };
+        return { yards, seconds: 7, message: 'FUMBLE! Defense recovers.', turnover: true, outcome: 'fumble' };
       }
-      const moved = this.moveBall(yards);
-      return {
-        yards,
-        seconds: pass ? 14 + Math.floor(this.random() * 14) : 22 + Math.floor(this.random() * 17),
-        ...moved,
-      };
+      return { yards, seconds: 6 + Math.floor(this.random() * 4), ...this.moveBall(yards) };
     }
 
-    tackle(yards, seconds, label, outcome) {
-      const moved = this.moveBall(yards);
-      return {
-        yards,
-        seconds,
-        message: `${label} ${moved.message}`,
-        outcome: moved.outcome === 'safety' ? 'safety' : outcome,
-        turnover: moved.turnover,
-      };
-    }
-
-    failedPass(offense, defense) {
-      if (this.random() < (offense.kind === 'deep' ? 0.12 : 0.06)) {
+    resolvePass(offense, matchup, odds, scheme, options) {
+      if (this.random() < odds.sack) return this.tackle(-3 - Math.floor(this.random() * 6), 6, 'SACK!', 'sack');
+      if (this.random() < odds.interception) {
         this.changePossession(100 - this.spot);
         return {
           yards: 0,
-          seconds: 8,
+          seconds: 6,
           message: 'INTERCEPTED! Possession changes.',
           turnover: true,
           outcome: 'interception',
         };
       }
-      if (this.random() < (['blitz', 'zone-blitz', 'fire-zone', 'cover-0'].includes(defense.id) ? 0.42 : 0.18)) {
-        return this.tackle(-3 - Math.floor(this.random() * 6), 10, 'SACK!', 'sack');
-      }
-      this.down += 1;
-      if (this.down > 4) {
-        this.changePossession(100 - this.spot);
-        return {
-          yards: 0,
-          seconds: 7,
-          message: 'Incomplete pass. TURNOVER ON DOWNS.',
-          outcome: 'turnover-downs',
-          turnover: true,
-        };
-      }
-      return { yards: 0, seconds: 7, message: 'Incomplete pass.', outcome: 'incomplete' };
+      if (this.random() > odds.completion) return this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
+      const yards = this.gain(offense, matchup, scheme, options);
+      return { yards, seconds: 5 + Math.floor(this.random() * 4), ...this.moveBall(yards) };
+    }
+
+    gain(offense, matchup, scheme, options) {
+      const sidelineCost = options.sideline ? 2 : 0;
+      return Math.max(
+        -8,
+        Math.round(offense.base + matchup.yardBonus + scheme + (this.random() - 0.5) * offense.spread - sidelineCost),
+      );
+    }
+
+    tackle(yards, seconds, label, outcome) {
+      const moved = this.moveBall(yards);
+      const terminal = ['safety', 'touchdown', 'turnover-downs'].includes(moved.outcome);
+      return {
+        yards,
+        seconds,
+        message: `${label} ${moved.message}`,
+        outcome: terminal ? moved.outcome : outcome,
+        turnover: moved.turnover,
+      };
     }
 
     moveBall(yards) {
@@ -369,7 +644,8 @@
 
     fieldGoal() {
       const distance = 100 - this.spot + 17;
-      const kicker = this.rosters[this.possession].rating('QB');
+      const team = this.rosters[this.possession];
+      const kicker = team.effectiveRating(team.player('QB'), 'QB');
       const chance = Math.max(0.08, Math.min(0.97, 0.91 + (kicker - 60) * 0.003 - Math.max(0, distance - 35) * 0.027));
       const good = this.random() < chance;
       if (good) this.score[this.possession] += 3;
@@ -395,21 +671,34 @@
       if (this.seconds > 0) return;
       if (this.quarter === 4 && this.score.home !== this.score.away) {
         this.over = true;
+        this.clockRunning = false;
         this.log.unshift('FINAL WHISTLE.');
         return;
       }
       if (this.quarter === 5 && this.score.home !== this.score.away) {
         this.over = true;
+        this.clockRunning = false;
         this.log.unshift('OVERTIME WINNER!');
         return;
       }
       if (this.quarter === 5) {
         this.seconds = this.quarterSeconds;
-        return;
+        this.clockRunning = false;
+        return true;
       }
+      this.startQuarter();
+      return true;
+    }
+
+    startQuarter() {
       this.quarter += 1;
+      this.clockRunning = false;
+      for (const roster of Object.values(this.rosters)) roster.recover(15);
       this.seconds = this.quarterSeconds;
       if (this.quarter === 3) {
+        this.timeouts = { home: 3, away: 3 };
+        this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
+        for (const roster of Object.values(this.rosters)) roster.recover(100);
         this.possession = 'away';
         this.spot = 25;
         this.down = 1;

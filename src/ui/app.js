@@ -65,6 +65,7 @@
       document.addEventListener('load', (event) => SpriteArt.handleLoad(event), true);
       this.el('fieldMarkings').innerHTML = FootballField.markings();
       this.bind();
+      this.bindCoaching();
       this.renderDraft();
     }
 
@@ -108,12 +109,8 @@
       this.el('playList').addEventListener('click', (event) => {
         const card = event.target.closest('[data-play]');
         if (!card || this.locked) return;
-        this.callChosen = true;
-        if (this.game.possession === 'home')
-          this.selectedOffense = OFFENSE.find((play) => play.id === card.dataset.play);
-        else this.selectedDefense = DEFENSE.find((play) => play.id === card.dataset.play);
-        this.renderPlays();
-        this.renderField();
+        const book = this.game.possession === 'home' ? OFFENSE : DEFENSE;
+        this.choosePlay(book.find((play) => play.id === card.dataset.play));
       });
       this.el('snapButton').addEventListener('click', () => this.requestSnap());
       this.el('pauseButton').addEventListener('click', () => this.pause());
@@ -126,6 +123,203 @@
       this.el('editTeamButton').addEventListener('click', () => this.openDraft());
       this.el('rematchButton').addEventListener('click', () => this.start());
       this.el('redraftButton').addEventListener('click', () => this.openDraft());
+    }
+
+    bindCoaching() {
+      this.callOptions = { tempo: 'normal', lane: 'middle', sideline: false };
+      this.el('subRole').innerHTML = POSITION_GROUPS.map(
+        (group) => `<option value="${group.code}">${group.code}</option>`,
+      ).join('');
+      this.el('scoutButton').addEventListener('click', () => {
+        this.game.revealTell();
+        this.callChosen = true;
+        this.renderPlays();
+      });
+      this.el('tempoSelect').addEventListener('change', () => {
+        this.callOptions.tempo = this.el('tempoSelect').value;
+        this.renderCoaching();
+      });
+      this.el('laneSelect').addEventListener('change', () => {
+        this.callOptions.lane = this.el('laneSelect').value;
+        this.renderCoaching();
+      });
+      this.el('targetSelect').addEventListener('change', () => {
+        const [role, depth] = this.el('targetSelect').value.split(':');
+        this.callOptions.target = [role, Number(depth)];
+        this.renderCoaching();
+      });
+      this.el('readSelect').addEventListener('change', () => {
+        this.callOptions.read = this.el('readSelect').value;
+        this.callOptions.target = null;
+        this.renderCoaching();
+        this.renderField();
+      });
+      this.el('finishSelect').addEventListener('change', () => {
+        this.callOptions.sideline = this.el('finishSelect').value === 'sideline';
+        this.renderCoaching();
+      });
+      this.el('timeoutButton').addEventListener('click', () => {
+        this.game.timeout('home');
+        this.renderGame();
+      });
+      this.el('abilityList').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-ability]');
+        if (!button || button.disabled) return;
+        this.game.activateAbility('home', button.dataset.ability, this.playerPreview());
+        this.callChosen = true;
+        this.renderGame();
+      });
+      this.el('autoRotate').addEventListener('change', () => {
+        this.game.setAutoRotate('home', this.el('autoRotate').checked);
+        this.renderGame();
+      });
+      this.el('subRole').addEventListener('change', () => this.renderSubstitutions());
+      this.el('subButton').addEventListener('click', () => {
+        this.game.substitute(
+          this.el('subRole').value,
+          Number(this.el('subFrom').value),
+          Number(this.el('subTo').value),
+        );
+        this.renderGame();
+      });
+      for (const id of ['subFrom', 'subTo'])
+        this.el(id).addEventListener('change', () => {
+          this.el('subButton').disabled = this.el('subFrom').value === this.el('subTo').value;
+        });
+    }
+
+    choosePlay(play) {
+      this.game.choosePlayerCall(play);
+      this.callChosen = true;
+      if (this.game.possession === 'home') {
+        this.selectedOffense = play;
+        this.resetOffenseOptions();
+      } else this.selectedDefense = play;
+      this.renderPlays();
+      this.renderField();
+    }
+
+    resetOffenseOptions() {
+      this.callOptions.target = null;
+      this.callOptions.read = this.selectedOffense.id === 'read-option' ? 'keep' : 'pass';
+    }
+
+    playerPreview() {
+      if (this.game.possession === 'away') return this.selectedDefense;
+      return this.game.resolveOffense(this.selectedOffense, this.callOptions);
+    }
+
+    renderCoaching() {
+      this.renderCallStatus();
+      if (this.game.possession === 'home') this.renderDecisions();
+      this.renderClockCoaching();
+      this.renderAbilities();
+      this.renderSubstitutions();
+      const roster = this.game.rosters.home;
+      const preview = this.playerPreview();
+      const mon = this.game.possession === 'home' ? roster.participants(preview).carrier : roster.player('DL');
+      this.el('unitStatus').textContent =
+        `${mon.name} · ${roster.energy(mon)} stamina · fatigue penalty −${roster.penalty(mon)}. Penalties start below ${Roster.FATIGUE_THRESHOLD}; bench recovery +${Roster.BENCH_RECOVERY} per play.`;
+    }
+
+    renderCallStatus() {
+      const game = this.game;
+      const phase = game.phase;
+      this.el('coachControls').disabled = this.locked || this.paused || game.over || !phase;
+      this.el('scoutButton').disabled = !phase || phase.inspected;
+      this.el('scoutTell').textContent = game.tell();
+      this.el('audibleStatus').textContent = phase?.audibled ? 'Audible used' : '1 audible after scouting';
+      this.el('offenseDecisions').classList.toggle('hidden', game.possession !== 'home');
+    }
+
+    renderClockCoaching() {
+      const game = this.game;
+      const offense = game.possession === 'home';
+      const runoff = offense ? game.runoff(this.playerPreview(), this.callOptions.tempo) : 0;
+      this.el('clockSituation').textContent = offense
+        ? `${game.clockRunning ? 'Clock running' : 'Clock stopped'} · ${runoff}s simulated runoff before your next snap. Browsing does not use game time.`
+        : `${game.clockRunning ? 'Clock running: a timeout prevents rival runoff.' : 'Clock stopped.'} Rival manages its own tempo.`;
+      this.el('timeoutButton').disabled = !game.clockRunning || !game.timeouts.home;
+      this.el('timeoutStatus').textContent = `Timeouts: you ${game.timeouts.home} · rival ${game.timeouts.away}`;
+    }
+
+    renderDecisions() {
+      const play = this.playerPreview();
+      const base = this.selectedOffense;
+      const passing = ['short', 'medium', 'deep', 'trick'].includes(play.kind);
+      this.el('targetWrap').classList.toggle('hidden', !passing);
+      this.el('laneWrap').classList.toggle('hidden', play.kind !== 'run');
+      this.el('finishWrap').classList.toggle('hidden', !passing && play.kind !== 'run');
+      this.el('readWrap').classList.toggle('hidden', !['read-option', 'rpo-slant'].includes(base.id));
+      const choices =
+        base.id === 'read-option'
+          ? [
+              ['keep', 'QB keep'],
+              ['handoff', 'RB handoff'],
+            ]
+          : [
+              ['pass', 'Throw slant'],
+              ['run', 'Hand off'],
+            ];
+      this.el('readSelect').innerHTML = choices
+        .map(([value, label]) => `<option value="${value}">${label}</option>`)
+        .join('');
+      this.el('readSelect').value = this.callOptions.read || choices[0][0];
+      const roster = this.game.rosters.home;
+      const receivers = roster.lineup('offense', play).filter((slot) => ['WR', 'TE', 'RB'].includes(slot.role));
+      this.el('targetSelect').innerHTML = receivers
+        .map(
+          (slot) =>
+            `<option value="${slot.role}:${slot.depth - 1}">${slot.role}${slot.depth} · ${slot.mon.name} · ${roster.effectiveRating(slot.mon, slot.role)} fit</option>`,
+        )
+        .join('');
+      this.el('targetSelect').value = `${play.carrier[0]}:${play.carrier[1]}`;
+      this.el('tempoSelect').value = this.callOptions.tempo;
+      this.el('laneSelect').value = this.callOptions.lane;
+      this.el('finishSelect').value = this.callOptions.sideline ? 'sideline' : 'fight';
+    }
+
+    renderAbilities() {
+      const game = this.game;
+      const active = game.phase?.abilities.home;
+      this.el('abilityBudget').textContent = `${game.charges.home} charges this half · 10 stamina each`;
+      const play = this.playerPreview();
+      const abilities = ['kick', 'punt', 'spike', 'kneel'].includes(play.kind)
+        ? []
+        : game.availableAbilities('home', play);
+      this.el('abilityList').innerHTML =
+        abilities
+          .map(
+            (ability) =>
+              `<button type="button" class="ability-button" data-ability="${ability.id}" ${active || !game.charges.home ? 'disabled' : ''}><b>${ability.name} · ${ability.actor.name}</b><span>${ability.detail}</span></button>`,
+          )
+          .join('') ||
+        '<p>No eligible Electric, Steel, or Psychic player in this unit. Draft one to unlock an ability.</p>';
+      this.el('coachNotice').textContent = active
+        ? `${active.actor.name}: ${active.name} activated. Physical bonuses apply only while that player remains in the active unit; Burst follows its carrier.`
+        : 'One ability per call. Both teams have two shared charges each half.';
+    }
+
+    renderSubstitutions() {
+      const roster = this.game.rosters.home;
+      const role = this.el('subRole').value;
+      const group = POSITION_GROUPS.find((entry) => entry.code === role);
+      const options = Array.from({ length: group.slots }, (_, depth) => {
+        const mon = roster.player(role, depth);
+        return `<option value="${depth}">${role}${depth + 1} · ${mon.name} · ${roster.energy(mon)} stamina</option>`;
+      }).join('');
+      this.el('subFrom').innerHTML = options;
+      this.el('subTo').innerHTML = options;
+      this.el('subTo').value = '1';
+      this.el('autoRotate').checked = this.game.autoRotate.home;
+      const play = this.playerPreview();
+      const active = new Set(
+        roster.lineup(this.game.possession === 'home' ? 'offense' : 'defense', play).map((slot) => slot.mon.id),
+      );
+      this.el('staminaList').innerHTML = POSITIONS.map((slot, index) => {
+        const mon = roster.players[index];
+        return `<div class="stamina-player ${active.has(mon.id) ? 'on-field' : ''}"><span>${slot.code}${slot.depth} · ${mon.name}</span><span>${roster.effectiveRating(mon, slot.code)} FIT · ${roster.energy(mon)} STA${active.has(mon.id) ? ' · ON FIELD' : ' · BENCH'}</span></div>`;
+      }).join('');
     }
 
     showPanel(id) {
@@ -271,6 +465,7 @@
       this.game = new FootballGame(this.home, this.away, Number(this.el('quarterLength').value));
       this.selectedOffense = OFFENSE[0];
       this.selectedDefense = DEFENSE[0];
+      this.callOptions = { tempo: 'normal', lane: 'middle', sideline: false };
       this.locked = false;
       this.paused = false;
       this.pendingSnap = null;
@@ -326,16 +521,20 @@
 
     playChoices() {
       if (this.game.possession === 'away') return DEFENSE;
+      this.el('playbookSelect').querySelector('[value="special"]').disabled = this.game.down !== 4;
+      if (this.game.down !== 4 && this.el('playbookSelect').value === 'special')
+        this.el('playbookSelect').value = 'all';
       const group = this.el('playbookSelect').value;
-      return OFFENSE.filter(
-        (play) => (group === 'all' || play.group === group) && (play.group !== 'special' || this.game.down === 4),
-      );
+      return OFFENSE.filter((play) => (group === 'all' || play.group === group) && this.game.isLegalCall(play));
     }
 
     beginCall() {
       this.callChosen = false;
+      if (!this.game.isLegalCall(this.selectedOffense)) this.selectedOffense = OFFENSE[0];
+      this.resetOffenseOptions();
+      this.game.prepareCall(this.game.possession === 'home' ? this.selectedOffense : this.selectedDefense);
       this.el('callHint').removeAttribute('role');
-      this.renderPlays();
+      this.renderGame();
       this.callClock.start(this.game.playClockSeconds);
     }
 
@@ -350,23 +549,19 @@
       if (!this.callChosen) {
         const choices = this.playChoices();
         const play = choices[Math.floor(Math.random() * choices.length)];
-        if (this.game.possession === 'home') this.selectedOffense = play;
-        else this.selectedDefense = play;
+        this.choosePlay(play);
       }
       this.requestSnap();
     }
 
     requestSnap() {
-      return this.snap().catch((error) => this.showError(error));
+      const sequence = this.sequence;
+      return this.snap().catch((error) => this.showError(error, sequence));
     }
 
     renderPlays() {
       const offense = this.game.possession === 'home';
       const choices = this.playChoices();
-      if (offense && !choices.includes(this.selectedOffense)) {
-        this.selectedOffense = choices[0];
-        this.callChosen = false;
-      }
       this.el('callKicker').textContent = offense ? 'YOUR OFFENSE' : 'YOUR DEFENSE';
       this.el('callHeading').textContent = offense ? 'Call your play' : 'Call your coverage';
       this.el('playbookWrap').classList.toggle('hidden', !offense);
@@ -381,10 +576,11 @@
       this.el('playList').innerHTML = choices
         .map(
           (play) =>
-            `<button class="play-card ${play.id === (offense ? this.selectedOffense : this.selectedDefense).id ? 'active' : ''}" data-play="${play.id}" aria-pressed="${play.id === (offense ? this.selectedOffense : this.selectedDefense).id}"><span class="play-kind">${offense ? play.group.toUpperCase() : 'DEFENSE'}</span><strong>${play.name}</strong></button>`,
+            `<button class="play-card ${play.id === (offense ? this.selectedOffense : this.selectedDefense).id ? 'active' : ''}" data-play="${play.id}" ${this.locked || !this.game.canChoosePlayerCall(play) ? 'disabled' : ''} aria-pressed="${play.id === (offense ? this.selectedOffense : this.selectedDefense).id}"><span class="play-kind">${offense ? play.group.toUpperCase() : 'DEFENSE'}</span><strong>${play.name}</strong></button>`,
         )
         .join('');
-      this.renderPlayInspector(offense ? this.selectedOffense : this.selectedDefense, offense);
+      this.renderPlayInspector(offense ? this.playerPreview() : this.selectedDefense, offense);
+      this.renderCoaching();
     }
 
     renderPlayInspector(play, offense) {
@@ -442,10 +638,13 @@
       this.el('field').scrollIntoView({ block: 'center', behavior: 'auto' });
       const sequence = this.sequence;
       const game = this.game;
-      const offense = this.game.possession === 'home' ? this.selectedOffense : this.game.chooseCpuOffense();
-      const defense = this.game.possession === 'home' ? this.game.chooseCpuDefense() : this.selectedDefense;
+      const { offense: call, defense } = game.phase;
+      const options = game.possession === 'home' ? this.callOptions : game.cpuOptions(call, defense);
+      game.activateCpuAbility(call, defense, options);
       const beforeSeconds = game.seconds;
-      const result = game.snap(offense, defense);
+      this.el('coachControls').disabled = true;
+      const result = game.snap(call, defense, options);
+      const offense = result.offense;
       await this.battle.play({
         offense,
         defense,
@@ -460,6 +659,7 @@
       const banner = this.el('resultBanner');
       banner.innerHTML = `<strong>${offense.name} VS ${defense.name}</strong><span>${result.message}</span>`;
       banner.classList.remove('hidden');
+      this.resetOffenseOptions();
       this.renderGame();
       const finish = () => {
         if (sequence !== this.sequence) return;
@@ -471,11 +671,13 @@
       this.resultTimer = setTimeout(() => (this.paused ? (this.pendingSnap = finish) : finish()), 900);
     }
 
-    showError(error) {
+    showError(error, sequence) {
       console.error(error);
+      if (sequence !== this.sequence) return;
       this.battle.cancel();
       this.locked = false;
       this.el('snapButton').disabled = false;
+      this.resetOffenseOptions();
       this.renderGame();
       if (!this.game.over) this.beginCall();
       this.el('callHint').textContent = `Play animation failed: ${error.message}. The drive log contains the result.`;
@@ -523,7 +725,7 @@
       this.el('scrimmageLine').style.left = `${x}%`;
       this.el('firstDownLine').style.left = `${FootballField.position(game.spot + game.toGo)}%`;
       this.el('football').style.left = `${x}%`;
-      const offenseCall = game.possession === 'home' ? this.selectedOffense : OFFENSE[0];
+      const offenseCall = game.possession === 'home' ? this.playerPreview() : OFFENSE[0];
       const defenseCall = game.possession === 'away' ? this.selectedDefense : DEFENSE[0];
       const attack = game.rosters[game.possession].lineup('offense', offenseCall);
       const defend = game.rosters[game.opponent()].lineup('defense', defenseCall);

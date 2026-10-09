@@ -109,14 +109,16 @@ class BattleChecks {
     assert.equal(gain.sample(0.65, true).shake, 0);
     assert.deepEqual(gain.sample(0.2, true).actors, gain.sample(0.8, true).actors, 'reduced motion holds poses');
     for (const play of OFFENSE) {
-      const result = new FootballGame(context.attack, context.defend, 300, () => 0.5).snap(play, context.defense);
+      const game = new FootballGame(context.attack, context.defend, 300, () => 0.5);
+      if (play.group === 'special') game.down = 4;
+      const result = game.snap(play, context.defense);
       const cast = stage.featured(result);
       assert.equal(cast.lead, result.participants.carrier, play.id);
       assert.equal(cast.support, result.participants.support, play.id);
       assert.equal(new Set([cast.lead.id, cast.support.id]).size, 2, play.id);
       assert.equal(new Set([cast.stopper.id, cast.help.id]).size, 2, play.id);
     }
-    const sackRolls = [0.99, 0.99, 0, 0];
+    const sackRolls = [0, 0];
     const sackResult = new FootballGame(context.attack, context.defend, 300, () => sackRolls.shift()).snap(
       pass,
       context.defense,

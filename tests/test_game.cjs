@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
+const { PlayMatchup } = require('../src/game/matchup.js');
 const { FootballGame } = require('../src/game/football.js');
 const { OFFENSE, DEFENSE, POSITIONS, SALARY_CAP } = require('../src/game/playbook.js');
 
@@ -71,20 +72,26 @@ class ParticipantChecks {
       ['wheel-route', 'RB', 1],
     ]) {
       const play = OFFENSE.find((call) => call.id === id);
-      const roll = () => (play.kind === 'run' ? 0.5 : 0.1);
+      const roll = () => 0.5;
       const normal = new FootballGame(roster, rival, 300, roll);
       const improved = new FootballGame(this.stronger(roster, role, depth), rival, 300, roll);
-      assert.ok(improved.offenseStrength(play) > normal.offenseStrength(play), `${id} uses its carrier's rating`);
+      const coverage = DEFENSE.find((call) => call.id === 'cover-3');
+      const baseline = new PlayMatchup(normal.rosters.home, normal.rosters.away, play, coverage);
+      const upgraded = new PlayMatchup(improved.rosters.home, improved.rosters.away, play, coverage);
+      assert.ok(upgraded.yardBonus > baseline.yardBonus, `${id} uses its carrier's rating`);
       const defense = DEFENSE.find((call) => call.id === 'run-stuff');
       assert.ok(improved.snap(play, defense).yards > normal.snap(play, defense).yards, id);
     }
     const doublePass = OFFENSE.find((play) => play.id === 'double-pass');
     const normal = new FootballGame(roster, rival, 300, () => 0.5);
     const improved = new FootballGame(this.stronger(roster, 'QB', 1), rival, 300, () => 0.5);
-    assert.ok(improved.offenseStrength(doublePass) > normal.offenseStrength(doublePass), 'second QB throws');
+    const baseline = new PlayMatchup(normal.rosters.home, normal.rosters.away, doublePass, DEFENSE[0]);
+    const upgraded = new PlayMatchup(improved.rosters.home, improved.rosters.away, doublePass, DEFENSE[0]);
+    assert.ok(upgraded.chances(0).completion > baseline.chances(0).completion, 'second QB throws');
 
     for (const play of OFFENSE) {
       const game = new FootballGame(roster, rival, 300, () => 0.5);
+      if (play.group === 'special') game.down = 4;
       const result = game.snap(play, DEFENSE[0]);
       const offenseIds = roster.lineup('offense', play).map((slot) => slot.mon.id);
       const defenseIds = rival.lineup('defense', DEFENSE[0]).map((slot) => slot.mon.id);
@@ -161,7 +168,7 @@ const stuffedGame = new FootballGame(home, away, 300, () => 0);
 assert.equal(stuffedGame.playClockSeconds, 25);
 const stuffed = stuffedGame.snap(insideZone, dime);
 assert.equal(stuffed.outcome, 'stuff');
-assert.equal(stuffedGame.seconds, 277);
+assert.equal(stuffedGame.seconds, 294);
 assert.equal(stuffedGame.playClockSeconds, 40);
 stuffedGame.possession = 'away';
 stuffedGame.snap(insideZone, dime);
@@ -175,7 +182,8 @@ const picked = pickedGame.snap(screen, zoneBlitz);
 assert.equal(picked.outcome, 'interception');
 assert.equal(pickedGame.playClockSeconds, 25);
 
-const conversion = new FootballGame(home, away, 300, () => 0);
+const conversionRolls = [0.99, 0.99, 0, 0.5, 0.5];
+const conversion = new FootballGame(home, away, 300, () => conversionRolls.shift() ?? 0.5);
 conversion.toGo = 1;
 const converted = conversion.snap(
   OFFENSE.find((play) => play.id === 'deep-shot'),
@@ -184,7 +192,8 @@ const converted = conversion.snap(
 assert.match(converted.message, /FIRST DOWN/);
 assert.equal(conversion.playClockSeconds, 40, 'a first down does not shorten the deadline');
 
-const game = new FootballGame(home, away, 300, () => 0);
+const touchdownRolls = [0.99, 0.99, 0, 0.5, 0.5];
+const game = new FootballGame(home, away, 300, () => touchdownRolls.shift() ?? 0.5);
 game.spot = 98;
 const touchdown = game.snap(
   OFFENSE.find((play) => play.id === 'deep-shot'),
@@ -229,7 +238,8 @@ assert.equal(halftime.quarter, 3);
 assert.equal(halftime.possession, 'away');
 assert.equal(halftime.spot, 25);
 
-const overtime = new FootballGame(home, away, 300, () => 0);
+const overtimeRolls = [0.99, 0.99, 0, 0.5, 0.5];
+const overtime = new FootballGame(home, away, 300, () => overtimeRolls.shift() ?? 0.5);
 overtime.quarter = 5;
 overtime.spot = 98;
 overtime.snap(

@@ -1768,3 +1768,128 @@ a:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+.coach-controls {
+  min-width: 0;
+  margin: 18px 0 0;
+  padding: 14px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.coach-controls legend,
+.ability-heading strong {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.scout-row,
+.timeout-row,
+.ability-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.scout-row p {
+  flex: 1;
+  min-width: 160px;
+  margin: 0;
+  font-size: 13px;
+}
+.scout-row > span,
+.timeout-row span,
+.ability-heading span,
+.coach-note {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.decision-grid,
+.substitutions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.coach-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+}
+.coach-controls select {
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+  padding: 8px;
+}
+.ability-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.ability-list p {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+.ability-button {
+  text-align: left;
+  padding: 10px;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: var(--panel2);
+  color: var(--ink);
+  cursor: pointer;
+}
+.ability-button b,
+.ability-button span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.rotation-panel summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 10px 0;
+}
+.coach-controls .auto-rotate {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.stamina-list {
+  margin-top: 12px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+.stamina-player {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--edge);
+  padding: 6px;
+  font-size: 11px;
+}
+.stamina-player.on-field {
+  background: var(--lcd);
+}
+@media (max-width: 700px) {
+  .coach-controls {
+    padding: 10px;
+  }
+  .decision-grid,
+  .substitutions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scout-row p {
+    flex-basis: 100%;
+  }
+  .stamina-player {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

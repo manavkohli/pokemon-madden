@@ -39,6 +39,8 @@
       'goal-line-stack': 'M80 58 L108 58',
       punt: 'M88 50 Q127 20 164 49',
       'field-goal': 'M88 50 L166 50',
+      spike: 'M88 50 L88 65',
+      kneel: 'M88 50 L80 50',
     };
 
     static render(play, offense) {

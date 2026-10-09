@@ -11,7 +11,7 @@
       this.featured = featured;
       this.kicking = ['kick', 'punt'].includes(offense.kind);
       this.sacked = result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run');
-      this.passing = offense.kind !== 'run' && !this.kicking && !this.sacked;
+      this.passing = ['short', 'medium', 'deep', 'trick'].includes(offense.kind) && !this.sacked;
       this.stopped = ['stuff', 'stop', 'sack', 'safety'].includes(result.outcome);
       this.missed = result.outcome === 'incomplete' || (result.outcome === 'turnover-downs' && result.yards === 0);
       this.picked = result.outcome === 'interception';
@@ -47,6 +47,9 @@
         punt: 'PUNT!',
         'field-goal-good': 'IT’S GOOD!',
         'field-goal-miss': 'NO GOOD',
+        spike: 'CLOCK STOPPED',
+        kneel: 'TAKE A KNEE',
+        'clock-expired': 'TIME EXPIRES',
       };
       return labels[this.result.outcome];
     }
@@ -93,6 +96,14 @@
         if (reduced)
           Object.assign(actor, { x: [28, 12, 72, 88][index], y: [72, 47, 63, 44][index], angle: 0, opacity: 1 });
       });
+      if (['spike', 'kneel', 'clock-expired'].includes(this.result.outcome)) {
+        actors.forEach((actor, index) =>
+          Object.assign(actor, {
+            x: [28, 12, 72, 88][index],
+            angle: !reduced && index === 0 && this.result.outcome === 'kneel' ? -15 * follow : 0,
+          }),
+        );
+      }
       const shake = !reduced && progress >= 0.56 && progress < 0.63 ? Math.sin(impact * 58) * (1 - impact) * 5 : 0;
       return {
         actors,
@@ -140,17 +151,25 @@
       };
     }
 
+    passBall(progress, action) {
+      return {
+        x: 14 + action * (this.picked ? 43 : 40),
+        y: 54 - Math.sin(action * Math.PI) * (this.offense.kind === 'deep' ? 33 : 23) - action * 5,
+        spin: action * 720,
+        visible: progress >= 0.2,
+      };
+    }
+
+    deadBall(progress, action) {
+      if (this.result.outcome === 'clock-expired') return { x: 31, y: 60, spin: 0, visible: false };
+      if (this.result.outcome === 'spike') return { x: 31, y: 58 + action * 22, spin: 0, visible: progress >= 0.18 };
+    }
+
     ball(progress, action, follow, lead, stopper) {
+      if (['spike', 'clock-expired'].includes(this.result.outcome)) return this.deadBall(progress, action);
       if (this.kicking) return this.kickedBall(progress, action);
       if (this.sacked) return { x: lead.x + 3, y: lead.y - 14, spin: 0, visible: progress >= 0.18 };
-      if (this.passing && progress < 0.56) {
-        return {
-          x: 14 + action * (this.picked ? 43 : 40),
-          y: 54 - Math.sin(action * Math.PI) * (this.offense.kind === 'deep' ? 33 : 23) - action * 5,
-          spin: action * 720,
-          visible: progress >= 0.2,
-        };
-      }
+      if (this.passing && progress < 0.56) return this.passBall(progress, action);
       if (this.missed)
         return { x: 59 + follow * 8, y: 50 + follow * 33, spin: 720 + follow * 270, visible: progress >= 0.2 };
       if (this.picked) return { x: stopper.x - 3, y: stopper.y - 14, spin: 0, visible: true };

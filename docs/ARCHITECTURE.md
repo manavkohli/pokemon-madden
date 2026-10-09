@@ -4,8 +4,8 @@
 
 Consider an Inside Zone run:
 
-1. `GameApp` reads the selected call and asks `FootballGame` for the CPU's coverage.
-2. Each offensive call declares its carrier or receiver and passer. `Roster` selects those players, and `FootballGame` uses their ratings when resolving the play. `FootballGame.snap()` updates possession, down, spot, score, clock, and drive log, returning the yards, duration, outcome, message, and participants. A sack features the passer rather than the intended receiver.
+1. `FootballGame.prepareCall()` commits the CPU call once. `GameApp` reads player choices; scouting reveals a partial formation tell and permits one audible without rerolling the CPU.
+2. Each offensive call declares its carrier or receiver and passer; an option decision or a selected target can change the carrier. `Roster` supplies the active players and their fatigue-adjusted ratings. `PlayMatchup` pairs blockers with rushers, the selected receiver with a coverage defender, and the carrier with a tackler. `FootballGame` rolls the resulting bounded probabilities. `FootballGame.snap()` updates possession, down, spot, score, clock, and drive log, returning the yards, duration, outcome, message, and participants. A sack features the passer rather than the intended receiver.
 3. `BattleStage` displays the participants returned by the engine. `SpriteArt` supplies the same sprite sources and fallback behavior used elsewhere in the UI; symbols stay visible until each image loads successfully.
 4. `BattleMotion.sample()` produces poses, ball position, contact effects, and captions from normalized progress. A stuffed run recoils; a successful run advances past the defender. Passes, interceptions, incomplete passes, sacks, fumbles, and kicks have distinct ball paths.
 5. `BattleStage` draws those poses from one `requestAnimationFrame` loop. `GameApp` displays the elapsed football time through `onProgress`. Once playback finishes, the UI renders the authoritative game state and unlocks the next call after the result banner.
@@ -17,8 +17,9 @@ The animation never computes a football result. Changing animation duration ther
 | File | Responsibility |
 | --- | --- |
 | `src/game/playbook.js` | Calls, positions, and salary cap |
-| `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, and personnel packages |
-| `src/game/football.js` | CPU decisions, play resolution, possession, scoring, and clock |
+| `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, personnel packages, stamina, and substitutions |
+| `src/game/matchup.js` | Individual contests, bounded probabilities, ability modifiers, and the actual participants |
+| `src/game/football.js` | Committed calls, scouting/audibles, ability charges, CPU decisions, play resolution, possession, scoring, and simulated clock management |
 | `src/ui/app.js` | Drafting, independent team budgets, stadium theme selection, play selection, scoreboard, and application lifecycle |
 | `src/ui/play-clock.js` | Call deadlines, pause/resume, and stale timer cancellation |
 | `src/ui/diagram.js` | Route and coverage SVGs |
@@ -38,7 +39,17 @@ Stadium selection belongs to `GameApp`. It updates the location labels and one b
 
 `FootballGame` supplies the same call limit for either possession: 25 seconds at kickoff or following a drive/quarter change, otherwise 40. `PlayClock` measures elapsed time with a monotonic clock; delayed browser callbacks cannot extend the deadline. It schedules logical deadlines with `setTimeout` and does not animate the stadium.
 
-`GameApp` starts a fresh deadline when the next call unlocks after the result banner. Selecting a call does not reset it. At expiry, the selected call snaps; without an explicit selection, a random legal call from the current playbook snaps. Manual snaps stop the deadline. Pause preserves fractional remaining time, and resume continues it. Redrafting and rematches cancel the old timer; generation tokens reject stale callbacks. The quarter clock remains an engine rule and advances only during resolved plays.
+`GameApp` starts a fresh deadline when the next call unlocks after the result banner. Selecting a call does not reset it. At expiry, the selected call snaps; without an explicit selection, a random legal call from the current playbook snaps. Manual snaps stop the deadline. Pause preserves fractional remaining time, and resume continues it. Redrafting and rematches cancel the old timer; generation tokens reject stale callbacks. The quarter clock remains an engine rule: browsing uses no game time. At the snap, a running clock incurs simulated runoff (normal 15 seconds, hurry-up 3, chew-clock 30); the live play then consumes its own duration. A spike snaps immediately, consumes one second and a down, and stops the clock. Kneeling loses one yard, consumes two live seconds, and leaves the clock running. Sideline finishes surrender two yards and stop the clock; incompletions, possession changes, scoring, and period boundaries also stop it. If runoff consumes the remaining period, no play resolves or tires players. Three timeouts per side per half stop runoff and recover six stamina without rerolling committed calls or resetting audible limits. CPU tempo and timeouts use the same rules.
+
+## Matchups and coaching
+
+`PlayMatchup` selects the weakest blocker/rusher protection contest on a pass, or the chosen left/middle/right lane on a run. Extra rushers increase pressure; supporting backs and tight ends help protect. Receiver depth selects the corresponding corner, while backs and tight ends meet linebackers. QB quality, receiver separation, and deep safety help affect completion and interception odds. Protection governs sacks and stuffed runs; the carrier/tackler contest affects yardage and fumble risk. Sack participants include the real passer, blocker, and rusher. Results carry the resolved offense and a contest explanation so the animation and log use the same participants.
+
+`prepareCall()` is idempotent within a call. Coaches can select freely until scouting; after that the engine permits one changed call. Formation tells are disguised 20% of the time and never reveal the exact coverage. On defense, scouting reveals offensive personnel. Psychic Read exposes the exact committed rival call. Changing filters, calling a timeout, or substituting players cannot regenerate the CPU call. Read Option resolves a QB keep or RB handoff; RPO resolves a run or a pass. Passing targets must belong to the active package.
+
+Each match owns fresh copies of the drafted rosters. Stamina is keyed by Pokémon identity, so swapping depth slots cannot restore stamina and rematches cannot inherit substitutions. Active players spend three stamina per play, with three extra for deep routes or pressure and four extra for each featured carrier, passer, or defender. Bench players recover nine. Below 70 stamina, ratings lose 0.4 points per missing stamina, rounded. Possession changes recover six, quarter breaks fifteen, and halftime fully restores stamina. Automatic rotation compares tired starters with unused players of the same role and only swaps in a better effective rating. Both lineups retain eleven unique players.
+
+Each side has two shared ability charges per half and can activate one ability per call for ten stamina, provided its actor has at least twenty. Electric Burst gives its offensive carrier twelve separation/escape points or gives a defensive front twelve pressure points. Steel Shield adds eighteen protection points through an active blocker or eighteen tackle resistance through an active defender. Psychic Read requires an active Psychic QB on offense or a Psychic coverage player on defense. Physical bonuses require the actor to remain on the field; Burst cannot transfer to a substituted carrier. The CPU spends its own charges under the same eligibility rules. Halftime restores charges and timeouts.
 
 ## Playback guarantees
 
@@ -59,3 +70,7 @@ Use `python3 -m http.server 8000 --bind 127.0.0.1` for a local preview, or open 
 - Return to drafting during playback and kick off again; the prior play must not update the new game.
 - Enable reduced motion and confirm fixed poses with captions. Disable networking and confirm missing sprites have visible fallbacks and play still resolves.
 - Check fourth-down kicks/punts, a turnover, and the final whistle when changing football rules.
+
+## Verification
+
+`npm run test:mechanics` runs deterministic contests, scouting/audibles, abilities, stamina, clock boundaries, and 25 seeded complete games, plus DOM integration tests that load the real classic scripts and drive the actual controls. The UI regressions include Read Option → turnover → defensive call → rival touchdown, both scoring directions, special-team filters, pause at the result banner, animation failures, stale rematch callbacks, and halftime transitions. `happy-dom` is a development-only DOM environment; the browser runtime has no npm dependency. Existing battle and play-clock checks still cover the one-clock playback lifecycle.

@@ -2,9 +2,81 @@
   const { POSITIONS, SALARY_CAP } = typeof module !== 'undefined' ? require('./playbook.js') : window.Pokeballers;
 
   class Roster {
+    static FATIGUE_THRESHOLD = 70;
+    static FATIGUE_PENALTY = 0.4;
+    static BENCH_RECOVERY = 9;
+
     constructor(pokemon, ids) {
       this.pokemon = pokemon;
       this.players = ids.map((id) => pokemon[id - 1]);
+      this.stamina = new Map();
+    }
+
+    copy() {
+      const roster = new Roster(this.pokemon, []);
+      roster.players = [...this.players];
+      return roster;
+    }
+
+    energy(mon) {
+      return this.stamina.get(mon.id) ?? 100;
+    }
+
+    spend(mon, amount) {
+      this.stamina.set(mon.id, Math.max(0, this.energy(mon) - amount));
+    }
+
+    recover(amount) {
+      for (const mon of this.players) this.stamina.set(mon.id, Math.min(100, this.energy(mon) + amount));
+    }
+
+    effectiveRating(mon, role) {
+      return Math.max(20, Roster.rating(mon, role) - this.penalty(mon));
+    }
+
+    penalty(mon) {
+      return Math.round(Math.max(0, Roster.FATIGUE_THRESHOLD - this.energy(mon)) * Roster.FATIGUE_PENALTY);
+    }
+
+    skill(mon, stat) {
+      return Math.max(20, Math.min(99, 20 + mon.base_stats[stat] * 0.63) - this.penalty(mon));
+    }
+
+    finishPlay(lineup, play, participants) {
+      const active = new Set(lineup.map((slot) => slot.mon.id));
+      for (const mon of this.players) {
+        if (!active.has(mon.id)) this.stamina.set(mon.id, Math.min(100, this.energy(mon) + Roster.BENCH_RECOVERY));
+      }
+      const extra = play.kind === 'deep' || play.pressure ? 3 : 0;
+      for (const slot of lineup) this.spend(slot.mon, 3 + extra);
+      for (const mon of new Set(Object.values(participants))) this.spend(mon, 4);
+    }
+
+    substitute(role, first, second) {
+      const slots = POSITIONS.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.code === role);
+      if (!slots[first] || !slots[second] || first === second) throw new RangeError('Choose two different depth slots');
+      const a = slots[first].index;
+      const b = slots[second].index;
+      [this.players[a], this.players[b]] = [this.players[b], this.players[a]];
+    }
+
+    rotate(side, play) {
+      const active = this.lineup(side, play);
+      const activeIds = new Set(active.map((slot) => slot.mon.id));
+      for (const slot of active) {
+        if (this.energy(slot.mon) >= Roster.FATIGUE_THRESHOLD) continue;
+        const bench = POSITIONS.map((position) => ({
+          ...position,
+          mon: this.player(position.code, position.depth - 1),
+        }))
+          .filter((candidate) => candidate.code === slot.role && !activeIds.has(candidate.mon.id))
+          .sort((a, b) => this.effectiveRating(b.mon, b.code) - this.effectiveRating(a.mon, a.code));
+        if (!bench.length || this.effectiveRating(bench[0].mon, slot.role) <= this.effectiveRating(slot.mon, slot.role))
+          continue;
+        this.substitute(slot.role, slot.depth - 1, bench[0].depth - 1);
+        activeIds.delete(slot.mon.id);
+        activeIds.add(bench[0].mon.id);
+      }
     }
 
     static salaryRange(pokemon) {

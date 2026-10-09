@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pokéballers — Pocket Gridiron</title>
-    <link rel="stylesheet" href="style.css?v=0.1.5" />
-    <link rel="stylesheet" href="src/ui/battle/battle.css?v=0.1.5" />
+    <link rel="stylesheet" href="style.css?v=0.1.6" />
+    <link rel="stylesheet" href="src/ui/battle/battle.css?v=0.1.6" />
   </head>
   <body>
     <header class="topbar">
@@ -210,6 +210,8 @@
                       <option value="run">Run</option>
                       <option value="pass">Pass</option>
                       <option value="trick">Trick</option>
+                      <option value="clock">Clock</option>
+                      <option value="special">Special teams</option>
                     </select></label
                   >
                 </div>
@@ -220,6 +222,60 @@
               <div id="playList" class="play-grid"></div>
               <div id="playInspector" class="play-inspector"></div>
             </div>
+            <fieldset id="coachControls" class="coach-controls">
+              <legend>COACHING DECISIONS</legend>
+              <div class="scout-row">
+                <button id="scoutButton" class="button ghost" type="button">Scout formation</button>
+                <p id="scoutTell" role="status"></p>
+                <span id="audibleStatus"></span>
+              </div>
+              <div id="offenseDecisions" class="decision-grid">
+                <label
+                  >TEMPO<select id="tempoSelect">
+                    <option value="normal">Normal · 15s runoff</option>
+                    <option value="hurry">Hurry-up · 3s runoff</option>
+                    <option value="chew">Chew clock · 30s runoff</option>
+                  </select></label
+                >
+                <label id="targetWrap">TARGET<select id="targetSelect"></select></label>
+                <label id="laneWrap"
+                  >ATTACK LANE<select id="laneSelect">
+                    <option value="left">Left</option>
+                    <option value="middle" selected>Middle</option>
+                    <option value="right">Right</option>
+                  </select></label
+                >
+                <label id="readWrap">OPTION DECISION<select id="readSelect"></select></label>
+                <label id="finishWrap"
+                  >FINISH<select id="finishSelect">
+                    <option value="fight">Fight for yards</option>
+                    <option value="sideline">Go out · give up 2 yards</option>
+                  </select></label
+                >
+              </div>
+              <p id="clockSituation" class="coach-note"></p>
+              <div class="timeout-row">
+                <button id="timeoutButton" class="button ghost" type="button">Call timeout</button
+                ><span id="timeoutStatus"></span>
+              </div>
+              <div class="ability-heading"><strong>POKÉMON ABILITIES</strong><span id="abilityBudget"></span></div>
+              <div id="abilityList" class="ability-list"></div>
+              <p id="unitStatus" class="coach-note"></p>
+              <details class="rotation-panel">
+                <summary>Depth chart · stamina &amp; substitutions</summary>
+                <label class="auto-rotate"
+                  ><input id="autoRotate" type="checkbox" /> Automatically rotate fresh backups</label
+                >
+                <div class="substitutions">
+                  <label>POSITION<select id="subRole"></select></label>
+                  <label>SWAP<select id="subFrom"></select></label>
+                  <label>WITH<select id="subTo"></select></label>
+                  <button id="subButton" class="button ghost" type="button">Swap players</button>
+                </div>
+                <div id="staminaList" class="stamina-list"></div>
+              </details>
+              <p id="coachNotice" role="status" class="coach-note"></p>
+            </fieldset>
             <div class="snap-footer">
               <p id="callHint">Rival call revealed at snap.</p>
             </div>
@@ -283,15 +339,16 @@
       </div>
     </dialog>
     <script src="pokemon_gen1_2.js"></script>
-    <script src="src/game/playbook.js"></script>
-    <script src="src/game/roster.js?v=0.1.5"></script>
-    <script src="src/game/football.js?v=0.1.5"></script>
+    <script src="src/game/playbook.js?v=0.1.6"></script>
+    <script src="src/game/roster.js?v=0.1.6"></script>
+    <script src="src/game/matchup.js?v=0.1.6"></script>
+    <script src="src/game/football.js?v=0.1.6"></script>
     <script src="src/ui/sprites.js"></script>
-    <script src="src/ui/battle/motion.js"></script>
+    <script src="src/ui/battle/motion.js?v=0.1.6"></script>
     <script src="src/ui/battle/stage.js"></script>
     <script src="src/ui/diagram.js"></script>
     <script src="src/ui/field.js"></script>
-    <script src="src/ui/play-clock.js?v=0.1.5-1"></script>
-    <script src="src/ui/app.js?v=0.1.5-1"></script>
+    <script src="src/ui/play-clock.js?v=0.1.6"></script>
+    <script src="src/ui/app.js?v=0.1.6"></script>
   </body>
 </html>
