@@ -593,6 +593,11 @@
       }
     }
 
+    legalCalls() {
+      if (this.game.possession === 'away') return DEFENSE;
+      return OFFENSE.filter((play) => this.game.isLegalCall(play));
+    }
+
     playChoices() {
       if (this.game.possession === 'away') return DEFENSE;
       this.el('playbookSelect').querySelector('[value="special"]').disabled = this.game.down !== 4;
@@ -621,7 +626,7 @@
     expireCall() {
       if (this.locked || this.paused || this.game.over) return;
       if (!this.callChosen) {
-        const choices = this.playChoices().filter((play) => play.group !== 'clock');
+        const choices = this.legalCalls().filter((play) => play.group !== 'clock');
         const play = choices[Math.floor(Math.random() * choices.length)];
         this.choosePlay(play);
       }

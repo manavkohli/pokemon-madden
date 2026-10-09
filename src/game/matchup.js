@@ -34,8 +34,8 @@
       this.moveRecords = [];
       this.line = attack.lineup('offense', offense);
       this.cover = defend.lineup('defense', defense);
-      this.carrier = attack.occupant(this.line, offense.carrier);
-      this.passer = attack.occupant(this.line, offense.passer);
+      this.carrier = attack.player(...offense.carrier);
+      this.passer = attack.player(...offense.passer);
       this.lane = { left: 0, middle: 2, right: 4 }[lane];
       if (this.lane === undefined) throw new RangeError('Unknown attack lane');
       this.pressure = PlayMatchup.PRESSURE.includes(defense.id);

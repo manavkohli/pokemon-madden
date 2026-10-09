@@ -372,7 +372,7 @@ describe('Strikes on the field', () => {
     const fires = Moves.game(() => 0);
     fires.possession = 'away';
     fires.prepareCall(Moves.defense());
-    fires.activateCpuMove(fires.phase.offense, fires.phase.defense, {});
+    fires.activateCpuMove(fires.phase.offense, fires.phase.defense);
     const { actor, move } = fires.phase.moves.away;
     const ranks = fires
       .availableMoves('away', fires.resolveOffense(fires.phase.offense, {}))
@@ -381,7 +381,7 @@ describe('Strikes on the field', () => {
     const quiet = Moves.game(() => 0.5);
     quiet.possession = 'away';
     quiet.prepareCall(Moves.defense());
-    quiet.activateCpuMove(quiet.phase.offense, quiet.phase.defense, {});
+    quiet.activateCpuMove(quiet.phase.offense, quiet.phase.defense);
     assert.deepEqual(quiet.phase.moves, {});
   });
 
@@ -969,31 +969,6 @@ describe('Second review fixes', () => {
     assert.ok(swapped.log.some((line) => line.includes('could not use Electric Burst')));
   });
 
-  test('Roar plus Spikes charges the replacement and a benched slot rotates by its real occupant', () => {
-    const match = Moves.game();
-    const [home, away] = [match.rosters.home, match.rosters.away];
-    match.setSpikes('home', true);
-    const backup = home.player('RB', 1);
-    match.prepareCall(Moves.offense());
-    Moves.use(match, 'away', away.player('LB'), 'roar');
-    match.snap(match.phase.offense, match.phase.defense);
-    assert.equal(home.energy(backup), 90);
-    const roster = Moves.game().rosters.home;
-    const [te1, te2, te3] = [0, 1, 2].map((depth) => roster.player('TE', depth));
-    te3.base_stats = { ...te3.base_stats, hp: 200, attack: 200, defense: 200, special_attack: 200 };
-    roster.spend(te2, 60);
-    roster.spend(te3, 70);
-    assert.equal(roster.sendToBench(te1, 'offense', Moves.offense()), true);
-    roster.entryCost = 10;
-    roster.rotate('offense', Moves.offense());
-    assert.equal(roster.player('TE', 0).id, te1.id);
-    assert.equal(roster.player('TE', 1).id, te3.id);
-    assert.equal(roster.player('TE', 2).id, te2.id);
-    assert.equal(roster.energy(te3), 20);
-    assert.equal(roster.energy(te2), 40);
-    assert.equal(roster.lineup('offense', Moves.offense()).find((slot) => slot.role === 'TE').mon.id, te3.id);
-  });
-
   test('a stuff that Protect erased still keeps the clock running on a sideline finish', () => {
     const match = Moves.game(() => 0);
     match.prepareCall(Moves.offense());
@@ -1066,38 +1041,140 @@ describe('Second review fixes', () => {
 });
 
 describe('Third review fixes', () => {
-  const tightEndPlay = () => ({ ...Moves.offense('quick-slant'), carrier: ['TE', 0] });
+  const play = () => ({ ...Moves.offense('quick-slant'), carrier: ['TE', 0] });
 
-  test('Roar picks the replacement once, and Spikes charge it once and nobody else', () => {
-    const roster = Moves.game().rosters.home;
-    const [te1, te2, te3] = [0, 1, 2].map((depth) => roster.player('TE', depth));
-    roster.spend(te2, 40);
-    roster.spend(te3, 41);
-    roster.entryCost = 10;
-    assert.equal(roster.sendToBench(te1, 'offense', tightEndPlay()), true);
-    const played = () => roster.lineup('offense', tightEndPlay()).find((slot) => slot.role === 'TE').mon.id;
-    assert.equal(played(), te2.id);
-    assert.equal(roster.energy(te2), 50);
-    assert.equal(roster.energy(te3), 59);
-    assert.equal(roster.energy(te1), 100);
-    roster.spend(te2, 15);
-    assert.equal(played(), te2.id);
-    assert.equal(roster.energy(te2), 35);
-    assert.equal(roster.occupant(roster.lineup('offense', tightEndPlay()), ['TE', 0]).id, te2.id);
+  test('Roar swaps the target with a rested backup in the depth chart and the swap stays after the condition ends', () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const [te1, te2] = [home.player('TE', 0), home.player('TE', 1)];
+    assert.equal(home.sendToBench(te1, 'offense', play()), true);
+    assert.equal(home.player('TE', 0).id, te2.id);
+    assert.equal(home.player('TE', 1).id, te1.id);
+    assert.equal(home.has(te1, 'benched'), true);
+    home.tick(match.rosters.away);
+    home.tick(match.rosters.away);
+    assert.equal(home.has(te1, 'benched'), false);
+    assert.equal(home.player('TE', 0).id, te2.id);
   });
 
-  test('swapping a benched starter with its stored replacement charges nobody', () => {
-    const roster = Moves.game().rosters.home;
-    const [te1, te2] = [0, 1].map((depth) => roster.player('TE', depth));
-    roster.sendToBench(te1, 'offense', tightEndPlay());
-    roster.entryCost = 10;
-    const energies = [te1, te2].map((mon) => roster.energy(mon));
-    roster.substituteInUnit('offense', tightEndPlay(), 'TE', 0, 1);
+  test('a Roared quarterback does not kick the next field goal', () => {
+    const home = Moves.game().rosters.home;
+    const [qb1, qb2] = [home.player('QB', 0), home.player('QB', 1)];
+    assert.equal(home.sendToBench(qb1, 'offense', Moves.offense()), true);
+    assert.equal(home.player('QB').id, qb2.id);
+    assert.equal(home.participants(Moves.offense()).passer.id, qb2.id);
+  });
+
+  test('a second Roar on the replacement benches it too', () => {
+    const home = Moves.game().rosters.home;
+    const [te1, te2, te3] = [0, 1, 2].map((depth) => home.player('TE', depth));
+    assert.equal(home.sendToBench(te1, 'offense', play()), true);
+    assert.equal(home.sendToBench(te2, 'offense', play()), true);
+    assert.equal(home.has(te2, 'benched'), true);
+    assert.equal(home.player('TE', 0).id, te3.id);
+  });
+
+  test('Roar with no eligible backup changes nothing', () => {
+    const home = Moves.game().rosters.home;
+    const te = home.player('TE', 0);
+    for (const mon of [1, 2].map((depth) => home.player('TE', depth))) home.afflict(mon, 'trap');
+    const order = home.players.map((mon) => mon.id);
+    assert.equal(home.sendToBench(te, 'offense', play()), false);
     assert.deepEqual(
-      [te1, te2].map((mon) => roster.energy(mon)),
-      energies,
+      home.players.map((mon) => mon.id),
+      order,
     );
-    assert.equal(roster.lineup('offense', tightEndPlay()).find((slot) => slot.role === 'TE').mon.id, te2.id);
+    assert.equal(home.has(te, 'benched'), false);
+  });
+
+  test('a manual swap that brings a benched player back throws', () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const te1 = home.player('TE', 0);
+    home.sendToBench(te1, 'offense', play());
+    assert.throws(() => home.substitute('TE', 0, 1), RangeError);
+    match.prepareCall(Moves.offense());
+    assert.throws(() => match.substitute('TE', 0, 1), /benched/);
+    assert.equal(home.player('TE', 1).id, te1.id);
+  });
+
+  test('an expired benched condition changes nobody charged for Sandstorm that snap', () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const [te1, te2] = [home.player('TE', 0), home.player('TE', 1)];
+    home.sendToBench(te1, 'offense', Moves.offense());
+    home.conditions.get(te1.id).benched.snaps = 1;
+    match.field.weather = { kind: 'sandstorm', snaps: 5 };
+    match.prepareCall(Moves.offense());
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(home.has(te1, 'benched'), false);
+    assert.equal(home.energy(te1) > 100 - 3, true);
+    assert.equal(home.energy(te2) <= 100 - 3, true);
+  });
+
+  test('Spikes charge only the entrant on rotation, a manual swap, and Roar', () => {
+    const rotated = Moves.game();
+    rotated.setSpikes('home', true);
+    const roster = rotated.rosters.home;
+    const [te1, te2, te3] = [0, 1, 2].map((depth) => roster.player('TE', depth));
+    te3.base_stats = { ...te3.base_stats, hp: 200, attack: 200, defense: 200, special_attack: 200 };
+    roster.spend(te1, 40);
+    rotated.rotateUnit('home', 'offense', play());
+    assert.equal(roster.energy(te3), 90);
+    assert.equal(roster.energy(te2), 100);
+    assert.equal(roster.energy(te1), 60);
+    const manual = Moves.game();
+    manual.setSpikes('home', true);
+    manual.prepareCall(Moves.offense());
+    const [rb1, rb2] = [manual.rosters.home.player('RB', 0), manual.rosters.home.player('RB', 1)];
+    manual.substitute('RB', 0, 1);
+    assert.equal(manual.rosters.home.energy(rb2), 90);
+    assert.equal(manual.rosters.home.energy(rb1), 100);
+    const roared = Moves.game();
+    roared.setSpikes('home', true);
+    const [wr1, wr4] = [roared.rosters.home.player('WR', 0), roared.rosters.home.player('WR', 3)];
+    roared.changeUnit('home', 'offense', Moves.offense(), () =>
+      roared.rosters.home.sendToBench(wr1, 'offense', Moves.offense()),
+    );
+    assert.equal(roared.rosters.home.energy(wr1), 100);
+    assert.equal(roared.rosters.home.energy(wr4), 90);
+  });
+
+  test('a call with no Spikes builds no extra lineup', () => {
+    const match = Moves.game();
+    const roster = match.rosters.home;
+    const lineup = roster.lineup.bind(roster);
+    let calls = 0;
+    roster.lineup = (...args) => {
+      calls++;
+      return lineup(...args);
+    };
+    match.changeUnit('home', 'offense', play(), () => {});
+    assert.equal(calls, 0);
+  });
+
+  test('moves against a punt drop at no cost, including the CPU rival', () => {
+    const match = Moves.game(() => 0);
+    match.possession = 'away';
+    match.down = 4;
+    match.prepareCall(Moves.defense());
+    match.phase.offense = Moves.offense('punt');
+    const dl = match.rosters.home.player('DL');
+    Moves.use(match, 'home', dl, 'tackle');
+    const charges = { ...match.charges };
+    const result = match.snap(match.phase.offense, match.phase.defense);
+    assert.deepEqual(result.moves, []);
+    assert.equal(match.ppLeft('home', dl, 'tackle'), MoveBook.uses('tackle'));
+    assert.deepEqual(match.charges, charges);
+    assert.deepEqual(match.phase, null);
+  });
+
+  test('the CPU never fires Haze when no stat stage is in force', () => {
+    const match = Moves.game();
+    const rb = match.rosters.away.player('RB');
+    assert.equal(match.cpuWants('away', { actor: rb, move: 'haze' }), false);
+    match.rosters.home.shift(match.rosters.home.player('RB'), 'attack', 1);
+    assert.equal(match.cpuWants('away', { actor: rb, move: 'haze' }), true);
   });
 
   test('Sandstorm drains only the players who played', () => {

@@ -72,7 +72,7 @@ A coach fires a move after committing the call, in the same pre-snap panel as ab
 | Field | Reflect, Light Screen, Safeguard, Mist, Haze, Rain Dance, Sunny Day, Sandstorm, Spikes | Sets a field condition (below). |
 | Protect | Protect, Detect | On offense, a sack, stuff, fumble, or interception becomes an incomplete pass or no gain. On defense, the play gains at most 5 yards and a longer touchdown run stops at 5. |
 | One-hit | Fissure, Horn Drill, Guillotine | 30% accuracy. A hit on offense is a breakaway touchdown; a hit on defense is a turnover (fumble on a run, interception on a pass). Type immunity still applies. |
-| Force-switch | Roar, Whirlwind | Sends the opponent to the bench for the next two snaps of their team, replaced by the best rested backup. |
+| Force-switch | Roar, Whirlwind | Swaps the target with the best rested same-role backup outside the unit in the depth chart and benches the target for two snaps: auto-rotation and manual swaps cannot return it, and the swap stays when the condition ends. Fails when no backup exists. |
 
 Swagger confuses the opponent and raises its attack two stages. The 33 moves without a family (Transform, Sketch, Metronome, Splash, Substitute, Baton Pass, Attract, Perish Song, and others) never appear in the move picker.
 
@@ -107,7 +107,7 @@ A player holds one of paralysis, sleep, freeze, burn, or poison at a time, as in
 | Rain Dance | Water strikes × 1.5, Fire strikes × 0.5, fumble odds +1 point | 5 |
 | Sunny Day | Fire strikes × 1.5, Water strikes × 0.5 | 5 |
 | Sandstorm | Every active player not Rock, Ground, or Steel loses 3 stamina per snap | 5 |
-| Spikes | Every substitution into the opponent's unit costs the incoming player 10 stamina | rest of the half |
+| Spikes | Every depth-chart change (manual swap, auto-rotation, Roar) charges each player who enters the unit 10 stamina; audible personnel changes pay nothing | rest of the half |
 
 One weather condition is active at a time; new weather replaces the old.
 

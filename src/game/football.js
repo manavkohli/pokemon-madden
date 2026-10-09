@@ -235,7 +235,7 @@
     rotateTeam(side, offense, defense) {
       if (!this.autoRotate[side]) return;
       const attacking = side === this.possession;
-      this.rosters[side].rotate(attacking ? 'offense' : 'defense', attacking ? offense : defense);
+      this.rotateUnit(side, attacking ? 'offense' : 'defense', attacking ? offense : defense);
     }
 
     setAutoRotate(side, enabled) {
@@ -272,13 +272,29 @@
       this.phase[key] = play;
       delete this.phase.moves.home;
       if (!this.phase.abilities.home?.paid) delete this.phase.abilities.home;
-      if (this.autoRotate.home) this.rosters.home.rotate(this.possession === 'home' ? 'offense' : 'defense', play);
+      if (this.autoRotate.home) this.rotateUnit('home', key, play);
     }
 
     substitute(role, first, second) {
       if (!this.phase || this.over) throw new Error('Substitutions require an active call');
       const kind = this.possession === 'home' ? 'offense' : 'defense';
-      this.rosters.home.substituteInUnit(kind, this.phase[kind], role, first, second);
+      this.changeUnit('home', kind, this.phase[kind], () => this.rosters.home.substitute(role, first, second));
+    }
+
+    rotateUnit(side, kind, play) {
+      this.changeUnit(side, kind, play, () => this.rosters[side].rotate(kind, play));
+    }
+
+    // Every depth-chart change (manual swap, rotation, Roar) runs here so Spikes charge each entrant once.
+    changeUnit(side, kind, play, change) {
+      const roster = this.rosters[side];
+      if (!this.field[side].spikes) return change();
+      const before = new Set(roster.lineup(kind, play).map((slot) => slot.mon.id));
+      const result = change();
+      for (const slot of roster.lineup(kind, play)) {
+        if (!before.has(slot.mon.id)) roster.spend(slot.mon, FootballGame.SPIKES_COST);
+      }
+      return result;
     }
 
     isLegalCall(play) {
@@ -315,7 +331,7 @@
 
     abilityActor(roster, lineup, play, ability, offense) {
       if (ability.id === 'burst' && offense) {
-        const carrier = roster.occupant(lineup, play.carrier);
+        const carrier = roster.player(...play.carrier);
         return carrier.types.includes(ability.type) ? carrier : null;
       }
       const roles = offense
@@ -352,12 +368,20 @@
       );
     }
 
-    commitChoices(call, resolved, defense, options) {
-      this.activateCpuAbility(call, defense, options);
-      this.activateCpuMove(call, defense, options);
+    commitChoices(resolved, defense) {
+      if (DEAD_KINDS.includes(resolved.kind)) return this.dropDeadPicks();
+      this.activateCpuAbility(resolved, defense);
+      this.activateCpuMove(resolved, defense);
       this.dropStalePicks(resolved, defense);
       this.spendAbilities();
       this.spendMoves();
+    }
+
+    // A punt, kick, spike, or kneel has no contest, so every pending pick drops without cost.
+    dropDeadPicks() {
+      this.phase.moves = {};
+      for (const [side, ability] of Object.entries(this.phase.abilities))
+        if (!ability.paid) delete this.phase.abilities[side];
     }
 
     // A call, target, or substitution changed after the pick can leave the actor without a legal role.
@@ -388,10 +412,9 @@
       for (const ability of Object.values(this.phase.abilities)) if (!ability.paid) this.payAbility(ability);
     }
 
-    activateCpuAbility(offense, defense, options) {
+    activateCpuAbility(resolved, defense) {
       if (!this.charges.away || this.phase.abilities.away || this.random() >= 0.35) return;
-      const play = this.possession === 'away' ? this.resolveOffense(offense, options) : defense;
-      if (DEAD_KINDS.includes(play.kind)) return;
+      const play = this.possession === 'away' ? resolved : defense;
       const ability = this.availableAbilities('away', play).find((entry) => entry.id !== 'read');
       if (ability) this.activateAbility('away', ability.id, play);
     }
@@ -402,8 +425,8 @@
 
     moveActors(roster, lineup, play, offense) {
       if (!offense) return lineup.map((slot) => slot.mon);
-      const actors = [roster.occupant(lineup, play.carrier)];
-      if (PASS_KINDS.includes(play.kind)) actors.push(roster.occupant(lineup, play.passer));
+      const actors = [roster.player(...play.carrier)];
+      if (PASS_KINDS.includes(play.kind)) actors.push(roster.player(...play.passer));
       actors.push(...lineup.filter((slot) => ['OL', 'TE'].includes(slot.role)).map((slot) => slot.mon));
       return [...new Map(actors.map((mon) => [mon.id, mon])).values()];
     }
@@ -433,9 +456,8 @@
       return entry;
     }
 
-    activateCpuMove(offense, defense, options) {
-      const play = this.possession === 'away' ? this.resolveOffense(offense, options) : defense;
-      this.fireCpuMove('away', play);
+    activateCpuMove(resolved, defense) {
+      this.fireCpuMove('away', this.possession === 'away' ? resolved : defense);
     }
 
     // The CPU rule for either side: on `cpuMoveChance` of calls, fire the best-ranked eligible move.
@@ -460,7 +482,8 @@
       if (family !== 'field') return true;
       if (FootballGame.WEATHERS.includes(move)) return this.field.weather?.kind !== move;
       if (move === 'spikes') return !this.field[this.opponent(side)].spikes;
-      return move === 'haze' || !this.field[side][move];
+      if (move === 'haze') return Object.values(this.rosters).some((roster) => roster.hasStages());
+      return !this.field[side][move];
     }
 
     // Nothing is paid before the snap, so a pending pick can be withdrawn.
@@ -544,7 +567,7 @@
       const runoff = this.runoff(resolved, options.tempo || 'normal');
       if (runoff >= this.seconds) return this.expireBeforeSnap(resolved, defense, runoff);
       this.seconds -= runoff;
-      if (this.phase) this.commitChoices(offense, resolved, defense, options);
+      if (this.phase) this.commitChoices(resolved, defense);
       const result = this.resolvePlay(resolved, defense, options);
       result.moves ??= [];
       result.weather = this.field.weather?.kind ?? '';
@@ -613,10 +636,9 @@
     finishSnap(offense, defense, result, prior, options) {
       const attack = this.rosters[prior.side];
       const defend = this.rosters[this.opponent(prior.side)];
-      const line = attack.lineup('offense', offense);
-      attack.finishPlay(line, offense, {
+      attack.finishPlay(attack.lineup('offense', offense), offense, {
         carrier: result.participants.carrier,
-        passer: attack.occupant(line, offense.passer),
+        passer: attack.player(...offense.passer),
       });
       defend.finishPlay(
         defend.lineup('defense', defense),
@@ -850,7 +872,6 @@
     setSpikes(side, on) {
       if (on) this.field[side].spikes = true;
       else delete this.field[side].spikes;
-      this.rosters[side].entryCost = on ? FootballGame.SPIKES_COST : 0;
     }
 
     setField(record, name) {
@@ -867,7 +888,9 @@
     sendToBench(record, calls) {
       const foe = this.rosters[this.opponent(record.side)];
       const kind = record.offense ? 'defense' : 'offense';
-      const sent = foe.sendToBench(record.target, kind, calls[kind]);
+      const sent = this.changeUnit(this.opponent(record.side), kind, calls[kind], () =>
+        foe.sendToBench(record.target, kind, calls[kind]),
+      );
       record.notes.push(sent ? `${record.target.name} was sent to the bench!` : 'But it failed!');
     }
 
