@@ -189,7 +189,7 @@
     // A bigger formation can reach a benched player's depth, so a free backup takes that slot before the snap.
     seatBenched(side, play) {
       for (const slot of this.lineup(side, play)) {
-        if (!this.has(slot.mon, 'benched')) continue;
+        if (!this.has(slot.mon, 'benched') || this.has(slot.mon, 'trap')) continue;
         const backup = this.backupFor(slot.mon, side, play);
         if (backup) this.substitute(slot.role, slot.depth - 1, backup.depth - 1);
       }

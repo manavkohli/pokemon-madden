@@ -233,16 +233,14 @@
     }
 
     rotateTeam(side, offense, defense) {
-      this.seatTeam(side, offense, defense);
-      if (!this.autoRotate[side]) return;
-      const attacking = side === this.possession;
-      this.rotateUnit(side, attacking ? 'offense' : 'defense', attacking ? offense : defense);
+      const kind = side === this.possession ? 'offense' : 'defense';
+      this.settleUnit(side, kind, kind === 'offense' ? offense : defense);
     }
 
-    seatTeam(side, offense, defense) {
-      const kind = side === this.possession ? 'offense' : 'defense';
-      const play = kind === 'offense' ? offense : defense;
+    // Every call and audible seats benched players before auto-rotation, so the shown unit is the unit that plays.
+    settleUnit(side, kind, play) {
       this.changeUnit(side, kind, play, () => this.rosters[side].seatBenched(kind, play));
+      if (this.autoRotate[side]) this.rotateUnit(side, kind, play);
     }
 
     setAutoRotate(side, enabled) {
@@ -279,7 +277,7 @@
       this.phase[key] = play;
       delete this.phase.moves.home;
       if (!this.phase.abilities.home?.paid) delete this.phase.abilities.home;
-      if (this.autoRotate.home) this.rotateUnit('home', key, play);
+      this.settleUnit('home', key, play);
     }
 
     substitute(role, first, second) {
@@ -386,8 +384,9 @@
 
     // A punt, kick, spike, or kneel has no contest, so every pending pick drops without cost.
     dropDeadPicks() {
-      for (const key of ['moves', 'abilities'])
-        for (const side of Object.keys(this.phase[key])) if (!this.phase[key][side].paid) this.dropPick(key, side);
+      for (const side of Object.keys(this.phase.moves)) this.dropPick('moves', side);
+      for (const [side, ability] of Object.entries(this.phase.abilities))
+        if (!ability.paid) this.dropPick('abilities', side);
     }
 
     dropPick(key, side) {
@@ -577,7 +576,6 @@
       const runoff = this.runoff(resolved, options.tempo || 'normal');
       if (runoff >= this.seconds) return this.expireBeforeSnap(resolved, defense, runoff);
       this.seconds -= runoff;
-      for (const side of ['home', 'away']) this.seatTeam(side, resolved, defense);
       if (this.phase) this.commitChoices(resolved, defense);
       const result = this.resolvePlay(resolved, defense, options);
       result.moves ??= [];

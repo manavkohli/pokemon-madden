@@ -1355,3 +1355,28 @@ describe('Fifth review fixes', () => {
     assert.equal(match.cpuWants('away', { actor: rb, move: 'haze' }), true);
   });
 });
+
+describe('Sixth review fixes', () => {
+  const roared = () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    const te1 = home.player('TE', 0);
+    home.sendToBench(te1, 'offense', Moves.offense());
+    return { match, home, te1 };
+  };
+  const unit = (roster, id) => roster.lineup('offense', Moves.offense(id)).map((slot) => slot.mon.id);
+
+  test('a benched player who is also trapped stays put and the call still starts', () => {
+    const { match, home, te1 } = roared();
+    home.afflict(te1, 'trap');
+    assert.doesNotThrow(() => match.prepareCall(Moves.offense('power-run')));
+    assert.equal(unit(home, 'power-run').includes(te1.id), true);
+  });
+
+  test('an audible to a bigger formation seats a benched player at once', () => {
+    const { match, home, te1 } = roared();
+    match.prepareCall(Moves.offense());
+    match.choosePlayerCall(Moves.offense('power-run'));
+    assert.equal(unit(home, 'power-run').includes(te1.id), false);
+  });
+});

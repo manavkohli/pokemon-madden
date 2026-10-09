@@ -83,7 +83,7 @@ Every Pokémon carries up to four moves from its Gen 2 (Crystal) learnset. Befor
 | Field | Reflect, Light Screen, Safeguard, Mist, Haze, Rain Dance, Sunny Day, Sandstorm, Spikes | Changes the field for five snaps (Spikes: the rest of the half). |
 | Protect | Protect, Detect | Offense: a sack, stuff, fumble, or interception becomes no gain. Defense: the play gains at most 5 yards. |
 | One-hit | Fissure, Horn Drill, Guillotine | 30% accuracy. A hit is a breakaway touchdown on offense or a turnover on defense. |
-| Roar | Roar, Whirlwind | Swaps the target with a rested backup, who stays in the depth chart. For two snaps the target sits out, unless the formation needs every player at that position. |
+| Roar | Roar, Whirlwind | Swaps the target with a rested backup, who stays in the depth chart. For two snaps the target sits out, unless the formation needs every player at that position or no free backup exists. |
 
 | Condition | Badge | Effect | Snaps |
 | --- | --- | --- | --- |
