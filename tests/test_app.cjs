@@ -392,7 +392,7 @@ test('a MOVES button records a strike that the snap spends and reports', async (
     const app = harness.app;
     harness.document.querySelector('[data-move]').click();
     assert.ok(app.game.phase.moves.home);
-    assert.equal(harness.document.querySelector('[data-move]').disabled, true);
+    assert.equal(harness.document.querySelector('[data-move]').getAttribute('aria-pressed'), 'true');
     await app.requestSnap();
     assert.ok(harness.playback.result.moves.some((record) => record.side === 'home'));
     assert.equal(app.game.pp.home.size, 1);
@@ -431,6 +431,52 @@ test('the draft detail panel lists learnable moves, swaps picks, and handles Mag
     app.selectedPokemon = app.pokemon.find((entry) => entry.name === 'Mew');
     app.renderDetail();
     assert.ok([...harness.document.querySelectorAll('[data-pick]')].every((button) => button.disabled));
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a pending move or ability can be replaced or cancelled before the snap and costs nothing', async () => {
+  const harness = await AppHarness.create();
+  try {
+    const app = harness.app;
+    const game = app.game;
+    const moves = () => [...harness.document.querySelectorAll('[data-move]')];
+    moves()[0].click();
+    const first = game.phase.moves.home;
+    assert.ok(first);
+    assert.equal(moves()[0].disabled, false);
+    assert.equal(moves()[0].getAttribute('aria-pressed'), 'true');
+    const other = moves().find(
+      (button) => button.dataset.move !== first.move || Number(button.dataset.actor) !== first.actor.id,
+    );
+    other.click();
+    assert.equal(game.phase.moves.home.move, other.dataset.move);
+    assert.equal(game.phase.moves.home.actor.id, Number(other.dataset.actor));
+    moves()
+      .find((button) => button.getAttribute('aria-pressed') === 'true')
+      .click();
+    assert.equal(game.phase.moves.home, undefined);
+    assert.equal(game.pp.home.size, 0);
+    assert.equal(game.rosters.home.energy(first.actor), 100);
+    game.rosters.home.player('RB').types = ['Electric'];
+    game.rosters.home.player('OL').types = ['Steel'];
+    app.renderGame();
+    const abilities = () => [...harness.document.querySelectorAll('[data-ability]')];
+    abilities()
+      .find((button) => button.dataset.ability === 'burst')
+      .click();
+    assert.equal(game.phase.abilities.home.id, 'burst');
+    abilities()
+      .find((button) => button.dataset.ability === 'shield')
+      .click();
+    assert.equal(game.phase.abilities.home.id, 'shield');
+    abilities()
+      .find((button) => button.dataset.ability === 'shield')
+      .click();
+    assert.equal(game.phase.abilities.home, undefined);
+    assert.equal(game.charges.home, 2);
+    assert.equal(game.rosters.home.energy(game.rosters.home.player('RB')), 100);
   } finally {
     await harness.close();
   }

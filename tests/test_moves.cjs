@@ -55,6 +55,8 @@ class Moves {
           'roar',
           'flamethrower',
           'water-gun',
+          'swords-dance',
+          'sand-attack',
         ],
         base_stats: { hp: 80, attack: 80, defense: 80, special_attack: 80, special_defense: 80, speed: 80, total: 480 },
       }));
@@ -497,7 +499,7 @@ describe('Conditions, stat stages, and heals', () => {
     const rb = game.rosters.home.player('RB');
     game.rosters.home.afflict(rb, 'confusion');
     const stumbles = game.rollConfusion(Moves.offense(), Moves.defense());
-    assert.deepEqual([...stumbles], [rb.id]);
+    assert.deepEqual([...stumbles], [`offense:${rb.id}`]);
     const args = [game.rosters.home, game.rosters.away, Moves.offense(), Moves.defense(), 'middle', {}, {}];
     assert.equal(new PlayMatchup(...args, stumbles).tackle, new PlayMatchup(...args).tackle - 15);
     assert.equal(Moves.game(() => 0.5).rollConfusion(Moves.offense(), Moves.defense()).size, 0);
@@ -515,7 +517,7 @@ describe('Conditions, stat stages, and heals', () => {
     assert.deepEqual(result.statuses.before.defender, []);
   });
 
-  test('Thunder Wave fails against an already afflicted target and into a Ground type', () => {
+  test('Thunder Wave fails against an already afflicted target and ignores the type chart', () => {
     const game = Moves.game();
     const rb = game.rosters.home.player('RB');
     rb.types = ['Electric'];
@@ -528,12 +530,11 @@ describe('Conditions, stat stages, and heals', () => {
     assert.ok(game.log.some((line) => line.includes('But it failed!')));
     const ground = Moves.game();
     const runner = ground.rosters.home.player('RB');
-    runner.types = ['Electric'];
     for (const mon of ground.rosters.away.players) mon.types = ['Ground'];
     Moves.learn(ground, 'home', runner, ['thunder-wave']);
     Moves.pick(ground, 'home', runner, 'thunder-wave');
-    const immune = ground.snap(ground.phase.offense, ground.phase.defense);
-    assert.equal(ground.rosters.away.has(immune.moves[0].target, 'paralysis'), false);
+    const landed = ground.snap(ground.phase.offense, ground.phase.defense);
+    assert.equal(ground.rosters.away.has(landed.moves[0].target, 'paralysis'), true);
   });
 
   test('a strike secondary rolls at twice its chance and Agility and Recover change the user', () => {
@@ -662,11 +663,6 @@ describe('Field conditions, Protect, one-hit, and force-switch moves', () => {
     fire(match, 'home', rb, 'spikes');
     match.snap(match.phase.offense, match.phase.defense);
     assert.equal(match.field.away.spikes, true);
-    match.prepareCall(Moves.offense());
-    const incoming = away.player('WR', 3);
-    away.substitute('WR', 0, 3, match.entryCost('away'));
-    assert.equal(away.player('WR').id, incoming.id);
-    assert.equal(away.energy(incoming), 90);
     match.quarter = 2;
     match.startQuarter();
     assert.equal(match.field.away.spikes, undefined);
@@ -754,6 +750,162 @@ describe('Field conditions, Protect, one-hit, and force-switch moves', () => {
       match.snap(match.phase.offense, match.phase.defense);
     }
     assert.equal(away.has(target, 'benched'), false);
+  });
+});
+
+describe('Review fixes', () => {
+  test('Roar on the carrier benches him: the backup carries and the starter recovers', () => {
+    const match = Moves.game();
+    const [home, away] = [match.rosters.home, match.rosters.away];
+    const starter = home.player('RB');
+    const backup = home.player('RB', 1);
+    match.prepareCall(Moves.offense());
+    Moves.use(match, 'away', away.player('LB'), 'roar');
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(home.has(starter, 'benched'), true);
+    match.prepareCall(Moves.offense());
+    const next = new PlayMatchup(home, away, Moves.offense(), match.phase.defense);
+    assert.equal(next.carrier.id, backup.id);
+    assert.equal(home.participants(Moves.offense()).carrier.id, backup.id);
+    home.spend(starter, 40);
+    const before = home.energy(starter);
+    match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(home.energy(starter), before + 9);
+  });
+
+  test('Protect beats a one-hit KO on both sides', () => {
+    const held = Moves.game(() => 0.2);
+    held.prepareCall(Moves.offense());
+    Moves.use(held, 'home', held.rosters.home.player('RB'), 'fissure');
+    Moves.use(held, 'away', held.rosters.away.player('LB'), 'protect');
+    const breakaway = held.snap(held.phase.offense, held.phase.defense);
+    assert.equal(breakaway.yards, 5);
+    assert.notEqual(breakaway.outcome, 'touchdown');
+    for (const [play, outcome, role] of [
+      [Moves.offense(), 'stop', 'RB'],
+      [Moves.offense('quick-slant'), 'incomplete', 'QB'],
+    ]) {
+      const safe = Moves.game(() => 0.2);
+      safe.prepareCall(play);
+      Moves.use(safe, 'away', safe.rosters.away.player('LB'), 'fissure');
+      Moves.use(safe, 'home', safe.rosters.home.player(role), 'protect');
+      const result = safe.snap(safe.phase.offense, safe.phase.defense);
+      assert.equal(result.outcome, outcome);
+      assert.equal(safe.possession, 'home');
+    }
+  });
+
+  test('only the confused side stumbles when one species plays on both teams', () => {
+    const match = Moves.game(() => 0);
+    const [home, away] = [match.rosters.home, match.rosters.away];
+    const rb = home.player('RB');
+    const tackler = new PlayMatchup(home, away, Moves.offense(), Moves.defense()).tackler.mon;
+    away.players[away.players.indexOf(tackler)] = rb;
+    home.afflict(rb, 'confusion');
+    const stumbles = match.rollConfusion(Moves.offense(), Moves.defense());
+    assert.deepEqual([...stumbles], [`offense:${rb.id}`]);
+    const args = [home, away, Moves.offense(), Moves.defense(), 'middle', {}, {}];
+    assert.equal(new PlayMatchup(...args, stumbles).tackle, new PlayMatchup(...args).tackle - 15);
+  });
+
+  test('Spikes charge only the player who enters the unit', () => {
+    const match = Moves.game();
+    const home = match.rosters.home;
+    match.field.home.spikes = true;
+    match.prepareCall(Moves.offense());
+    const starter = home.player('RB');
+    const backup = home.player('RB', 1);
+    match.substitute('RB', 1, 0);
+    assert.equal(home.player('RB').id, backup.id);
+    assert.equal(home.energy(backup), 90);
+    assert.equal(home.energy(starter), 100);
+    const [first, second] = [home.player('WR'), home.player('WR', 1)];
+    match.substitute('WR', 0, 1);
+    assert.deepEqual([home.energy(first), home.energy(second)], [100, 100]);
+  });
+
+  test('type effectiveness applies only to strikes and one-hit moves', () => {
+    const confuse = Moves.game();
+    const rb = confuse.rosters.home.player('RB');
+    Moves.pick(confuse, 'home', rb, 'confuse-ray');
+    const first = confuse.snap(confuse.phase.offense, confuse.phase.defense);
+    assert.equal(confuse.rosters.away.has(first.moves[0].target, 'confusion'), true);
+    assert.equal(first.moves[0].effectiveness, 1);
+    const dance = Moves.game();
+    for (const mon of dance.rosters.away.players) mon.types = ['Ghost'];
+    const runner = dance.rosters.home.player('RB');
+    Moves.pick(dance, 'home', runner, 'swords-dance');
+    dance.snap(dance.phase.offense, dance.phase.defense);
+    assert.equal(
+      dance.log.some((line) => line.includes("doesn't affect")),
+      false,
+    );
+    assert.equal(dance.rosters.home.stage(runner, 'attack'), 2);
+  });
+
+  test('a Sand-Attack on the pass carrier lowers completion by four points on the next pass', () => {
+    const match = Moves.game();
+    const [home, away] = [match.rosters.home, match.rosters.away];
+    const pass = Moves.offense('quick-slant');
+    match.prepareCall(pass);
+    const before = new PlayMatchup(home, away, pass, match.phase.defense).chances(0).completion;
+    Moves.use(match, 'away', away.player('CB'), 'sand-attack');
+    match.snap(match.phase.offense, match.phase.defense);
+    match.prepareCall(pass);
+    const after = new PlayMatchup(home, away, pass, match.phase.defense).chances(0).completion;
+    assert.ok(Math.abs(before - after - 0.04) < 1e-9);
+  });
+
+  test('an offensive move user who is not featured takes the support slot', () => {
+    const match = Moves.game();
+    const ol = match.rosters.home.player('OL', 2);
+    Moves.pick(match, 'home', ol, 'tackle', Moves.offense('quick-slant'));
+    const result = match.snap(match.phase.offense, match.phase.defense);
+    assert.equal(result.outcome === 'incomplete', false);
+    assert.equal(result.participants.support, ol);
+  });
+
+  test('both cues play in sequence and the contact callout joins both effectiveness lines', () => {
+    const match = Moves.game();
+    for (const mon of match.rosters.away.players) mon.types = ['Water'];
+    match.rosters.home.player('RB').types = ['Fire'];
+    match.prepareCall(Moves.offense());
+    Moves.use(match, 'home', match.rosters.home.player('RB'), 'thunderbolt');
+    Moves.use(match, 'away', match.rosters.away.player('LB'), 'surf');
+    const result = match.snap(match.phase.offense, match.phase.defense);
+    const { carrier, support, defender, help } = result.participants;
+    const motion = new BattleMotion(Moves.offense(), result, { lead: carrier, support, stopper: defender, help });
+    assert.equal(motion.sample(0.3).cue.type, 'Electric');
+    assert.equal(motion.sample(0.45).cue.type, 'Water');
+    assert.match(motion.sample(0.3).caption.title, /used Thunderbolt/);
+    assert.match(motion.sample(0.45).caption.title, /used Surf/);
+    assert.match(motion.sample(0.6).caption.title, /super effective.*super effective/);
+  });
+
+  test('a species on both teams draws each cue on its own side', () => {
+    const mon = Moves.mon('Pikachu');
+    const other = Moves.mon('Squirtle');
+    const featured = { lead: mon, support: other, stopper: mon, help: other };
+    const record = (offense) => ({
+      side: offense ? 'home' : 'away',
+      offense,
+      actor: mon,
+      target: other,
+      move: 'tackle',
+      hit: true,
+      effectiveness: 1,
+      value: 5,
+      notes: [],
+    });
+    for (const offense of [true, false]) {
+      const motion = new BattleMotion(
+        Moves.offense(),
+        { outcome: 'gain', yards: 3, moves: [record(offense)] },
+        featured,
+      );
+      const state = motion.sample(0.3);
+      assert.equal(state.cue.from.x, state.actors[offense ? 0 : 2].x);
+    }
   });
 });
 

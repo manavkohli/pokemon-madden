@@ -151,15 +151,17 @@
       for (const mon of new Set(Object.values(participants))) this.spend(mon, 4);
     }
 
-    substitute(role, first, second, entryCost = 0) {
+    // `unit` ({ ids, cost }) charges the one player who enters the active unit from outside it.
+    substitute(role, first, second, unit = null) {
       const slots = POSITIONS.map((slot, index) => ({ ...slot, index })).filter((slot) => slot.code === role);
       if (!slots[first] || !slots[second] || first === second) throw new RangeError('Choose two different depth slots');
       const trapped = [first, second].find((index) => this.has(this.players[slots[index].index], 'trap'));
       if (trapped !== undefined) throw new RangeError(`${this.players[slots[trapped].index].name} is trapped`);
       const a = slots[first].index;
       const b = slots[second].index;
-      [this.players[a], this.players[b]] = [this.players[b], this.players[a]];
-      if (entryCost) this.spend(this.players[a], entryCost);
+      const [x, y] = [this.players[a], this.players[b]];
+      [this.players[a], this.players[b]] = [y, x];
+      if (unit && unit.ids.has(x.id) !== unit.ids.has(y.id)) this.spend(unit.ids.has(x.id) ? y : x, unit.cost);
     }
 
     rotate(side, play, entryCost = 0) {
@@ -182,7 +184,12 @@
           .sort((a, b) => this.effectiveRating(b.mon, b.code) - this.effectiveRating(a.mon, a.code));
         if (!bench.length || this.effectiveRating(bench[0].mon, slot.role) <= this.effectiveRating(slot.mon, slot.role))
           continue;
-        this.substitute(slot.role, slot.depth - 1, bench[0].depth - 1, entryCost);
+        this.substitute(
+          slot.role,
+          slot.depth - 1,
+          bench[0].depth - 1,
+          entryCost ? { ids: activeIds, cost: entryCost } : null,
+        );
         activeIds.delete(slot.mon.id);
         activeIds.add(bench[0].mon.id);
       }
@@ -253,10 +260,16 @@
       return this.players[POSITIONS.findIndex((slot) => slot.code === position && slot.depth === occurrence + 1)];
     }
 
+    // Reads a play participant through the lineup so a benched player's replacement is the one who plays.
+    occupant(lineup, [role, depth]) {
+      return lineup.find((slot) => slot.role === role && slot.depth === depth + 1)?.mon ?? this.player(role, depth);
+    }
+
     participants(play) {
+      const lineup = this.lineup('offense', play);
       return {
-        carrier: this.player(...play.carrier),
-        passer: this.player(...play.passer),
+        carrier: this.occupant(lineup, play.carrier),
+        passer: this.occupant(lineup, play.passer),
         blocker: this.player('OL'),
       };
     }

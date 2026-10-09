@@ -171,14 +171,21 @@
       this.el('abilityList').addEventListener('click', (event) => {
         const button = event.target.closest('[data-ability]');
         if (!button || button.disabled) return;
-        this.game.activateAbility('home', button.dataset.ability, this.playerPreview());
+        const pending = this.game.phase.abilities.home;
+        if (pending) this.game.cancelAbility('home');
+        if (pending?.id !== button.dataset.ability)
+          this.game.activateAbility('home', button.dataset.ability, this.playerPreview());
         this.callChosen = true;
         this.renderGame();
       });
       this.el('moveList').addEventListener('click', (event) => {
         const button = event.target.closest('[data-move]');
         if (!button || button.disabled) return;
-        this.game.activateMove('home', Number(button.dataset.actor), button.dataset.move, this.playerPreview());
+        const actor = Number(button.dataset.actor);
+        const pending = this.game.phase.moves.home;
+        if (pending) this.game.cancelMove('home');
+        if (pending?.actor.id !== actor || pending.move !== button.dataset.move)
+          this.game.activateMove('home', actor, button.dataset.move, this.playerPreview());
         this.callChosen = true;
         this.renderGame();
       });
@@ -186,7 +193,7 @@
         this.game.setAutoRotate('home', this.el('autoRotate').checked);
         this.renderGame();
       });
-      this.el('subRole').addEventListener('change', () => this.renderSubstitutions());
+      this.el('subRole').addEventListener('change', () => this.renderSubstitutions(this.playerPreview()));
       this.el('subButton').addEventListener('click', () => {
         this.game.substitute(
           this.el('subRole').value,
@@ -301,7 +308,7 @@
         abilities
           .map(
             (ability) =>
-              `<button type="button" class="ability-button" data-ability="${ability.id}" ${active || !game.charges.home ? 'disabled' : ''}><b>${ability.name} · ${ability.actor.name}</b><span>${ability.detail}</span></button>`,
+              `<button type="button" class="ability-button ${active?.id === ability.id ? 'active' : ''}" data-ability="${ability.id}" aria-pressed="${active?.id === ability.id}" ${game.charges.home ? '' : 'disabled'}><b>${ability.name} · ${ability.actor.name}</b><span>${ability.detail}</span></button>`,
           )
           .join('') ||
         '<p>No eligible Electric, Steel, or Psychic player in this unit. Draft one to unlock an ability.</p>';
@@ -320,7 +327,7 @@
     renderMoves(play) {
       const active = this.game.phase?.moves.home;
       this.el('moveBudget').textContent = active
-        ? `${active.actor.name} uses ${MoveBook.get(active.move).display_name} at the snap.`
+        ? `${active.actor.name} uses ${MoveBook.get(active.move).display_name} at the snap. Click it again to cancel.`
         : 'One move per call · uses PP and stamina';
       this.el('moveList').innerHTML =
         this.game
@@ -328,7 +335,7 @@
           .map(({ actor, move, pp }) => {
             const entry = MoveBook.get(move);
             const chosen = active?.actor.id === actor.id && active.move === move;
-            return `<button type="button" class="ability-button move-button ${chosen ? 'active' : ''}" data-actor="${actor.id}" data-move="${move}" ${active ? 'disabled' : ''}><b>${entry.display_name} · ${actor.name}</b><span>${entry.type.toUpperCase()} ${entry.power ?? MoveBook.family(move).toUpperCase()} · ${pp}/${MoveBook.uses(move)} PP</span></button>`;
+            return `<button type="button" class="ability-button move-button ${chosen ? 'active' : ''}" data-actor="${actor.id}" data-move="${move}" aria-pressed="${chosen}"><b>${entry.display_name} · ${actor.name}</b><span>${entry.type.toUpperCase()} ${entry.power ?? MoveBook.family(move).toUpperCase()} · ${pp}/${MoveBook.uses(move)} PP</span></button>`;
           })
           .join('') || '<p>No move is available for this call. Players need 20 stamina and PP.</p>';
     }

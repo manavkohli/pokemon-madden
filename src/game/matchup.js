@@ -34,8 +34,8 @@
       this.moveRecords = [];
       this.line = attack.lineup('offense', offense);
       this.cover = defend.lineup('defense', defense);
-      this.carrier = attack.player(...offense.carrier);
-      this.passer = attack.player(...offense.passer);
+      this.carrier = attack.occupant(this.line, offense.carrier);
+      this.passer = attack.occupant(this.line, offense.passer);
       this.lane = { left: 0, middle: 2, right: 4 }[lane];
       if (this.lane === undefined) throw new RangeError('Unknown attack lane');
       this.pressure = PlayMatchup.PRESSURE.includes(defense.id);
@@ -96,26 +96,35 @@
     applyConditions() {
       const run = this.offense.kind === 'run';
       const roles = [
-        [this.attack, this.carrier, run ? ['attack'] : ['speed'], run ? 'tackle' : 'separation', 1],
-        [this.attack, this.blocker, ['defense'], 'protection', 1],
-        [this.defend, this.rusher, ['attack'], 'protection', -1],
-        [this.defend, this.tackler.mon, ['defense'], 'tackle', -1],
+        ['offense', this.carrier, run ? ['attack'] : ['speed'], run ? 'tackle' : 'separation', 1],
+        ['offense', this.blocker, ['defense'], 'protection', 1],
+        ['defense', this.rusher, ['attack'], 'protection', -1],
+        ['defense', this.tackler.mon, ['defense'], 'tackle', -1],
       ];
       if (!run)
         roles.push(
-          [this.attack, this.passer, ['special_attack'], 'separation', 1],
-          [this.defend, this.marker.mon, ['speed', 'special_defense'], 'separation', -1],
+          ['offense', this.passer, ['special_attack'], 'separation', 1],
+          ['defense', this.marker.mon, ['speed', 'special_defense'], 'separation', -1],
         );
-      for (const [roster, mon, stats, margin, sign] of roles) {
+      for (const [kind, mon, stats, margin, sign] of roles) {
+        const roster = kind === 'offense' ? this.attack : this.defend;
         for (const stat of stats) this[margin] += sign * roster.stage(mon, stat) * PlayMatchup.STAGE_POINTS;
-        if (this.confused.has(mon.id)) this[margin] -= sign * PlayMatchup.CONFUSED_DROP;
+        if (this.confused.has(`${kind}:${mon.id}`)) this[margin] -= sign * PlayMatchup.CONFUSED_DROP;
       }
-      if (!run)
-        this.accuracyShift =
-          PlayMatchup.ACCURACY_STAGE *
-          (this.attack.stage(this.passer, 'accuracy') +
-            this.attack.stage(this.carrier, 'evasion') -
-            this.defend.stage(this.marker.mon, 'evasion'));
+      if (!run) this.accuracyShift = PlayMatchup.ACCURACY_STAGE * this.accuracyStages();
+    }
+
+    // Accuracy helps the passing side and evasion helps the covering side, each from the player's current stages.
+    accuracyStages() {
+      const { attack, defend, passer, carrier } = this;
+      const marker = this.marker.mon;
+      return (
+        attack.stage(passer, 'accuracy') +
+        attack.stage(carrier, 'accuracy') +
+        attack.stage(carrier, 'evasion') -
+        defend.stage(marker, 'accuracy') -
+        defend.stage(marker, 'evasion')
+      );
     }
 
     // A move's user takes its role's contest, so a fired move always lands on a real opponent.
@@ -163,8 +172,8 @@
 
     applyMove(entry, offense) {
       const { target, margin } = offense ? this.offenseContest(entry.actor) : this.defenseContest(entry.actor);
-      const effectiveness = MoveBook.effectiveness(entry.move, target);
       const family = MoveBook.family(entry.move);
+      const effectiveness = ['strike', 'ohko'].includes(family) ? MoveBook.effectiveness(entry.move, target) : 1;
       const value = entry.hit && family === 'strike' ? this.strikeValue(entry, offense, effectiveness) : 0;
       this[margin] += offense ? value : -value;
       if (entry.hit && family === 'protect') this.protects[offense ? 'offense' : 'defense'] = true;
@@ -269,7 +278,17 @@
       const stopped = result.outcome === 'stuff' || sack;
       const defender = stopped ? this.rusher : this.tackler.mon;
       const support = sack || this.offense.kind === 'run' ? this.blocker : this.passer;
-      return { carrier: sack ? this.passer : this.carrier, support, defender, help: this.help };
+      const cast = { carrier: sack ? this.passer : this.carrier, support, defender, help: this.help };
+      return this.featureMovers(cast);
+    }
+
+    // Every move user takes the stage: an offensive user replaces support and a defensive user replaces help.
+    featureMovers(cast) {
+      for (const { actor, offense } of this.moveRecords) {
+        const [lead, slot] = offense ? ['carrier', 'support'] : ['defender', 'help'];
+        if (cast[lead] !== actor && cast[slot] !== actor) cast[slot] = actor;
+      }
+      return cast;
     }
 
     explanation() {

@@ -1893,7 +1893,7 @@ a:focus-visible {
   overflow-y: auto;
   margin-bottom: 12px;
 }
-.move-button.active {
+.ability-button.active {
   border-color: var(--lime);
 }
 .ability-button b,

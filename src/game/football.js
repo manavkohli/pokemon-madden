@@ -64,6 +64,7 @@
       this.timeouts = { home: 3, away: 3 };
       this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
       this.pp = { home: new Map(), away: new Map() };
+      this.cpuMoveChance = FootballGame.CPU_MOVE_CHANCE;
       this.field = { home: {}, away: {}, weather: null };
       this.autoRotate = { home: false, away: true };
       this.quarterSeconds = quarterSeconds;
@@ -280,7 +281,14 @@
 
     substitute(role, first, second) {
       if (!this.phase || this.over) throw new Error('Substitutions require an active call');
-      this.rosters.home.substitute(role, first, second, this.entryCost('home'));
+      const cost = this.entryCost('home');
+      const offense = this.possession === 'home';
+      const lineup = this.rosters.home.lineup(
+        offense ? 'offense' : 'defense',
+        this.phase[offense ? 'offense' : 'defense'],
+      );
+      const unit = cost ? { ids: new Set(lineup.map((slot) => slot.mon.id)), cost } : null;
+      this.rosters.home.substitute(role, first, second, unit);
     }
 
     isLegalCall(play) {
@@ -317,7 +325,7 @@
 
     abilityActor(roster, lineup, play, ability, offense) {
       if (ability.id === 'burst' && offense) {
-        const carrier = roster.player(...play.carrier);
+        const carrier = roster.occupant(lineup, play.carrier);
         return carrier.types.includes(ability.type) ? carrier : null;
       }
       const roles = offense
@@ -392,8 +400,8 @@
 
     moveActors(roster, lineup, play, offense) {
       if (!offense) return lineup.map((slot) => slot.mon);
-      const actors = [roster.player(...play.carrier)];
-      if (PASS_KINDS.includes(play.kind)) actors.push(roster.player(...play.passer));
+      const actors = [roster.occupant(lineup, play.carrier)];
+      if (PASS_KINDS.includes(play.kind)) actors.push(roster.occupant(lineup, play.passer));
       actors.push(...lineup.filter((slot) => ['OL', 'TE'].includes(slot.role)).map((slot) => slot.mon));
       return [...new Map(actors.map((mon) => [mon.id, mon])).values()];
     }
@@ -425,12 +433,26 @@
     }
 
     activateCpuMove(offense, defense, options) {
-      if (this.phase.moves.away || this.random() >= FootballGame.CPU_MOVE_CHANCE) return;
       const play = this.possession === 'away' ? this.resolveOffense(offense, options) : defense;
-      const best = this.availableMoves('away', play).sort(
+      this.fireCpuMove('away', play);
+    }
+
+    // The CPU rule for either side: on `cpuMoveChance` of calls, fire the best-ranked eligible move.
+    fireCpuMove(side, play) {
+      if (this.phase.moves[side] || this.random() >= this.cpuMoveChance) return;
+      const best = this.availableMoves(side, play).sort(
         (a, b) => MoveBook.rank(b.move, b.actor) - MoveBook.rank(a.move, a.actor),
       )[0];
-      if (best) this.activateMove('away', best.actor.id, best.move, play);
+      if (best) this.activateMove(side, best.actor.id, best.move, play);
+    }
+
+    // Nothing is paid before the snap, so a pending pick can be withdrawn.
+    cancelMove(side) {
+      delete this.phase.moves[side];
+    }
+
+    cancelAbility(side) {
+      delete this.phase.abilities[side];
     }
 
     timeout(side) {
@@ -572,9 +594,10 @@
     finishSnap(offense, defense, result, prior, options) {
       const attack = this.rosters[prior.side];
       const defend = this.rosters[this.opponent(prior.side)];
-      attack.finishPlay(attack.lineup('offense', offense), offense, {
+      const line = attack.lineup('offense', offense);
+      attack.finishPlay(line, offense, {
         carrier: result.participants.carrier,
-        passer: attack.player(...offense.passer),
+        passer: attack.occupant(line, offense.passer),
       });
       defend.finishPlay(
         defend.lineup('defense', defense),
@@ -703,7 +726,7 @@
         (record) => MoveBook.family(record.move) === 'ohko' && record.hit && record.effectiveness,
       );
       let result;
-      if (knockout) result = this.knockout(knockout, offense);
+      if (knockout) result = this.knockout(knockout, offense, matchup);
       else if (offense.kind === 'run') result = this.resolveRun(offense, matchup, odds, scheme, options);
       else result = this.resolvePass(offense, matchup, odds, scheme, options);
       result.participants = matchup.participants(result);
@@ -742,7 +765,7 @@
         const roster = this.rosters[side];
         for (const slot of roster.lineup(kind, play)) {
           if (roster.has(slot.mon, 'confusion') && this.random() < FootballGame.CONFUSION_CHANCE)
-            stumbles.add(slot.mon.id);
+            stumbles.add(`${kind}:${slot.mon.id}`);
         }
       }
       return stumbles;
@@ -859,12 +882,18 @@
     }
 
     // One-hit moves skip the contest rolls: the offense scores, the defense takes the ball.
-    knockout(record, offense) {
+    // Protect beats a one-hit KO: a held breakaway stops at 5 yards and a defensive KO becomes no gain or an incompletion.
+    knockout(record, offense, matchup) {
       record.notes.push("It's a one-hit KO!");
       if (record.offense) {
         const yards = 100 - this.spot;
-        return { yards, seconds: 7, ...this.moveBall(yards) };
+        const held = matchup.protects.defense ? Math.min(FootballGame.PROTECT_YARDS, yards) : yards;
+        return { yards: held, seconds: 7, ...this.moveBall(held) };
       }
+      if (matchup.protects.offense)
+        return offense.kind === 'run'
+          ? this.tackle(0, 6, 'NO GAIN!', 'stop')
+          : this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
       return offense.kind === 'run' ? this.fumble(0) : this.interception();
     }
 

@@ -9,6 +9,7 @@
     static CONTACT = 0.56;
     static CUE_START = 0.22;
     static CUE_END = 0.5;
+    static CUE_SPLIT = 0.36;
     // A shield holds through contact and a one-hit flash lands on it.
     static CUE_WINDOWS = { protect: [0.22, 0.79], ohko: [0.5, 0.68] };
     static SHAPES = {
@@ -37,11 +38,11 @@
       this.picked = result.outcome === 'interception';
       this.fumbled = result.outcome === 'fumble';
       this.scoring = ['touchdown', 'field-goal-good'].includes(result.outcome);
-      this.move = result.moves?.[0] ?? null;
+      this.moves = result.moves ?? [];
     }
 
     get moveType() {
-      return this.move ? MoveBook.get(this.move.move).type : '';
+      return this.moves[0] ? MoveBook.get(this.moves[0].move).type : '';
     }
 
     static interval(time, start, end) {
@@ -79,54 +80,81 @@
       return labels[this.result.outcome];
     }
 
+    // One move plays its cue in 0.22-0.50; with two, the offense plays in 0.22-0.36 and the defense in 0.36-0.50.
+    cueWindow(index, family) {
+      if (BattleMotion.CUE_WINDOWS[family]) return BattleMotion.CUE_WINDOWS[family];
+      if (this.moves.length < 2) return [BattleMotion.CUE_START, BattleMotion.CUE_END];
+      return index === 0
+        ? [BattleMotion.CUE_START, BattleMotion.CUE_SPLIT]
+        : [BattleMotion.CUE_SPLIT, BattleMotion.CUE_END];
+    }
+
+    captionStart(index) {
+      return this.moves.length > 1 && index === 1 ? BattleMotion.CUE_SPLIT : BattleMotion.CUE_START;
+    }
+
     moveCaption(progress) {
-      if (!this.move || progress < BattleMotion.CUE_START) return null;
-      const { actor, target, hit, effectiveness } = this.move;
-      const name = MoveBook.get(this.move.move).display_name;
+      if (!this.moves.length || progress < BattleMotion.CUE_START) return null;
       const detail = `${this.featured.lead.name} vs ${this.featured.stopper.name}`;
-      if (progress < BattleMotion.CONTACT) return { round: 'MOVE', title: `${actor.name} used ${name}!`, detail };
-      const note = MoveBook.callout(effectiveness, target.name) || this.move.notes[0] || this.impact;
-      const title = hit ? note : `${name} missed!`;
-      return { round: 'MOVE', title, detail };
+      if (progress < BattleMotion.CONTACT) {
+        const index = this.moves.findLastIndex((record, at) => this.captionStart(at) <= progress);
+        const { actor, move } = this.moves[index];
+        return { round: 'MOVE', title: `${actor.name} used ${MoveBook.get(move).display_name}!`, detail };
+      }
+      const lines = this.moves.map((record) =>
+        record.hit
+          ? MoveBook.callout(record.effectiveness, record.target.name) || record.notes[0]
+          : `${MoveBook.get(record.move).display_name} missed!`,
+      );
+      return { round: 'MOVE', title: lines.filter(Boolean).join(' ') || this.impact, detail };
     }
 
-    // The move's user and target keep their featured slots; an unfeatured one falls back to its side's lead slot.
     cue(progress, actors) {
-      if (!this.move) return null;
-      const family = MoveBook.family(this.move.move);
-      const [start, end] = BattleMotion.CUE_WINDOWS[family] ?? [BattleMotion.CUE_START, BattleMotion.CUE_END];
-      if (progress < start || progress >= end) return null;
+      const index = this.moves.findIndex((record, at) => {
+        const [start, end] = this.cueWindow(at, MoveBook.family(record.move));
+        return progress >= start && progress < end;
+      });
+      if (index < 0) return null;
+      const record = this.moves[index];
+      const family = MoveBook.family(record.move);
+      const [start, end] = this.cueWindow(index, family);
       const base = {
-        type: MoveBook.get(this.move.move).type,
+        type: MoveBook.get(record.move).type,
         t: BattleMotion.ease(BattleMotion.interval(progress, start, end)),
-        missed: !this.move.hit,
+        missed: !record.hit,
       };
-      const spots = this.spots(actors);
-      if (family === 'strike') return this.strikeCue(base, spots);
-      return this.move.hit ? { ...base, ...this.effectCue(family, spots) } : null;
+      const spots = this.spots(record, actors);
+      if (family === 'strike') return this.strikeCue(record, base, spots);
+      return record.hit ? { ...base, ...this.effectCue(record, family, spots) } : null;
     }
 
-    spots(actors) {
-      const { actor, target, offense } = this.move;
-      const slots = Object.values(this.featured).map((mon) => mon.id);
-      const find = (mon, fallback) => (slots.includes(mon.id) ? slots.indexOf(mon.id) : fallback);
+    // Slots are found by side (offense 0-1, defense 2-3) and object identity, so a species on both teams resolves correctly.
+    // An unfeatured user or target falls back to its side's lead slot.
+    spots(record, actors) {
+      const { actor, target, offense } = record;
+      const mons = Object.values(this.featured);
+      const find = (mon, onOffense) => {
+        const [low, high] = onOffense ? [0, 1] : [2, 3];
+        const found = mons.slice(low, high + 1).indexOf(mon);
+        return found < 0 ? low : low + found;
+      };
       const at = (mover) => ({ x: mover.x, y: mover.y - 8 });
       return {
-        user: at(actors[find(actor, offense ? 0 : 2)]),
-        target: at(actors[find(target, offense ? 2 : 0)]),
+        user: at(actors[find(actor, offense)]),
+        target: at(actors[find(target, !offense)]),
         centre: { x: 50, y: 50 },
       };
     }
 
-    strikeCue(base, spots) {
-      const special = MoveBook.get(this.move.move).damage_class === 'special';
+    strikeCue(record, base, spots) {
+      const special = MoveBook.get(record.move).damage_class === 'special';
       const veer = { x: spots.target.x + 12, y: -20 };
-      return { ...base, kind: special ? 'beam' : 'lunge', from: spots.user, to: this.move.hit ? spots.target : veer };
+      return { ...base, kind: special ? 'beam' : 'lunge', from: spots.user, to: record.hit ? spots.target : veer };
     }
 
     // Ailments settle on the opponent, stat changes rise over the user or fall over the opponent, heals rise from the user.
-    shape(family) {
-      const name = this.move.move;
+    shape(record, family) {
+      const name = record.move;
       if (family === 'ailment') {
         const ailment = MoveBook.effects(name)[0].ailment;
         return { kind: 'aura', at: 'target', label: MoveBook.BADGES[ailment] ?? ailment.toUpperCase() };
@@ -141,8 +169,8 @@
       return BattleMotion.SHAPES[family];
     }
 
-    effectCue(family, spots) {
-      const shape = this.shape(family);
+    effectCue(record, family, spots) {
+      const shape = this.shape(record, family);
       const spot = spots[shape.at];
       return {
         kind: shape.kind,
