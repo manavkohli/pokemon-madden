@@ -1,0 +1,182 @@
+{
+  const { SpriteArt } = typeof module !== 'undefined' ? require('../sprites.js') : window.Pokeballers;
+  const { BattleMotion } = typeof module !== 'undefined' ? require('./motion.js') : window.Pokeballers;
+
+  class BattleStage {
+    constructor(element) {
+      this.element = element;
+      this.actionNode = element.querySelector('#battleAction');
+      this.roundLabel = element.querySelector('#battleRound');
+      this.matchupLabel = element.querySelector('#battleMatchup');
+      this.callout = element.querySelector('#battleCallout');
+      this.subline = element.querySelector('#battleSubline');
+      this.leadNode = element.querySelector('#battleLead');
+      this.supportNode = element.querySelector('#battleSupport');
+      this.stopperNode = element.querySelector('#battleStopper');
+      this.helpNode = element.querySelector('#battleHelp');
+      this.fighters = [this.leadNode, this.supportNode, this.stopperNode, this.helpNode];
+      this.ballNode = element.querySelector('#battleBall');
+      this.impactNode = element.querySelector('#battleImpact');
+      this.effectsNode = element.querySelector('#battleEffects');
+      this.progressNode = element.querySelector('#battleProgress');
+      this.motionPreference =
+        typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+      this.paused = false;
+      this.token = 0;
+      this.active = null;
+      element.querySelector('#skipBattle').addEventListener('click', () => this.skip());
+    }
+
+    featured(attack, defend, offense, result = {}) {
+      const [role, depth, support] = this.attackingRoles(offense, result);
+      const lead = attack.player(role, depth);
+      const helper = attack.player(support);
+      const stopperRole = offense.kind === 'run' ? 'LB' : offense.kind === 'deep' ? 'S' : 'CB';
+      const stopper = result.defender || defend.player(stopperRole);
+      const help = ['S', 'LB', 'CB'].map((position) => defend.player(position)).find((mon) => mon.id !== stopper.id);
+      return { lead, support: helper.id === lead.id ? attack.player('OL') : helper, stopper, help };
+    }
+
+    static ROLE_OVERRIDES = {
+      'double-pass': ['QB', 1, 'QB'],
+      'qb-sneak': ['QB', 0, 'RB'],
+      'qb-scramble': ['QB', 0, 'RB'],
+      'read-option': ['QB', 0, 'RB'],
+      'jet-sweep': ['WR', 0, 'RB'],
+      'end-around': ['WR', 0, 'RB'],
+      reverse: ['WR', 0, 'RB'],
+      'screen-pass': ['RB', 0, 'QB'],
+      'wheel-route': ['RB', 1, 'QB'],
+      'te-seam': ['TE', 0, 'QB'],
+      'shovel-pass': ['TE', 0, 'QB'],
+    };
+
+    attackingRoles(offense, result) {
+      if (result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run')) return ['QB', 0, 'OL'];
+      const override = BattleStage.ROLE_OVERRIDES[offense.id];
+      if (override) return override;
+      if (offense.kind === 'run') return ['RB', 0, 'OL'];
+      if (['kick', 'punt'].includes(offense.kind)) return ['QB', 0, 'OL'];
+      return ['WR', 0, 'QB'];
+    }
+
+    play({ attack, defend, offense, defense, result, onProgress = () => {} }) {
+      this.cancel();
+      const featured = this.featured(attack, defend, offense, result);
+      const motion = new BattleMotion(offense, result, featured);
+      this.element.classList.remove('hidden');
+      this.element.classList.toggle('scoring', motion.scoring);
+      this.matchupLabel.textContent = `${offense.name}  VS  ${defense.name}`;
+      Object.values(featured).forEach((mon, index) => {
+        this.fighters[index].innerHTML = SpriteArt.fighter(mon, index < 2);
+        this.fighters[index].setAttribute('aria-label', mon.name);
+      });
+      this.bodies = this.fighters.map((node) => node.querySelector('.battle-body'));
+      this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
+      this.impactNode.textContent = motion.impact;
+      this.effectsNode.innerHTML = Array.from({ length: motion.scoring ? 20 : 10 }, () => '<i></i>').join('');
+      this.particles = Array.from(this.effectsNode.children);
+      this.reduced = this.motionPreference.matches;
+      this.element.classList.toggle('reduced-motion', this.reduced);
+      const token = this.token;
+      return new Promise((resolve, reject) => {
+        this.active = { resolve, reject, onProgress, motion, elapsed: 0, previous: null };
+        this.render(motion.sample(0, this.reduced));
+        this.frame = requestAnimationFrame((now) => this.tick(now, token));
+      });
+    }
+
+    tick(now, token) {
+      if (token !== this.token) return;
+      try {
+        const active = this.active;
+        if (active.previous !== null && !this.paused) active.elapsed += Math.min(50, now - active.previous);
+        active.previous = now;
+        const duration = this.reduced ? BattleMotion.REDUCED_DURATION : BattleMotion.DURATION;
+        const progress = Math.min(1, active.elapsed / duration);
+        if (!this.paused) {
+          this.render(active.motion.sample(progress, this.reduced));
+          if (progress < 1) active.onProgress(progress);
+        }
+        if (token !== this.token) return;
+        if (progress === 1) this.complete();
+        else this.frame = requestAnimationFrame((time) => this.tick(time, token));
+      } catch (error) {
+        const reject = this.active.reject;
+        reject(error);
+        this.complete(false);
+      }
+    }
+
+    render(state) {
+      this.fighters.forEach((node, index) => {
+        const actor = state.actors[index];
+        node.style.left = `${actor.x}%`;
+        node.style.top = `${actor.y}%`;
+        node.style.opacity = actor.opacity;
+        this.bodies[index].style.transform =
+          `translateY(${actor.bob}px) rotate(${actor.angle}deg) scale(${actor.scaleX}, ${actor.scaleY})`;
+        this.shadows[index].style.transform = `scale(${1 + actor.bob * 0.025}, 1)`;
+      });
+      this.actionNode.style.transform = `translateX(${state.shake}px)`;
+      this.ballNode.style.left = `${state.ball.x}%`;
+      this.ballNode.style.top = `${state.ball.y}%`;
+      this.ballNode.style.transform = `translate(-50%, -50%) rotate(${state.ball.spin}deg)`;
+      this.ballNode.style.opacity = state.ball.visible && !this.reduced ? '1' : '0';
+      const showImpact = state.progress >= 0.56 && state.progress < 0.92;
+      const pop = BattleMotion.ease(BattleMotion.interval(state.progress, 0.56, 0.64));
+      this.impactNode.style.opacity = showImpact ? '1' : '0';
+      this.impactNode.style.transform = `translate(-50%, -50%) scale(${this.reduced ? 1 : 0.65 + pop * 0.35}) rotate(-4deg)`;
+      this.roundLabel.textContent = state.caption.round;
+      this.callout.textContent = state.caption.title;
+      this.subline.textContent = state.caption.detail;
+      this.progressNode.style.transform = `scaleX(${state.progress})`;
+      this.renderParticles(state);
+    }
+
+    renderParticles(state) {
+      const burst = BattleMotion.interval(state.progress, 0.56, 0.86);
+      const visible = !this.reduced && burst > 0 && burst < 1;
+      this.effectsNode.style.opacity = visible ? 1 - burst : 0;
+      this.particles.forEach((particle, index) => {
+        const angle = index * 2.4;
+        const radius = burst * (50 + (index % 4) * 18);
+        particle.style.transform = `translate(${Math.cos(angle) * radius}px, ${Math.sin(angle) * radius + burst * burst * 35}px) rotate(${burst * 220}deg) scale(${1 - burst * 0.5})`;
+      });
+    }
+
+    setPaused(paused) {
+      this.paused = paused;
+      if (this.active) this.active.previous = null;
+    }
+
+    skip() {
+      if (this.active && !this.paused) this.complete();
+    }
+
+    complete(finished = true) {
+      this.token += 1;
+      cancelAnimationFrame(this.frame);
+      this.element.classList.add('hidden');
+      this.paused = false;
+      const active = this.active;
+      this.active = null;
+      if (active) {
+        try {
+          if (finished) active.onProgress(1);
+        } catch (error) {
+          active.reject(error);
+          return;
+        }
+        active.resolve({ cancelled: !finished });
+      }
+    }
+
+    cancel() {
+      this.complete(false);
+    }
+  }
+
+  if (typeof module !== 'undefined') module.exports = { BattleStage };
+  else Object.assign(window.Pokeballers, { BattleStage });
+}

@@ -1,0 +1,18 @@
+{
+  "name": "pokeballers",
+  "version": "0.1.1",
+  "private": true,
+  "description": "A turn-based pocket football fan game with a dependency-free browser runtime.",
+  "license": "MIT",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node tests/test_game.cjs && node tests/test_battle.cjs",
+    "lint": "eslint src tests",
+    "format": "prettier --write src tests index.html style.css",
+    "format:check": "prettier --check src tests index.html style.css"
+  },
+  "devDependencies": {
+    "eslint": "10.12.0",
+    "prettier": "3.9.9"
+  }
+}
