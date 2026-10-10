@@ -34,7 +34,7 @@ The circuit is 13 games in a fixed order: Brock (Rock), Misty (Water), Lt. Surge
 
 ### Leader rosters
 
-A leader's roster puts every Pokémon of the leader's type into the position it fits best, then fills the remaining slots through the existing `Roster.random()` rule under that leader's credit cap. The type core keeps the identity (Agatha's 4 Ghost types are her stars) and the fill keeps a full, legal 31-player team. Caps rise from 14,000 credits for Brock to 27,000 for the Champion in even steps, so early gyms are winnable with a starter roster.
+A leader's roster starts from a type core: up to 12 Pokémon of the leader's type, the highest-rated at their best positions, within 60% of the leader's credit cap. The existing `Roster.random()` rule fills the remaining slots with the rest of the cap. The core keeps the identity (Agatha's 4 Ghost types are her stars) and the fill keeps a full, legal 31-player team. Caps rise from 14,000 credits for Brock to 27,000 for the Champion in even steps, so early gyms are winnable with a starter roster.
 
 Each leader has a play style: Brock and Giovanni favor runs, Misty and Lt. Surge favor passes, Koga and Agatha favor blitzes and trick plays, and the rest stay balanced. The style adds a fixed bonus to its group in the CPU call score, so the CPU still reacts to down, distance, and clock.
 
@@ -79,7 +79,7 @@ The carrier picks one of three actions and the tackler picks one of three:
 | **Truck** (attack) | carrier wins | tackler wins big | carrier wins |
 | **Cover Up** (HP) | even | even | tackler loses, no fumble |
 
-- **Carrier wins:** extra yards equal to `4 + tackle margin × 0.3`, using the stat the carrier's action names; **wins big:** double that, and a breakaway chance of 20%.
+- **Carrier wins:** extra yards equal to `max(2, round(4 + 0.3 × (carrier skill − tackler skill)))`, where each skill is `Roster.skill` in the stat its action names (Juke speed, Truck attack, Cover Up HP; Wrap Up defense, Big Hit attack, Strip speed); **wins big:** double that, and a 20% chance that the carrier breaks away for a touchdown.
 - **Tackler wins:** the play loses 2 yards after contact; **wins big:** loses 4, and Big Hit adds 5 points of fumble odds.
 - **Strip** against Juke or Truck adds 8 points of fumble odds; against Cover Up it changes nothing and costs the tackler 2 yards of position.
 - **Even:** the yards stand as resolved before contact.
@@ -99,9 +99,9 @@ At progress 0.56 the stage holds the contact pose and shows a battle-menu box wi
 ### 1. Evolution data
 
 - **Outcome:** the data files carry each species' evolution target, trigger, level, and item.
-- **Contract:** the Ownership and save section; scraper writes JSON and JS together.
+- **Contract:** the Ownership and save section; scraper writes JSON and JS together. The roster's types become Gen 2 types from PokeAPI `past_types`, so the 13 Pokémon that the catalog lists as Fairy (Clefairy, Snubbull, and others) take their Gen 2 types and match the Gen 2 type chart.
 - **Dependencies:** none.
-- **Acceptance:** `tests/test_pokedex.py` asserts that Bulbasaur evolves at 16, Pikachu evolves with the Thunder Stone, Kadabra evolves by trade, and Golbat evolves by friendship; it also asserts that no evolution target has an id above 251.
+- **Acceptance:** `tests/test_pokedex.py` asserts that Bulbasaur evolves at 16, Pikachu evolves with the Thunder Stone, Kadabra evolves by trade, and Golbat evolves by friendship; it also asserts that no evolution target has an id above 251, that no Pokémon has the Fairy type, and that Clefairy is Normal.
 - **Separate plan:** not required.
 
 ### 2. League engine
