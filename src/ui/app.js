@@ -721,7 +721,8 @@
       const options = game.possession === 'home' ? this.callOptions : game.cpuOptions(call, defense);
       const beforeSeconds = game.seconds;
       this.el('coachControls').disabled = true;
-      const result = game.snap(call, defense, options);
+      const snapped = game.snap(call, defense, options);
+      const result = snapped.clash ? game.autoResolveClash() : snapped;
       const offense = result.offense;
       await this.battle.play({
         offense,

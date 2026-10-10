@@ -32,7 +32,8 @@ class Balance {
       const { offense, defense } = game.phase;
       const options = game.possession === 'away' ? game.cpuOptions(offense, defense) : {};
       if (moves) game.fireCpuMove('home', game.possession === 'home' ? game.resolveOffense(offense, options) : defense);
-      for (const record of game.snap(offense, defense, options).moves) {
+      const played = game.snap(offense, defense, options);
+      for (const record of (played.clash ? game.autoResolveClash() : played).moves) {
         used += 1;
         const family = MoveBook.family(record.move);
         families[family] = (families[family] ?? 0) + 1;

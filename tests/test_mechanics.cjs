@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
+
+FootballGame.CLASHES = false;
 const { PlayMatchup } = require('../src/game/matchup.js');
 const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 const { BattleMotion } = require('../src/ui/battle/motion.js');

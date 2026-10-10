@@ -4,6 +4,8 @@ const { pokemon: data, moves } = require('../pokemon_gen1_2.json');
 const { MoveBook } = require('../src/game/moves.js');
 const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
+
+FootballGame.CLASHES = false;
 const { PlayMatchup } = require('../src/game/matchup.js');
 const { BattleMotion } = require('../src/ui/battle/motion.js');
 const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');

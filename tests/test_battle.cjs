@@ -7,6 +7,8 @@ const { BattleMotion } = require('../src/ui/battle/motion.js');
 const { SpriteArt } = require('../src/ui/sprites.js');
 const { FootballGame } = require('../src/game/football.js');
 
+FootballGame.CLASHES = false;
+
 class Element {
   constructor() {
     this.nodes = new Map();

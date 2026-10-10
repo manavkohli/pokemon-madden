@@ -3,6 +3,8 @@ const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
 const { PlayMatchup } = require('../src/game/matchup.js');
 const { FootballGame } = require('../src/game/football.js');
+
+FootballGame.CLASHES = false;
 const { OFFENSE, DEFENSE, POSITIONS, SALARY_CAP } = require('../src/game/playbook.js');
 
 class RosterChecks {
