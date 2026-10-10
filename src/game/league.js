@@ -20,7 +20,7 @@
   // One Kanto circuit: 13 games against fixed leaders, with the player's roster carried from game to game.
   class League {
     static VERSION = 1;
-    static DRAFT_CAP = 20000;
+    static DRAFT_CAP = 13000;
     static BADGE_CAP = 1000;
     static TRANSFERS = 3;
     static CORE_SIZE = 12;

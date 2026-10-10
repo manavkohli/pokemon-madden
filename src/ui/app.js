@@ -722,7 +722,7 @@
       const text =
         mode === 'window'
           ? 'Swap up to three players with the free-agent pool before the next game.'
-          : 'Draft under 20,000 credits. Then beat eight gyms, the Elite Four, and your rival.';
+          : 'Draft under 13,000 credits. Then beat eight gyms, the Elite Four, and your rival.';
       return `<div class="rival-scene" aria-hidden="true">${LeagueView.portrait(leader)}</div><div class="rival-copy"><small>${mode === 'window' ? 'TRANSFER WINDOW' : 'GYM CHALLENGE'}</small><h2>${mode === 'window' ? `Next: ${leader.name}` : 'The Kanto circuit'}</h2><p>${text}</p></div>`;
     }
 

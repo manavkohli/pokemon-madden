@@ -105,7 +105,7 @@ test('Roster.random keeps fixed players in their slots and stays under the cap',
 });
 
 test('Roster.evolve moves stamina, conditions, stages, and moves to the new id', () => {
-  const roster = Roster.random(data, 20000, () => 0.5);
+  const roster = Roster.random(data, 13000, () => 0.5);
   const charmander = named('Charmander');
   roster.assign(0, charmander);
   roster.setMoveset(charmander, ['ember', 'scratch', 'growl']);
@@ -250,7 +250,7 @@ test('a fourth transfer throws and a transfer cannot lift the roster over the ca
   const onRoster = new Set(league.roster.players);
   const cheap = data.filter((mon) => !onRoster.has(mon)).sort((a, b) => Roster.salary(a) - Roster.salary(b));
   const expensive = [...league.roster.players].sort((a, b) => Roster.salary(b) - Roster.salary(a));
-  assert.equal(league.playerCap, 20000);
+  assert.equal(league.playerCap, 13000);
   const cheapest = [...league.roster.players].sort((a, b) => Roster.salary(a) - Roster.salary(b))[0];
   assert.throws(() => league.transfer(cheapest.id, named('Celebi').id), RangeError);
   for (let index = 0; index < League.TRANSFERS; index++) league.transfer(expensive[index].id, cheap[index].id);
@@ -347,9 +347,9 @@ test('the circuit draft pool holds only Pokémon with an evolution left and fill
 
 test('the player cap grows by 1,000 per badge and only blocks transfers that raise payroll', () => {
   const league = Fixture.league();
-  assert.equal(league.playerCap, 20000);
+  assert.equal(league.playerCap, 13000);
   league.record(Fixture.finished({}));
-  assert.equal(league.playerCap, 21000);
+  assert.equal(league.playerCap, 14000);
   Fixture.put(
     league,
     ...[

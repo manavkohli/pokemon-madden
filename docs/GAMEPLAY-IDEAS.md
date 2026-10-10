@@ -40,7 +40,7 @@ Each leader has a play style: Brock and Giovanni favor runs, Misty and Lt. Surge
 
 ### Your roster across the circuit
 
-You draft once at the start, under 20,000 credits. Your roster carries forward: players, movesets, and levels.
+You draft once at the start, under 13,000 credits. Your roster carries forward: players, movesets, and levels.
 
 - **Levels.** Every drafted player starts at the lowest level of its evolution stage (a base form at 5, a middle form at the level it evolved, a final form at 40). After each game, each player gains levels from its impact: 1 level per 10 yards gained, 3 per touchdown, 1 per tackle, 2 per sack or interception, and 1 per move hit, plus 2 for every player on the winning team. Impact comes from the drive log and `result.participants`, which the engine already records.
 - **Evolution.** A player evolves when its level reaches the PokeAPI `min_level`. Badges award evolution stones: Misty the Water Stone, Lt. Surge the Thunder Stone, Erika the Leaf Stone, Blaine the Fire Stone, Sabrina the Moon Stone. A stone evolves one player of your choice on the post-game screen. Trade evolutions (Kadabra, Machoke, Graveler, Haunter, and others) evolve when that player is the game MVP. Friendship evolutions (Pichu, Cleffa, Igglybuff, Togepi, Golbat, Chansey) evolve after 5 games played. Eevee takes the stone you give it.

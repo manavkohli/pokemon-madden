@@ -82,7 +82,7 @@ class LeagueSim {
       ({ position }) => position.depth === 1,
     );
     for (let swaps = 0; swaps < this.swaps; swaps++) {
-      const room = league.leader.cap - league.roster.salary;
+      const room = league.playerCap - league.roster.salary;
       const weakest = starters
         .map(({ position, index }) => ({ position, mon: league.roster.players[index] }))
         .sort((a, b) => Roster.rating(a.mon, a.position.code) - Roster.rating(b.mon, b.position.code))[0];
@@ -99,7 +99,7 @@ class LeagueSim {
     }
   }
 
-  // Plays one circuit with a fresh 20,000-credit roster; a leader gets up to MAX_TRIES attempts.
+  // Plays one circuit with a fresh 13,000-credit roster; a leader gets up to MAX_TRIES attempts.
   circuit() {
     const league = League.start(
       data,
@@ -170,7 +170,7 @@ if (require.main === module) {
   const swaps = Number(process.argv[3] ?? 0);
   const { stages, complete, evolved, evolvable, starters } = LeagueSim.run(circuits, swaps);
   console.log(
-    `${circuits} circuits, 20,000-credit starting roster, ${swaps} transfers per window, ${LeagueSim.MAX_TRIES} tries per leader`,
+    `${circuits} circuits, 13,000-credit starting roster, ${swaps} transfers per window, ${LeagueSim.MAX_TRIES} tries per leader`,
   );
   console.log('leader      cap    reached  first-try win%  win%/game  score');
   League.LEADERS.forEach((leader, index) => {
