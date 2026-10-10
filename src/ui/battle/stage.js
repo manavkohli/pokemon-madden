@@ -115,7 +115,7 @@
     openClash(active) {
       const { carrier, tackler, role, actions, auto } = active.motion.result.clash;
       active.hold = { remaining: BattleStage.CLASH_MS, locked: false, auto };
-      this.clashTitle.textContent = `${(role === 'offense' ? carrier : tackler).name}: pick a move`;
+      this.clashTitle.textContent = `${(role === 'offense' ? carrier : tackler).name}: pick an action`;
       this.clashTimer.textContent = String(BattleStage.CLASH_MS / 1000);
       this.clashButtons.forEach((button, index) => {
         const action = actions[index];

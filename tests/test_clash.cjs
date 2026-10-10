@@ -58,53 +58,49 @@ class Clash {
     const edge =
       game.rosters.home.skill(matchup.carrier, offense.stat) -
       game.rosters.away.skill(matchup.tackler.mon, defense.stat);
-    return Math.max(2, Math.round(4 + 0.3 * edge));
+    return Math.max(2, Math.round(FootballGame.CLASH_WIN_YARDS + 0.3 * edge));
   }
 
   static trace(clashes) {
-    FootballGame.CLASHES = clashes;
-    try {
-      let seed = 40;
-      const random = () => {
-        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-        return seed / 2 ** 32;
-      };
-      const game = new FootballGame(
-        Roster.random(data, undefined, random),
-        Roster.random(data, undefined, random),
-        300,
-        random,
-      );
-      game.autoRotate.home = true;
-      const snaps = [];
-      for (let index = 0; index < 40 && !game.over; index++) {
-        const book = game.possession === 'home' ? OFFENSE.filter((play) => game.isLegalCall(play)) : DEFENSE;
-        game.prepareCall(book[Math.floor(random() * book.length)]);
-        const { offense, defense } = game.phase;
-        const options = game.possession === 'away' ? game.cpuOptions(offense, defense) : {};
-        game.fireCpuMove('home', game.possession === 'home' ? game.resolveOffense(offense, options) : defense);
-        const result = game.snap(offense, defense, options);
-        if (result.clash) {
-          snaps.push('clash');
-          break;
-        }
-        snaps.push({
-          yards: result.yards,
-          seconds: result.seconds,
-          runoff: result.runoff,
-          outcome: result.outcome,
-          message: result.message,
-          moves: result.moves.length,
-          score: [game.score.home, game.score.away],
-          spot: game.spot,
-          down: game.down,
-          toGo: game.toGo,
-        });
+    let seed = 40;
+    const random = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 2 ** 32;
+    };
+    const game = new FootballGame(
+      Roster.random(data, undefined, random),
+      Roster.random(data, undefined, random),
+      300,
+      random,
+    );
+    game.autoRotate.home = true;
+    game.clashes = clashes;
+    const snaps = [];
+    for (let index = 0; index < 40 && !game.over; index++) {
+      const book = game.possession === 'home' ? OFFENSE.filter((play) => game.isLegalCall(play)) : DEFENSE;
+      game.prepareCall(book[Math.floor(random() * book.length)]);
+      const { offense, defense } = game.phase;
+      const options = game.possession === 'away' ? game.cpuOptions(offense, defense) : {};
+      game.fireCpuMove('home', game.possession === 'home' ? game.resolveOffense(offense, options) : defense);
+      const result = game.snap(offense, defense, options);
+      if (result.clash) {
+        snaps.push('clash');
+        break;
       }
-      return snaps;
-    } finally {
-      FootballGame.CLASHES = true;
+      snaps.push({
+        yards: result.yards,
+        seconds: result.seconds,
+        runoff: result.runoff,
+        outcome: result.outcome,
+        message: result.message,
+        moves: result.moves.length,
+        score: [game.score.home, game.score.away],
+        spot: game.spot,
+        down: game.down,
+        toGo: game.toGo,
+      });
     }
+    return snaps;
   }
 }
 
@@ -128,8 +124,8 @@ describe('The action table', () => {
     cover: { wrap: 'even', hit: 'even', strip: 'safe' },
   };
   const fumbles = {
-    juke: { wrap: 0, hit: 0, strip: 0.08 },
-    truck: { wrap: 0, hit: 0.05, strip: 0.08 },
+    juke: { wrap: 0, hit: 0, strip: FootballGame.CLASH_FUMBLE.strip },
+    truck: { wrap: 0, hit: FootballGame.CLASH_FUMBLE.heavy, strip: FootballGame.CLASH_FUMBLE.strip },
     cover: { wrap: 0, hit: 0, strip: null },
   };
 
@@ -164,9 +160,9 @@ describe('The action table', () => {
     }
   }
 
-  test('a big win has a 20 percent chance to break away for a touchdown', () => {
+  test('a big win can break away for a touchdown', () => {
     const { game, rig } = Clash.pending();
-    rig.value = 0.19;
+    rig.queue = [0.5, FootballGame.BREAKAWAY_CHANCE - 0.001];
     const result = game.resolveClash('juke', 'hit');
     assert.equal(result.outcome, 'touchdown');
     assert.equal(result.clash.breakaway, true);

@@ -63,7 +63,7 @@ Before the snap a coach picks one actor and one move from the MOVES list; the CP
 
 `BattleMotion` samples a cue (Beam, Lunge, Aura, Arrows, Sparkle, Bubble, Field, or Flash) between 0.22 and 0.5 of the play and colors it by move type; `BattleStage` draws it on its single clock. Active weather stays drawn on later plays through `data-weather` on the field and the battle stage. Reduced motion hides the cue and overlay animation and keeps the type tint and captions.
 
-`node scripts/clash-balance.cjs 500` plays seeded games with clashes off and on, both sides on auto actions, and prints the clash rate and points per game; it tunes `CLASH_BAND`. `node scripts/balance.cjs 500` plays seeded computer-controlled games with moves off and on and prints average points per game; it is a tuning tool, not a test.
+`node scripts/clash-balance.cjs 500` plays seeded games with clashes off and on, both sides on auto actions, and prints the clash rate, the cell distribution, and points and fumbles per game, and fails when clash scoring drifts more than 8% or fumbles exceed 0.9 per game. `node scripts/balance.cjs 500` plays seeded computer-controlled games with moves off and on and prints average points per game; it is a tuning tool, not a test.
 
 ## Playback guarantees
 

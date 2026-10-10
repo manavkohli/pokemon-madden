@@ -42,12 +42,15 @@
     static MOVE_MIN_STAMINA = 20;
     static CPU_MOVE_CHANCE = 0.4;
     static CRIT_CHANCE = 0.25;
-    static CLASHES = true;
     static CLASH_BAND = 2;
     static CLASH_MEMORY = 5;
     static CLASH_COUNTER_WEIGHT = 0.5;
-    static CLASH_FUMBLE = { heavy: 0.05, strip: 0.08 };
-    static BREAKAWAY_CHANCE = 0.2;
+    // Base yards of a carrier win; lower values keep clash scoring close to a game without clashes.
+    static CLASH_WIN_YARDS = 1;
+    // Fumble odds added by a Big Hit win and by a Strip; high values make clashes inflate turnovers.
+    static CLASH_FUMBLE = { heavy: 0.01, strip: 0.015 };
+    // Chance a big carrier win breaks away for a touchdown.
+    static BREAKAWAY_CHANCE = 0.02;
     static CLASH = {
       actions: {
         offense: [
@@ -107,6 +110,7 @@
       this.over = false;
       this.history = [];
       this.pending = null;
+      this.clashes = true;
       this.clashMemory = { offense: [], defense: [] };
       this.log = ['Kickoff! Volts start at their own 25.'];
     }
@@ -1053,7 +1057,7 @@
 
     // A close tackle contest, or any third or fourth down, pauses the play at contact for the clash.
     reachesClash(matchup) {
-      return FootballGame.CLASHES && (Math.abs(matchup.tackle) <= FootballGame.CLASH_BAND || this.down >= 3);
+      return this.clashes && (Math.abs(matchup.tackle) <= FootballGame.CLASH_BAND || this.down >= 3);
     }
 
     // The no-clash branch must draw the same random numbers in the same order as a play with no clash step.
@@ -1170,7 +1174,7 @@
       );
       const edge = carrier.roster.skill(carrier.mon, attack.stat) - tackler.roster.skill(tackler.mon, defend.stat);
       const outcome = FootballGame.CLASH.outcomes[attack.id][defend.id];
-      const win = Math.max(2, Math.round(4 + 0.3 * edge));
+      const win = Math.max(2, Math.round(FootballGame.CLASH_WIN_YARDS + 0.3 * edge));
       const yards = { win, big: win * 2, lose: -2, heavy: -4, safe: 2, even: 0 }[outcome];
       const slowed = attack.id === 'juke' && yards > 0 && carrier.roster.has(carrier.mon, 'paralysis');
       const stripped = defend.id === 'strip' ? FootballGame.CLASH_FUMBLE.strip : 0;

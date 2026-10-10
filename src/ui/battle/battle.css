@@ -197,9 +197,12 @@
   left: 0;
   transform: translateX(-20%);
 }
+/* The stopper's tag sits above its sprite so it never meets the carrier's tag at contact. */
 .stopper b {
-  left: 100%;
-  transform: translateX(-80%);
+  top: -12px;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .support b,
 .help b {
