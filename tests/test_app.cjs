@@ -52,6 +52,7 @@ class AppHarness {
     harness.app = window.app;
     harness.app.battle.play = async (playback) => {
       harness.playback = playback;
+      if (playback.result.outcome === undefined) await playback.clash(playback.result.clash.auto);
       playback.onProgress(1);
       return { cancelled: false };
     };
@@ -533,16 +534,38 @@ test('a clash pick reaches the engine with the CPU pick and the final result fil
   }
 });
 
-test('a play that ends without a pick resolves the clash on auto actions', async () => {
+test('the quarter clock holds its pre-snap value until the clash resolves, then runs to the final seconds', async () => {
   const harness = await ClashHarness.start();
   try {
     const app = harness.app;
+    const label = () => harness.element('clockLabel').textContent;
+    const clock = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    const before = app.game.seconds;
+    const seen = [];
+    app.battle.play = async (playback) => {
+      playback.onProgress(0.3);
+      seen.push(label());
+      playback.onProgress(0.56);
+      seen.push(label());
+      const final = await playback.clash('truck');
+      playback.onProgress(0.56);
+      seen.push(label());
+      playback.onProgress(0.78);
+      seen.push(label());
+      playback.onProgress(1);
+      seen.push(label());
+      harness.final = final;
+      return { cancelled: false };
+    };
     await app.requestSnap();
-    assert.ok(harness.playback.result.clash);
-    assert.equal(app.game.pending, null);
-    assert.equal(harness.element('resultBanner').classList.contains('hidden'), false);
-    harness.finishResult();
-    harness.assertReady(app.game.possession);
+    const half = Math.max(0, before - Math.round(harness.final.seconds * 0.5));
+    assert.deepEqual(seen, [
+      clock(before),
+      clock(before),
+      clock(before),
+      clock(half),
+      clock(Math.max(0, before - harness.final.seconds)),
+    ]);
   } finally {
     await harness.close();
   }

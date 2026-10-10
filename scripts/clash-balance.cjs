@@ -3,18 +3,12 @@ const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
 const { OFFENSE, DEFENSE, PASS_KINDS } = require('../src/game/playbook.js');
+const { seeded } = require('../tests/helpers.cjs');
 
 class ClashBalance {
-  static seeded(seed) {
-    return () => {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      return seed / 2 ** 32;
-    };
-  }
-
-  // Both teams call plays at random and take the auto action in every clash.
+  // Both teams call plays at random; the home side takes its auto action in every clash and the CPU picks the other.
   static play(seed, clashes) {
-    const random = ClashBalance.seeded(seed);
+    const random = seeded(seed);
     const game = new FootballGame(
       Roster.random(data, undefined, random),
       Roster.random(data, undefined, random),
@@ -84,7 +78,7 @@ for (const clashes of [false, true]) {
   }
 }
 
-// Gate: with auto actions on both sides, clashes keep scoring within 8% of a game without clashes and fumbles at or below 0.9 per game.
+// Gate: with the human side on its auto action and the CPU on its memory rule, clashes keep scoring within 8% of a game without clashes and fumbles at or below 0.9 per game.
 const drift = totals[true].points / totals[false].points - 1;
 const fumbles = totals[true].fumbles / games;
 const rate = (100 * totals[true].clashes) / totals[true].scrimmage;

@@ -46,11 +46,11 @@
     static CLASH_MEMORY = 5;
     static CLASH_COUNTER_WEIGHT = 0.5;
     // Base yards of a carrier win; lower values keep clash scoring close to a game without clashes.
-    static CLASH_WIN_YARDS = 1;
+    static CLASH_WIN_YARDS = 0;
     // Fumble odds added by a Big Hit win and by a Strip; high values make clashes inflate turnovers.
-    static CLASH_FUMBLE = { heavy: 0.01, strip: 0.015 };
+    static CLASH_FUMBLE = { heavy: 0.03, strip: 0.04 };
     // Chance a big carrier win breaks away for a touchdown.
-    static BREAKAWAY_CHANCE = 0.02;
+    static BREAKAWAY_CHANCE = 0.01;
     static CLASH = {
       actions: {
         offense: [
@@ -630,11 +630,17 @@
     }
 
     completeSnap(result, offense, defense, prior, runoff, options) {
+      this.stamp(result, offense, runoff);
+      this.finishSnap(offense, defense, result, prior, options);
+      return result;
+    }
+
+    // The fields both a held clash result and a finished result carry for the stage.
+    stamp(result, offense, runoff) {
       result.moves ??= [];
       result.weather = this.field.weather?.kind ?? '';
       result.offense = offense;
       result.runoff = runoff;
-      this.finishSnap(offense, defense, result, prior, options);
       return result;
     }
 
@@ -1040,7 +1046,9 @@
       const safe = matchup.protects.offense;
       const incomplete = () => this.tackle(0, 5, 'Incomplete pass.', 'incomplete');
       if (this.random() < odds.sack)
-        return safe ? incomplete() : this.tackle(-3 - Math.floor(this.random() * 6), 6, 'SACK!', 'sack');
+        return safe
+          ? incomplete()
+          : { ...this.tackle(-3 - Math.floor(this.random() * 6), 6, 'SACK!', 'sack'), sacked: true };
       if (this.random() < odds.interception) return safe ? incomplete() : this.interception();
       if (this.random() > odds.completion) return incomplete();
       return this.contact(offense, matchup, odds, this.gain(offense, matchup, scheme, options), 5);
@@ -1064,27 +1072,30 @@
     contact(offense, matchup, odds, yards, seconds) {
       if (this.reachesClash(matchup)) {
         this.pending = { matchup, odds, yards, seconds };
-        return { clash: { carrier: matchup.carrier, tackler: matchup.tackler.mon } };
+        return { clash: true };
       }
       if (offense.kind === 'run' && this.random() < odds.fumble && !matchup.protects.offense) return this.fumble(yards);
       return { yards, seconds: seconds + Math.floor(this.random() * 4), ...this.moveBall(yards) };
     }
 
     // The human always coaches the home side, so the clash box belongs to the home side's role.
+    humanRole(side) {
+      return side === 'home' ? 'offense' : 'defense';
+    }
+
     holdForClash(result, call) {
       Object.assign(this.pending, call);
       const { prior, matchup } = this.pending;
-      const role = prior.side === 'home' ? 'offense' : 'defense';
+      const role = this.humanRole(prior.side);
       const { roster, mon } = this.clashActor(role);
-      const attack = this.rosters[prior.side];
-      const before = this.badgeMap(result.participants, attack, this.rosters[this.opponent(prior.side)]);
-      Object.assign(result, {
-        offense: call.offense,
-        runoff: call.runoff,
-        seconds: Math.min(prior.seconds, this.pending.seconds + call.runoff),
-        weather: this.field.weather?.kind ?? '',
-        statuses: { before, after: before },
-      });
+      const before = this.badgeMap(
+        result.participants,
+        this.rosters[prior.side],
+        this.rosters[this.opponent(prior.side)],
+      );
+      this.stamp(result, call.offense, call.runoff);
+      result.seconds = Math.min(prior.seconds, this.pending.seconds + call.runoff);
+      result.statuses = { before, after: before };
       result.clash = {
         carrier: matchup.carrier,
         tackler: matchup.tackler.mon,
@@ -1129,8 +1140,18 @@
       return actions[weights.findIndex((weight) => (roll -= weight) < 0)]?.id ?? actions.at(-1).id;
     }
 
+    // The human picks one side of the clash; the CPU, which remembers the human's recent picks, picks the other.
+    resolveHumanClash(action) {
+      if (!this.pending) throw new Error('No clash is pending.');
+      const human = this.humanRole(this.pending.prior.side);
+      const cpu = human === 'offense' ? 'defense' : 'offense';
+      const picks = { [human]: action, [cpu]: this.cpuClashAction(cpu) };
+      return this.resolveClash(picks.offense, picks.defense);
+    }
+
     autoResolveClash() {
-      return this.resolveClash(this.autoClashAction('offense'), this.autoClashAction('defense'));
+      if (!this.pending) throw new Error('No clash is pending.');
+      return this.resolveHumanClash(this.autoClashAction(this.humanRole(this.pending.prior.side)));
     }
 
     resolveClash(offenseAction, defenseAction) {
@@ -1155,7 +1176,7 @@
     }
 
     rememberClash(side, picks) {
-      const role = side === 'home' ? 'offense' : 'defense';
+      const role = this.humanRole(side);
       this.clashMemory[role] = [...this.clashMemory[role], picks[role]].slice(-FootballGame.CLASH_MEMORY);
     }
 
@@ -1196,7 +1217,9 @@
       const { matchup, odds, seconds } = pending;
       const held = (yards) => (matchup.protects.defense ? Math.min(FootballGame.PROTECT_YARDS, yards) : yards);
       const yards = held(pending.yards + clash.yards);
-      if (clash.fumble !== null && !matchup.protects.offense && this.random() < odds.fumble + clash.fumble)
+      // A run keeps its base fumble roll; a completed pass has none, so only the clash add can fumble it.
+      const chance = (pending.offense.kind === 'run' ? odds.fumble : 0) + clash.fumble;
+      if (clash.fumble !== null && chance > 0 && !matchup.protects.offense && this.random() < chance)
         return { ...this.fumble(yards), clash: { ...clash, yards: yards - pending.yards } };
       const breakaway = clash.outcome === 'big' && this.random() < FootballGame.BREAKAWAY_CHANCE;
       const gained = breakaway ? held(100 - this.spot) : yards;

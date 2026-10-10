@@ -2,15 +2,8 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
-const { FootballGame: Football } = require('../src/game/football.js');
+const { NoClashGame: FootballGame } = require('./helpers.cjs');
 
-// Most suites assert pre-contact outcomes, so their games skip the clash step.
-class FootballGame extends Football {
-  constructor(...args) {
-    super(...args);
-    this.clashes = false;
-  }
-}
 const { PlayMatchup } = require('../src/game/matchup.js');
 const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 const { BattleMotion } = require('../src/ui/battle/motion.js');

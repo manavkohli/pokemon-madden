@@ -5,15 +5,8 @@ const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 const { BattleStage } = require('../src/ui/battle/stage.js');
 const { BattleMotion } = require('../src/ui/battle/motion.js');
 const { SpriteArt } = require('../src/ui/sprites.js');
-const { FootballGame: Football } = require('../src/game/football.js');
-
-// Most suites assert pre-contact outcomes, so their games skip the clash step.
-class FootballGame extends Football {
-  constructor(...args) {
-    super(...args);
-    this.clashes = false;
-  }
-}
+const { MoveBook } = require('../src/game/moves.js');
+const { NoClashGame: FootballGame } = require('./helpers.cjs');
 
 class Element {
   constructor() {
@@ -116,7 +109,7 @@ class BattleChecks {
     assert.ok(picked.sample(0.85).actors[2].x < picked.sample(0.56).actors[2].x, 'interceptor returns');
     assert.equal(picked.sample(0.85).ball.x, picked.sample(0.85).actors[2].x - 3, 'interceptor owns ball');
     assert.ok(incomplete.sample(0.85).ball.y > incomplete.sample(0.56).ball.y, 'incomplete pass hits ground');
-    const sack = new BattleMotion(pass, { outcome: 'sack', yards: -5 }, featured);
+    const sack = new BattleMotion(pass, { outcome: 'sack', sacked: true, yards: -5 }, featured);
     assert.equal(sack.sample(0.4).ball.spin, 0, 'sack never launches a pass');
     const kick = new BattleMotion(
       OFFENSE.find((play) => play.id === 'field-goal'),
@@ -288,6 +281,111 @@ class BattleChecks {
     assert.equal(clock.frames.size, 0, 'a failed clash releases the scheduler');
   }
 
+  static captions() {
+    const { game } = this.pendingClash();
+    const final = game.resolveClash('juke', 'wrap');
+    const featured = new BattleStage(new Element()).featured(final);
+    const hit = {
+      side: 'home',
+      offense: true,
+      actor: final.participants.carrier,
+      target: final.participants.defender,
+      move: 'thunderbolt',
+      hit: true,
+      effectiveness: 2,
+      notes: [],
+    };
+    const hitCaption = new BattleMotion(final.offense, { ...final, moves: [hit] }, featured).caption(0.6);
+    assert.equal(hitCaption.title, 'JUKE vs WRAP UP!', 'the clash line leads after contact');
+    assert.equal(hitCaption.detail, MoveBook.callout(2, hit.target.name), 'the subline keeps the move effectiveness');
+    const missed = new BattleMotion(final.offense, { ...final, moves: [{ ...hit, hit: false }] }, featured).caption(
+      0.6,
+    );
+    assert.equal(missed.title, 'JUKE vs WRAP UP!');
+    assert.equal(missed.detail, 'Thunderbolt missed!');
+    const plain = new BattleMotion(final.offense, final, featured).caption(0.6);
+    assert.match(plain.detail, / vs /, 'with no move the subline names the players');
+    const held = new BattleMotion(final.offense, this.pendingClash().result, featured);
+    assert.equal(held.caption(0.6).title, 'CONTACT!');
+  }
+
+  static async clashInput() {
+    const clock = new FrameClock();
+    const doc = { activeElement: null, body: new Element(), addEventListener() {} };
+    const root = new Element();
+    root.ownerDocument = doc;
+    const stage = new BattleStage(root);
+    const outside = new Element();
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    stage.clashButtons.forEach((button) => (button.focus = () => (doc.activeElement = button)));
+    stage.skipNode.focus = () => (doc.activeElement = stage.skipNode);
+    const start = (extra) => {
+      const setup = this.pendingClash();
+      const picks = [];
+      const playing = stage.play({
+        offense: setup.offense,
+        defense: setup.defense,
+        result: setup.result,
+        clash: (choice) => {
+          picks.push(choice);
+          return extra?.final?.(setup, choice) ?? setup.game.resolveClash(choice, 'wrap');
+        },
+      });
+      clock.advance(45);
+      assert.ok(stage.active.hold, 'the clash is open');
+      return { ...setup, picks, playing };
+    };
+    const press = (key, flags = {}) => {
+      let prevented = false;
+      stage.onKey({ key, ...flags, preventDefault: () => (prevented = true) });
+      return prevented;
+    };
+
+    doc.activeElement = outside;
+    outside.focus = () => (doc.activeElement = outside);
+    const first = start();
+    assert.equal(doc.activeElement, stage.clashButtons[0], 'the box takes focus');
+    for (const flags of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }])
+      assert.equal(press('1', flags), false, 'a modified key is left to the browser');
+    assert.equal(press('9'), false, 'a key outside 1-3 is left alone');
+    stage.setPaused(true);
+    assert.equal(press('1'), false, 'keys do nothing while paused');
+    stage.setPaused(false);
+    assert.deepEqual(first.picks, []);
+    assert.equal(press('1'), true, 'a pick key is consumed');
+    assert.deepEqual(first.picks, ['juke']);
+    assert.equal(press('2'), false, 'a locked pick leaves later keys alone');
+    assert.equal(doc.activeElement, outside, 'focus returns to the control that had it');
+    await settle();
+    clock.advance(80);
+    await first.playing;
+
+    doc.activeElement = outside;
+    outside.focus = () => {};
+    const second = start();
+    stage.choose(0);
+    assert.equal(doc.activeElement, stage.skipNode, 'focus falls back to Skip when the control cannot take it');
+    await settle();
+    clock.advance(80);
+    await second.playing;
+
+    outside.focus = () => (doc.activeElement = outside);
+    doc.activeElement = outside;
+    const swapped = data[66];
+    const third = start({
+      final: (setup, choice) => ({
+        ...setup.game.resolveClash(choice, 'wrap'),
+        participants: { ...setup.result.participants, carrier: swapped },
+      }),
+    });
+    stage.choose(0);
+    await settle();
+    clock.advance(2);
+    assert.ok(stage.leadNode.innerHTML.includes(swapped.name), 'new final participants redraw the sprites');
+    stage.cancel();
+    await third.playing;
+  }
+
   static async run() {
     const clock = new FrameClock();
     const root = new Element();
@@ -350,6 +448,8 @@ class BattleChecks {
     assert.equal(root.style['--light-sweep'], '0deg', 'reduced motion holds stadium lighting');
     assert.equal(root.style['--drift'], '0px', 'reduced motion holds weather still');
     await this.clash();
+    this.captions();
+    await this.clashInput();
     console.log(
       'Battle motion, casting, pause, skip, cancellation, reduced motion, error propagation, and the clash hold passed.',
     );

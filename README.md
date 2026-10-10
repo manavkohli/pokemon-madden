@@ -64,11 +64,11 @@ The carrier picks one action and the tackler picks one:
 
 | Carrier / Tackler | Wrap Up (defense) | Big Hit (attack) | Strip (speed) |
 | --- | --- | --- | --- |
-| **Juke** (speed) | tackler wins: -2 yards | carrier wins big: double yards, 2% breakaway | carrier wins, +1.5 points of fumble odds |
-| **Truck** (attack) | carrier wins | tackler wins big: -4 yards, +1 point of fumble odds | carrier wins, +1.5 points of fumble odds |
+| **Juke** (speed) | tackler wins: -2 yards | carrier wins big: double yards, 1% breakaway | carrier wins, +4 points of fumble odds |
+| **Truck** (attack) | carrier wins | tackler wins big: -4 yards, +3 points of fumble odds | carrier wins, +4 points of fumble odds |
 | **Cover Up** (HP) | even | even | tackler loses 2 yards of position, no fumble |
 
-A carrier win adds `max(2, round(1 + 0.3 × edge))` yards, where the edge is the carrier's skill in its action's stat minus the tackler's skill in its action's stat. Paralysis halves Juke's yards, and a confused player swaps the pick for a random action one time in three. A defensive Protect still holds the gain to 5 yards.
+A carrier win adds `max(2, round(0.3 × edge))` yards, where the edge is the carrier's skill in its action's stat minus the tackler's skill in its action's stat. Paralysis halves Juke's yards, and a confused player swaps the pick for a random action one time in three. A defensive Protect still holds the gain to 5 yards. A run keeps its normal fumble roll and the clash adds to it; a completed pass has no normal roll, so only Big Hit and Strip can fumble it.
 
 The CPU weighs each action by the stat it uses, then adds extra weight to the counter of your most frequent action in your last 5 clashes. A coach who always jukes gets wrapped up. The memory lasts for one game.
 

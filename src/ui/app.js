@@ -724,19 +724,26 @@
       const result = game.snap(call, defense, options);
       const offense = result.offense;
       let played = result;
+      let latest = 0;
+      let resolvedAt = 0;
       await this.battle.play({
         offense,
         defense,
         result,
-        clash: (choice) => (played = this.resolveClash(result.clash, choice)),
+        clash: (choice) => {
+          resolvedAt = latest;
+          return (played = game.resolveHumanClash(choice));
+        },
         onProgress: (progress) => {
           if (sequence !== this.sequence) return;
-          const shown = Math.max(0, beforeSeconds - Math.round(played.seconds * progress));
+          latest = progress;
+          // A held clash play keeps the pre-snap clock; after the picks the clock runs out the final seconds over the rest of the play.
+          const fraction = played.outcome === undefined ? 0 : (progress - resolvedAt) / (1 - resolvedAt);
+          const shown = Math.max(0, beforeSeconds - Math.round(played.seconds * fraction));
           this.el('clockLabel').textContent = `${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`;
         },
       });
       if (sequence !== this.sequence) return;
-      if (game.pending) played = game.autoResolveClash();
       const banner = this.el('resultBanner');
       banner.innerHTML = `<strong>${offense.name} VS ${defense.name}</strong><span>${played.message}</span>`;
       banner.classList.remove('hidden');
@@ -750,13 +757,6 @@
         else this.beginCall();
       };
       this.resultTimer = setTimeout(() => (this.paused ? (this.pendingSnap = finish) : finish()), 900);
-    }
-
-    // The human picks one side of the clash and the CPU, which remembers the human's recent picks, picks the other.
-    resolveClash({ role }, choice) {
-      const rival = role === 'offense' ? 'defense' : 'offense';
-      const picks = { [role]: choice, [rival]: this.game.cpuClashAction(rival) };
-      return this.game.resolveClash(picks.offense, picks.defense);
     }
 
     showError(error, sequence) {

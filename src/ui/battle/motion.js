@@ -31,7 +31,7 @@
       this.result = result;
       this.featured = featured;
       this.kicking = ['kick', 'punt'].includes(offense.kind);
-      this.sacked = result.outcome === 'sack' || (result.outcome === 'safety' && offense.kind !== 'run');
+      this.sacked = Boolean(result.sacked);
       this.passing = PASS_KINDS.includes(offense.kind) && !this.sacked;
       this.stopped = ['stuff', 'stop', 'sack', 'safety'].includes(result.outcome);
       this.missed = result.outcome === 'incomplete' || (result.outcome === 'turnover-downs' && result.yards === 0);
@@ -96,6 +96,18 @@
       return this.moves.length > 1 && !record.offense ? BattleMotion.CUE_SPLIT : BattleMotion.CUE_START;
     }
 
+    // What each move did at contact: its effectiveness or effect note when it hit, "missed!" when it did not.
+    moveLines() {
+      return this.moves
+        .map((record) =>
+          record.hit
+            ? MoveBook.callout(record.effectiveness, record.target.name) || record.notes[0]
+            : `${MoveBook.get(record.move).display_name} missed!`,
+        )
+        .filter(Boolean)
+        .join(' ');
+    }
+
     moveCaption(progress) {
       if (!this.moves.length || progress < BattleMotion.CUE_START) return null;
       const detail = `${this.featured.lead.name} vs ${this.featured.stopper.name}`;
@@ -104,12 +116,7 @@
         const { actor, move } = this.moves[index];
         return { round: 'MOVE', title: `${actor.name} used ${MoveBook.get(move).display_name}!`, detail };
       }
-      const lines = this.moves.map((record) =>
-        record.hit
-          ? MoveBook.callout(record.effectiveness, record.target.name) || record.notes[0]
-          : `${MoveBook.get(record.move).display_name} missed!`,
-      );
-      return { round: 'MOVE', title: lines.filter(Boolean).join(' ') || this.impact, detail };
+      return { round: 'MOVE', title: this.moveLines() || this.impact, detail };
     }
 
     cue(progress, actors) {
@@ -195,7 +202,12 @@
       const title = this.pending
         ? 'CONTACT!'
         : `${clash.names.offense.toUpperCase()} vs ${clash.names.defense.toUpperCase()}!`;
-      return { round: 'CLASH', title, detail: `${this.featured.lead.name} vs ${this.featured.stopper.name}` };
+      const versus = `${this.featured.lead.name} vs ${this.featured.stopper.name}`;
+      return {
+        round: 'CLASH',
+        title,
+        detail: this.moves.length && !this.pending ? this.moveLines() || versus : versus,
+      };
     }
 
     caption(progress) {

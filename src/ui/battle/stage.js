@@ -33,7 +33,8 @@
       this.paused = false;
       this.token = 0;
       this.active = null;
-      element.querySelector('#skipBattle').addEventListener('click', () => this.skip());
+      this.skipNode = element.querySelector('#skipBattle');
+      this.skipNode.addEventListener('click', () => this.skip());
       this.clashButtons.forEach((button, index) => button.addEventListener('click', () => this.choose(index)));
       (element.ownerDocument ?? element).addEventListener('keydown', (event) => this.onKey(event));
     }
@@ -43,6 +44,19 @@
       return { lead: carrier, support, stopper: defender, help };
     }
 
+    // Draws the sprites, labels, and badges for the result's participants.
+    dress(result) {
+      Object.values(this.featured(result)).forEach((mon, index) => {
+        this.fighters[index].innerHTML = `${SpriteArt.fighter(mon, index < 2)}<span class="status-badge"></span>`;
+        this.fighters[index].setAttribute('aria-label', mon.name);
+      });
+      this.bodies = this.fighters.map((node) => node.querySelector('.battle-body'));
+      this.badgeNodes = this.fighters.map((node) => node.querySelector('.status-badge'));
+      this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
+      this.statuses = result.statuses ?? null;
+      this.badgePhase = null;
+    }
+
     play({ offense, defense, result, clash = null, onProgress = () => {} }) {
       this.cancel();
       const featured = this.featured(result);
@@ -50,16 +64,8 @@
       this.element.classList.remove('hidden');
       this.element.classList.toggle('scoring', motion.scoring);
       this.matchupLabel.textContent = `${offense.name}  VS  ${defense.name}`;
-      Object.values(featured).forEach((mon, index) => {
-        this.fighters[index].innerHTML = `${SpriteArt.fighter(mon, index < 2)}<span class="status-badge"></span>`;
-        this.fighters[index].setAttribute('aria-label', mon.name);
-      });
-      this.bodies = this.fighters.map((node) => node.querySelector('.battle-body'));
-      this.badgeNodes = this.fighters.map((node) => node.querySelector('.status-badge'));
-      this.statuses = result.statuses ?? null;
-      this.badgePhase = null;
+      this.dress(result);
       this.clashNode.classList.add('hidden');
-      this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
       this.impactNode.textContent = motion.impact;
       this.element.setAttribute('data-move-type', motion.moveType);
       this.element.setAttribute('data-weather', result.weather ?? '');
@@ -122,6 +128,7 @@
         button.setAttribute('data-action', action.id);
         button.innerHTML = `<kbd>${index + 1}</kbd><strong>${action.name}</strong><small>${BattleStage.STAT_LABELS[action.stat]} ${action.skill}</small>`;
       });
+      active.hold.returnTo = this.element.ownerDocument?.activeElement ?? null;
       this.clashNode.classList.remove('hidden');
       this.clashButtons[0].focus();
     }
@@ -142,11 +149,31 @@
       this.commit(this.active.motion.result.clash.actions[index].id);
     }
 
-    onKey(event) {
+    // Keys 1-3 pick an action only while the box is open and unlocked; shortcuts with a modifier stay the browser's.
+    get takingPicks() {
+      const hold = this.active?.hold;
+      return Boolean(hold) && !hold.locked && !this.paused;
+    }
+
+    pickKey(event) {
+      if (!this.takingPicks || event.ctrlKey || event.metaKey || event.altKey) return -1;
       const index = Number(event.key) - 1;
-      if (!this.active?.hold || !Number.isInteger(index) || index < 0 || index >= this.clashButtons.length) return;
+      return Number.isInteger(index) && index >= 0 && index < this.clashButtons.length ? index : -1;
+    }
+
+    onKey(event) {
+      const index = this.pickKey(event);
+      if (index < 0) return;
       event.preventDefault();
       this.choose(index);
+    }
+
+    // Focus goes back to the control that held it before the box opened, or to Skip when that control is disabled.
+    restoreFocus(hold) {
+      const doc = this.element.ownerDocument;
+      const target = hold.returnTo && hold.returnTo !== doc.body ? hold.returnTo : this.skipNode;
+      target.focus();
+      if (doc?.activeElement !== target) this.skipNode.focus();
     }
 
     // Both picks go to the engine together; the stage then plays the final result from contact.
@@ -155,6 +182,7 @@
       const token = this.token;
       active.hold.locked = true;
       this.clashNode.classList.add('hidden');
+      this.restoreFocus(active.hold);
       new Promise((resolve) => resolve(active.clash(action))).then(
         (final) => this.resume(active, final, token),
         (error) => this.fail(active, error, token),
@@ -164,8 +192,10 @@
     resume(active, final, token) {
       if (token !== this.token) return;
       try {
+        const before = Object.values(this.featured(active.motion.result));
         active.motion = new BattleMotion(active.offense, final, this.featured(final));
         active.hold = null;
+        if (Object.values(this.featured(final)).some((mon, index) => mon !== before[index])) this.dress(final);
         this.statuses = final.statuses ?? null;
         this.badgePhase = null;
         this.impactNode.textContent = active.motion.impact;

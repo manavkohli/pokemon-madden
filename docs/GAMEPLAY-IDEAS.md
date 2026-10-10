@@ -1,6 +1,6 @@
 # ERD: Gym Challenge and Contact Clash
 
-**Date:** 2026-10-09 · **Status:** Contact Clash (Feature 2) built with `CLASH_BAND` = 2 (27.6% of scrimmage plays, 500 games; points per game 28.69 off, 30.50 on; fumbles 0.55 off, 0.83 on); Gym Challenge scoped, unbuilt · **Scope:** a new DOM-free `League` class in `src/game/`, evolution data in `scrape_pokedex.py`, a two-step snap in `FootballGame`, a contact pause in `BattleMotion`/`BattleStage`, and new league and clash screens in `GameApp`.
+**Date:** 2026-10-09 · **Status:** Contact Clash (Feature 2) built with `CLASH_BAND` = 2 (27.6% of scrimmage plays, 500 games; points per game 28.69 off, 30.14 on; fumbles 0.55 off, 0.78 on); Gym Challenge scoped, unbuilt · **Scope:** a new DOM-free `League` class in `src/game/`, evolution data in `scrape_pokedex.py`, a two-step snap in `FootballGame`, a contact pause in `BattleMotion`/`BattleStage`, and new league and clash screens in `GameApp`.
 
 ## Goal
 
@@ -79,9 +79,9 @@ The carrier picks one of three actions and the tackler picks one of three:
 | **Truck** (attack) | carrier wins | tackler wins big | carrier wins |
 | **Cover Up** (HP) | even | even | tackler loses, no fumble |
 
-- **Carrier wins:** extra yards equal to `max(2, round(1 + 0.3 × (carrier skill − tackler skill)))`, where each skill is `Roster.skill` in the stat its action names (Juke speed, Truck attack, Cover Up HP; Wrap Up defense, Big Hit attack, Strip speed); **wins big:** double that, and a 2% chance that the carrier breaks away for a touchdown.
-- **Tackler wins:** the play loses 2 yards after contact; **wins big:** loses 4, and Big Hit adds 1 point of fumble odds.
-- **Strip** against Juke or Truck adds 1.5 points of fumble odds; against Cover Up it changes nothing and costs the tackler 2 yards of position.
+- **Carrier wins:** extra yards equal to `max(2, round(0.3 × (carrier skill − tackler skill)))`, where each skill is `Roster.skill` in the stat its action names (Juke speed, Truck attack, Cover Up HP; Wrap Up defense, Big Hit attack, Strip speed); **wins big:** double that, and a 1% chance that the carrier breaks away for a touchdown.
+- **Tackler wins:** the play loses 2 yards after contact; **wins big:** loses 4, and Big Hit adds 3 points of fumble odds.
+- **Strip** against Juke or Truck adds 4 points of fumble odds; against Cover Up it changes nothing and costs the tackler 2 yards of position.
 - **Even:** the yards stand as resolved before contact.
 
 Cover Up is the safe action, so a lead late in the game has a clear choice. Paralysis halves Juke's yards, and a confused player's action is replaced at random one time in three, so moves feed the clash.

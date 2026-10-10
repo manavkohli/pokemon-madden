@@ -4,18 +4,12 @@ const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
 const { MoveBook } = require('../src/game/moves.js');
 const { OFFENSE, DEFENSE } = require('../src/game/playbook.js');
+const { seeded } = require('../tests/helpers.cjs');
 
 class Balance {
-  static seeded(seed) {
-    return () => {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      return seed / 2 ** 32;
-    };
-  }
-
   // Both teams call plays at random and fire moves through FootballGame.fireCpuMove, the CPU rule.
   static play(seed, moves) {
-    const random = Balance.seeded(seed);
+    const random = seeded(seed);
     const game = new FootballGame(
       Roster.random(data, undefined, random),
       Roster.random(data, undefined, random),

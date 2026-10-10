@@ -276,7 +276,7 @@
     }
 
     participants(result) {
-      const sack = result.outcome === 'sack' || (result.outcome === 'safety' && this.offense.kind !== 'run');
+      const sack = Boolean(result.sacked);
       const stopped = result.outcome === 'stuff' || sack;
       const defender = stopped ? this.rusher : this.tackler.mon;
       const support = sack || this.offense.kind === 'run' ? this.blocker : this.passer;

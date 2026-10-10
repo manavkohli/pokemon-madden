@@ -4,6 +4,7 @@ const data = require('../pokemon_gen1_2.json').pokemon;
 const fixture = require('./fixtures/seeded-game.json');
 const { Roster } = require('../src/game/roster.js');
 const { FootballGame } = require('../src/game/football.js');
+const { seeded } = require('./helpers.cjs');
 const { OFFENSE, DEFENSE, POSITIONS } = require('../src/game/playbook.js');
 
 const STATS = { hp: 80, attack: 80, defense: 80, special_attack: 80, special_defense: 80, speed: 80, total: 480 };
@@ -62,11 +63,7 @@ class Clash {
   }
 
   static trace(clashes) {
-    let seed = 40;
-    const random = () => {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      return seed / 2 ** 32;
-    };
+    const random = seeded(40);
     const game = new FootballGame(
       Roster.random(data, undefined, random),
       Roster.random(data, undefined, random),
@@ -317,5 +314,95 @@ describe('The CPU and confusion', () => {
     assert.equal(swap([0.1, 0.99]), 'cover');
     assert.equal(swap([0.1, 0.5]), 'truck');
     assert.equal(swap([0.5]), 'juke');
+  });
+});
+
+describe('Passes, safeties, and the human pick', () => {
+  const pass = () => Clash.pending(Clash.rigged(), Clash.offense('quick-slant'));
+  const fumbled = (value, offense, carrier, tackler) => {
+    const setup = Clash.pending(Clash.rigged(), Clash.offense(offense));
+    setup.rig.value = value;
+    return setup.game.resolveClash(carrier, tackler).outcome === 'fumble';
+  };
+
+  test('a completed pass has no base fumble roll, so only the clash add can fumble it', () => {
+    assert.equal(fumbled(0, 'quick-slant', 'truck', 'wrap'), false, 'a win with no add never fumbles a pass');
+    assert.equal(fumbled(0, 'quick-slant', 'cover', 'wrap'), false, 'an even cell never fumbles a pass');
+    const { heavy, strip } = FootballGame.CLASH_FUMBLE;
+    assert.equal(fumbled(heavy - 0.001, 'quick-slant', 'truck', 'hit'), true);
+    assert.equal(fumbled(heavy + 0.001, 'quick-slant', 'truck', 'hit'), false, 'a pass skips the base odds');
+    assert.equal(fumbled(strip - 0.001, 'quick-slant', 'juke', 'strip'), true);
+    assert.equal(fumbled(strip + 0.001, 'quick-slant', 'juke', 'strip'), false);
+  });
+
+  test('a run keeps its base fumble roll and adds the clash odds to it', () => {
+    const base = Clash.pending().game.pending.odds.fumble;
+    const { heavy } = FootballGame.CLASH_FUMBLE;
+    assert.equal(fumbled(0, 'inside-zone', 'truck', 'wrap'), true, 'a win still rolls the base odds');
+    assert.equal(fumbled(base + heavy - 0.001, 'inside-zone', 'truck', 'hit'), true);
+    assert.equal(fumbled(base + heavy + 0.001, 'inside-zone', 'truck', 'hit'), false);
+  });
+
+  test('a clash that loses yards behind the goal line is a safety on the receiver, not a sack', () => {
+    const { game, result } = pass();
+    const { carrier } = game.pending.matchup;
+    game.spot = 1;
+    game.pending.yards = -1;
+    const home = game.rosters.home;
+    const final = game.resolveClash('juke', 'wrap');
+    assert.equal(final.outcome, 'safety');
+    assert.equal(final.sacked, undefined);
+    assert.equal(game.score.away, 2);
+    assert.equal(final.participants.carrier, carrier, 'the receiver stays the carrier');
+    assert.notEqual(final.participants.carrier, home.player('QB'));
+    assert.ok(home.energy(carrier) < home.energy(home.player('RB')), 'stamina goes to the receiver');
+    assert.equal(result.participants.carrier, carrier);
+  });
+
+  test('a real sack carries the sacked flag that the participants read', () => {
+    const sack = Clash.game(() => 0).snap(Clash.offense('quick-slant'), Clash.defense());
+    assert.equal(sack.sacked, true);
+  });
+
+  test('resolveHumanClash maps the human pick to the home side and lets the CPU pick the other', () => {
+    const offense = Clash.pending();
+    const final = offense.game.resolveHumanClash('truck');
+    assert.equal(final.clash.offense, 'truck');
+    assert.ok(['wrap', 'hit', 'strip'].includes(final.clash.defense));
+    assert.deepEqual(offense.game.clashMemory.offense, ['truck']);
+    const defense = Clash.game();
+    defense.possession = 'away';
+    assert.ok(defense.snap(Clash.offense(), Clash.defense()).clash);
+    assert.equal(defense.resolveHumanClash('hit').clash.defense, 'hit');
+    assert.deepEqual(defense.clashMemory.defense, ['hit']);
+    assert.throws(() => defense.resolveHumanClash('hit'), /No clash is pending/);
+    assert.throws(() => defense.autoResolveClash(), /No clash is pending/);
+  });
+});
+
+describe('A full game with clashes', () => {
+  test('a seeded game with auto actions finishes with no pending clash', () => {
+    const random = seeded(7);
+    const game = new FootballGame(
+      Roster.random(data, undefined, random),
+      Roster.random(data, undefined, random),
+      300,
+      random,
+    );
+    game.autoRotate.home = true;
+    let clashes = 0;
+    for (let snaps = 0; !game.over && snaps < 900; snaps++) {
+      const book = game.possession === 'home' ? OFFENSE.filter((play) => game.isLegalCall(play)) : DEFENSE;
+      game.prepareCall(book[Math.floor(random() * book.length)]);
+      const { offense, defense } = game.phase;
+      const result = game.snap(offense, defense, game.possession === 'away' ? game.cpuOptions(offense, defense) : {});
+      if (result.clash) {
+        clashes += 1;
+        game.autoResolveClash();
+      }
+      assert.equal(game.pending, null);
+    }
+    assert.equal(game.over, true);
+    assert.ok(clashes > 5, 'the game holds several clashes');
   });
 });
