@@ -250,11 +250,12 @@
       };
     }
 
-    // `fixed` maps a slot index to a player placed there before the cap-aware draw fills the other slots.
-    static random(pokemon, cap = SALARY_CAP, random = Math.random, fixed = new Map()) {
-      if (!(cap >= Roster.salaryRange(pokemon).min)) throw new RangeError('Cap cannot fund a full roster');
+    // `fixed` maps a slot index to a player placed there before the cap-aware draw fills the other slots;
+    // `pool` limits who the draw may pick while `pokemon` stays the full catalog that ids index.
+    static random(pokemon, cap = SALARY_CAP, random = Math.random, fixed = new Map(), pool = pokemon) {
+      if (!(cap >= Roster.salaryRange(pool).min)) throw new RangeError('Cap cannot fund a full roster');
       const kept = new Set([...fixed.values()].map((mon) => mon.id));
-      let available = pokemon.filter((mon) => !kept.has(mon.id)).sort((a, b) => Roster.salary(a) - Roster.salary(b));
+      let available = pool.filter((mon) => !kept.has(mon.id)).sort((a, b) => Roster.salary(a) - Roster.salary(b));
       let budget = cap - [...fixed.values()].reduce((sum, mon) => sum + Roster.salary(mon), 0);
       let open = POSITIONS.length - fixed.size;
       const roster = new Roster(pokemon, []);

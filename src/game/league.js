@@ -21,6 +21,7 @@
   class League {
     static VERSION = 1;
     static DRAFT_CAP = 20000;
+    static BADGE_CAP = 1000;
     static TRANSFERS = 3;
     static CORE_SIZE = 12;
     static CORE_SHARE = 0.6;
@@ -39,7 +40,7 @@
       { name: 'Koga', title: 'Gym Leader', type: 'Poison', style: 'pressure', cap: 19500, stone: null },
       { name: 'Sabrina', title: 'Gym Leader', type: 'Psychic', style: 'balanced', cap: 20500, stone: 'moon-stone' },
       { name: 'Blaine', title: 'Gym Leader', type: 'Fire', style: 'balanced', cap: 22000, stone: 'fire-stone' },
-      { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'run', cap: 23000, stone: null },
+      { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'run', cap: 23000, stone: 'sun-stone' },
       { name: 'Lorelei', title: 'Elite Four', type: 'Ice', style: 'balanced', cap: 24000, stone: null },
       { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'balanced', cap: 25000, stone: null },
       { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pressure', cap: 26000, stone: null },
@@ -66,7 +67,20 @@
     // The injected random only draws the circuit seed; every later roll comes from the league's own saved generator.
     static start(catalog, roster, random = Math.random) {
       if (roster.salary > League.DRAFT_CAP) throw new RangeError('The starting roster is over the draft cap');
+      const pool = League.startingPool(catalog);
+      if (!roster.players.every((mon) => pool.includes(mon)))
+        throw new RangeError('The starting roster holds a Pokémon with no evolution left');
       return new League(catalog, roster.copy(), Math.floor(random() * 2 ** 32));
+    }
+
+    // The circuit draft only offers base and middle forms, so every starter has growth ahead.
+    static startingPool(catalog) {
+      return catalog.filter((mon) => mon.evolutions.length > 0);
+    }
+
+    // The player's payroll limit: the draft cap plus 1,000 for each badge. Evolution may push payroll over it.
+    get playerCap() {
+      return League.DRAFT_CAP + League.BADGE_CAP * this.badges.length;
     }
 
     get leader() {
@@ -221,7 +235,7 @@
       return this.apply(mon, step);
     }
 
-    // A transfer may not lift the roster above the next leader's cap; a cheaper or equal swap is always legal.
+    // A transfer may not lift payroll above the player's cap; a cheaper or equal swap is always legal.
     transfer(outId, inId) {
       if (this.complete) throw new Error('The circuit is complete');
       if (!this.transfersLeft) throw new RangeError('No transfers left in this window');
@@ -231,7 +245,7 @@
       if (!incoming || this.roster.players.includes(incoming)) throw new RangeError('That player is unavailable');
       const before = this.roster.salary;
       const after = before - Roster.salary(this.roster.players[slot]) + Roster.salary(incoming);
-      if (after > this.leader.cap && after > before) throw new RangeError('That transfer breaks the cap');
+      if (after > this.playerCap && after > before) throw new RangeError('That transfer breaks the cap');
       this.levels.delete(outId);
       this.games.delete(outId);
       this.roster.assign(slot, incoming);

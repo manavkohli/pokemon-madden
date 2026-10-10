@@ -390,9 +390,14 @@
       if (matchMedia('(max-width: 700px)').matches) this.el(id).scrollIntoView({ block: 'start', behavior: 'auto' });
     }
 
+    // The circuit draft offers only Pokémon with an evolution left; the window and exhibition offer everyone.
+    draftPool() {
+      return this.mode === 'league' && !this.windowOpen ? League.startingPool(this.pokemon) : this.pokemon;
+    }
+
     creditCap(side) {
       if (this.mode === 'league' && side === 'away') return Infinity;
-      if (this.windowOpen) return this.league.leader.cap;
+      if (this.windowOpen) return this.league.playerCap;
       if (this.mode === 'league') return League.DRAFT_CAP;
       return this.el('noCap').checked ? Infinity : Number(this.el(`${side}Cap`).value);
     }
@@ -412,7 +417,8 @@
     }
 
     generateTeams(sides) {
-      for (const side of sides) this[side] = Roster.random(this.pokemon, this.creditCap(side));
+      for (const side of sides)
+        this[side] = Roster.random(this.pokemon, this.creditCap(side), Math.random, new Map(), this.draftPool());
       this.selectedPokemon = this.home.players[this.selectedSlot];
       this.renderDraft();
       if (this.overBudget.length === 0)
@@ -480,8 +486,8 @@
     }
 
     windowStatus() {
-      const { transfersLeft, roster, leader } = this.league;
-      return `${transfersLeft} of ${League.TRANSFERS} swaps left · payroll ${roster.salary.toLocaleString()} of ${leader.cap.toLocaleString()} CR. A swap cannot lift payroll above the cap.`;
+      const { transfersLeft, roster, playerCap } = this.league;
+      return `${transfersLeft} of ${League.TRANSFERS} swaps left · payroll ${roster.salary.toLocaleString()} of your ${playerCap.toLocaleString()} CR cap. A swap cannot lift payroll above the cap.`;
     }
 
     renderCatalog() {
@@ -489,7 +495,7 @@
       const query = this.el('searchInput').value.trim().toLowerCase();
       const type = this.el('typeFilter').value;
       const sort = this.el('sortSelect').value;
-      const candidates = this.pokemon.filter(
+      const candidates = this.draftPool().filter(
         (mon) =>
           (!type || mon.types.includes(type)) &&
           (!query || mon.name.toLowerCase().includes(query) || String(mon.id).includes(query)),
@@ -689,7 +695,8 @@
     applyMode(mode) {
       this.mode = mode === 'exhibition' ? 'exhibition' : 'league';
       this.windowOpen = mode === 'window';
-      if (mode === 'draft') this.homes.league ??= Roster.random(this.pokemon, League.DRAFT_CAP);
+      if (mode === 'draft')
+        this.homes.league ??= Roster.random(this.pokemon, League.DRAFT_CAP, Math.random, new Map(), this.draftPool());
       this.home = this.windowOpen ? this.league.roster : this.homes[this.mode];
       this.selectedSlot = 0;
       this.selectedPokemon = this.home.players[0];

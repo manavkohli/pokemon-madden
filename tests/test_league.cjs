@@ -15,7 +15,7 @@ class Fixture {
     const random = new SeededRandom(seed);
     return League.start(
       data,
-      Roster.random(data, cap, () => random.next()),
+      Roster.random(data, cap, () => random.next(), new Map(), League.startingPool(data)),
       () => random.next(),
     );
   }
@@ -230,11 +230,29 @@ test('stage floors follow the evolution chain', () => {
 
 test('a fourth transfer throws and a transfer cannot lift the roster over the cap', () => {
   const league = Fixture.league();
+  Fixture.put(
+    league,
+    ...[
+      'Mewtwo',
+      'Mew',
+      'Lugia',
+      'Ho-oh',
+      'Articuno',
+      'Zapdos',
+      'Moltres',
+      'Entei',
+      'Raikou',
+      'Suicune',
+      'Tyranitar',
+      'Snorlax',
+    ].map(named),
+  );
   const onRoster = new Set(league.roster.players);
   const cheap = data.filter((mon) => !onRoster.has(mon)).sort((a, b) => Roster.salary(a) - Roster.salary(b));
   const expensive = [...league.roster.players].sort((a, b) => Roster.salary(b) - Roster.salary(a));
-  assert.ok(league.roster.salary > league.leader.cap);
-  assert.throws(() => league.transfer(league.roster.players[0].id, named('Mewtwo').id), RangeError);
+  assert.equal(league.playerCap, 20000);
+  const cheapest = [...league.roster.players].sort((a, b) => Roster.salary(a) - Roster.salary(b))[0];
+  assert.throws(() => league.transfer(cheapest.id, named('Celebi').id), RangeError);
   for (let index = 0; index < League.TRANSFERS; index++) league.transfer(expensive[index].id, cheap[index].id);
   assert.equal(league.transfersLeft, 0);
   assert.throws(() => league.transfer(expensive[3].id, cheap[3].id), RangeError);
@@ -310,4 +328,57 @@ test('a seeded CPU-against-CPU circuit finishes all 13 games', () => {
   assert.equal(result.complete, true);
   assert.equal(result.gyms.length, 13);
   assert.ok(result.gyms.every((gym) => gym.won));
+});
+
+test('the circuit draft pool holds only Pokémon with an evolution left and fills every position', () => {
+  const pool = League.startingPool(data);
+  assert.ok(pool.length > 100 && pool.every((mon) => mon.evolutions.length > 0));
+  assert.ok(!pool.includes(named('Dragonite')) && !pool.includes(named('Ditto')));
+  for (let seed = 1; seed <= 50; seed++) {
+    const random = new SeededRandom(seed);
+    const roster = Roster.random(data, League.DRAFT_CAP, () => random.next(), new Map(), pool);
+    assert.equal(roster.players.length, POSITIONS.length);
+    assert.equal(new Set(roster.players.map((mon) => mon.id)).size, POSITIONS.length);
+    assert.ok(roster.salary <= League.DRAFT_CAP && roster.players.every((mon) => pool.includes(mon)));
+  }
+  const outside = Roster.random(data, League.DRAFT_CAP, () => 0.5);
+  assert.throws(() => League.start(data, outside), RangeError);
+});
+
+test('the player cap grows by 1,000 per badge and only blocks transfers that raise payroll', () => {
+  const league = Fixture.league();
+  assert.equal(league.playerCap, 20000);
+  league.record(Fixture.finished({}));
+  assert.equal(league.playerCap, 21000);
+  Fixture.put(
+    league,
+    ...[
+      'Mewtwo',
+      'Mew',
+      'Lugia',
+      'Ho-oh',
+      'Articuno',
+      'Zapdos',
+      'Moltres',
+      'Entei',
+      'Raikou',
+      'Suicune',
+      'Tyranitar',
+      'Snorlax',
+    ].map(named),
+  );
+  assert.ok(league.roster.salary > league.playerCap, 'evolution-sized payroll may exceed the cap');
+  const cheapest = [...league.roster.players].sort((a, b) => Roster.salary(a) - Roster.salary(b))[0];
+  assert.throws(() => league.transfer(cheapest.id, named('Celebi').id), RangeError);
+  league.transfer(named('Mewtwo').id, 129);
+});
+
+test('Giovanni awards the Sun Stone and it evolves Gloom into Bellossom', () => {
+  const league = Fixture.league();
+  league.stage = League.LEADERS.findIndex((leader) => leader.name === 'Giovanni');
+  Fixture.put(league, named('Gloom'));
+  Fixture.bench(league, 'Bellossom', 'Vileplume');
+  const report = league.record(Fixture.finished({}));
+  assert.equal(report.stone, 'sun-stone');
+  assert.equal(league.evolve(named('Gloom').id, 'sun-stone').into.name, 'Bellossom');
 });

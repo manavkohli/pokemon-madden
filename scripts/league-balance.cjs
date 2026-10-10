@@ -103,7 +103,7 @@ class LeagueSim {
   circuit() {
     const league = League.start(
       data,
-      Roster.random(data, League.DRAFT_CAP, () => this.random()),
+      Roster.random(data, League.DRAFT_CAP, () => this.random(), new Map(), League.startingPool(data)),
       () => this.random(),
     );
     const lineage = new Map();
