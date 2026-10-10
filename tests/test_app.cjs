@@ -3,6 +3,9 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { runInNewContext } = require('node:vm');
 const path = require('node:path');
+const { setImmediate: nextTick } = require('node:timers/promises');
+const { Roster } = require('../src/game/roster.js');
+const { LeagueSim } = require('../scripts/league-balance.cjs');
 
 class AppHarness {
   constructor(window) {
@@ -13,11 +16,23 @@ class AppHarness {
     this.errors = [];
   }
 
-  static async create() {
+  // `storage` is the Map behind localStorage; `blocked` makes every access throw like a browser that blocks site data.
+  static async create({ kickoff = true, storage = new Map(), blocked = false } = {}) {
     const { Window } = await import('happy-dom');
     const window = new Window({
       url: 'http://localhost/',
       settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true },
+    });
+    const store = {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: (key) => storage.delete(key),
+    };
+    Object.defineProperty(window, 'localStorage', {
+      get: () => {
+        if (blocked) throw new window.DOMException('Access is denied', 'SecurityError');
+        return store;
+      },
     });
     const harness = new AppHarness(window);
     const html = readFileSync(require.resolve('../index.html'), 'utf8');
@@ -56,7 +71,12 @@ class AppHarness {
       playback.onProgress(1);
       return { cancelled: false };
     };
-    harness.element('kickoffButton').click();
+    harness.app.battle.sequence = async ({ draw }) => {
+      draw(0, false);
+      draw(1, false);
+      return { cancelled: false };
+    };
+    if (kickoff) harness.element('kickoffButton').click();
     return harness;
   }
 
@@ -74,6 +94,24 @@ class AppHarness {
   select(id, value) {
     this.element(id).value = value;
     this.element(id).dispatchEvent(new this.window.Event('change', { bubbles: true }));
+  }
+
+  visible(id) {
+    return !this.element(id).classList.contains('hidden');
+  }
+
+  action(name) {
+    const button = this.document.querySelector(`[data-action="${name}"]`);
+    assert.ok(button, `${name} is on screen`);
+    button.click();
+  }
+
+  // Plays the circuit game with the CPU on both sides, forces the score, and opens the report.
+  async finishCircuitGame(win = true) {
+    const game = this.app.game;
+    new LeagueSim(1).play(game);
+    game.score.home = game.score.away + (win ? 7 : -7);
+    await this.app.showFinal();
   }
 
   finishResult() {
@@ -583,6 +621,132 @@ test('an animation error during a clash resolves it and restores the controls', 
     assert.equal(app.locked, false);
     assert.equal(harness.element('coachControls').disabled, false);
     assert.match(harness.element('callHint').textContent, /drawing failed/);
+test('a Gym Challenge circuit plays a game, saves, makes transfers, and resumes after a reload', async () => {
+  const storage = new Map();
+  const harness = await AppHarness.create({ kickoff: false, storage });
+  try {
+    const app = harness.app;
+    harness.element('modeLeague').click();
+    assert.equal(harness.document.body.dataset.mode, 'draft');
+    assert.match(harness.element('kickoffButton').textContent, /Start circuit/);
+    assert.equal(harness.visible('circuitTicket'), true);
+    harness.element('kickoffButton').click();
+    assert.equal(harness.visible('leagueScreen'), true);
+    assert.equal(JSON.parse(storage.get('pokeballers.league.v1')).stage, 0);
+    harness.action('challenge');
+    assert.equal(harness.visible('gameScreen'), true);
+    assert.equal(harness.element('rivalName').textContent, 'Brock');
+    assert.equal(app.game.cpuStyle, 'run');
+    await harness.finishCircuitGame();
+    assert.equal(harness.visible('reportScreen'), true);
+    assert.equal(harness.element('reportTitle').textContent, 'Victory!');
+    assert.equal(JSON.parse(storage.get('pokeballers.league.v1')).stage, 1);
+    harness.action('continue');
+    assert.match(harness.element('leagueKicker').textContent, /GAME 2 OF 13/);
+    harness.action('window');
+    assert.equal(harness.document.body.dataset.mode, 'window');
+    assert.match(harness.element('kickoffButton').textContent, /Back to map/);
+    const cheapest = [...app.pokemon]
+      .filter((mon) => !app.home.players.includes(mon))
+      .sort((a, b) => Roster.salary(a) - Roster.salary(b));
+    for (const [index, mon] of cheapest.slice(0, 4).entries()) {
+      app.selectedSlot = index + 10;
+      app.selectedPokemon = mon;
+      app.renderDetail();
+      harness.element('assignButton').click();
+    }
+    assert.equal(app.league.transfersLeft, 0);
+    assert.match(harness.element('draftMessage').textContent, /No transfers left/);
+    assert.equal(harness.element('draftMessage').classList.contains('error'), true);
+    harness.element('kickoffButton').click();
+    assert.equal(harness.visible('leagueScreen'), true);
+    const saved = JSON.parse(storage.get('pokeballers.league.v1'));
+    assert.equal(saved.transfersLeft, 0);
+    assert.deepEqual(saved.badges, ['Brock']);
+    const reloaded = await AppHarness.create({ kickoff: false, storage });
+    try {
+      assert.equal(reloaded.visible('leagueScreen'), true);
+      assert.match(reloaded.element('leagueKicker').textContent, /GAME 2 OF 13/);
+      const ids = (league) => JSON.stringify(league.roster.players.map((mon) => mon.id));
+      assert.equal(ids(reloaded.app.league), ids(app.league));
+      assert.deepEqual(reloaded.errors, []);
+    } finally {
+      await reloaded.close();
+    }
+    harness.action('newCircuit');
+    assert.equal(harness.element('confirmOverlay').open, true);
+    harness.element('confirmDelete').click();
+    assert.equal(storage.has('pokeballers.league.v1'), false);
+    assert.equal(harness.document.body.dataset.mode, 'draft');
+    assert.deepEqual(harness.errors, []);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a lost circuit game offers a rematch and a Pikachu stone evolution replays the scene', async () => {
+  const harness = await AppHarness.create({ kickoff: false });
+  try {
+    const app = harness.app;
+    harness.element('modeLeague').click();
+    harness.element('kickoffButton').click();
+    const raichu = app.league.roster.players.indexOf(app.pokemon[25]);
+    if (raichu >= 0) app.league.roster.assign(raichu, app.pokemon[18]);
+    app.league.stones['thunder-stone'] = 1;
+    app.league.roster.assign(0, app.pokemon[24]);
+    app.league.levels.set(25, 20);
+    app.league.games.set(25, 0);
+    harness.action('challenge');
+    await harness.finishCircuitGame(false);
+    assert.equal(harness.element('reportTitle').textContent, 'Defeat');
+    assert.equal(app.league.stage, 0);
+    assert.ok(harness.document.querySelector('[data-action="challenge"]'));
+    harness.document.querySelector('[data-action="stone"]').click();
+    await nextTick();
+    assert.equal(app.league.roster.players[0].name, 'Raichu');
+    assert.equal(app.league.stones['thunder-stone'], 0);
+    assert.match(harness.element('reportBody').textContent, /Pikachu evolved into Raichu/);
+    assert.deepEqual(harness.errors, []);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('blocked localStorage starts and plays a circuit with no error and shows one notice', async () => {
+  const harness = await AppHarness.create({ kickoff: false, blocked: true });
+  try {
+    harness.element('modeLeague').click();
+    assert.equal(harness.visible('draftScreen'), true);
+    harness.element('kickoffButton').click();
+    assert.equal(harness.visible('leagueScreen'), true);
+    assert.equal(harness.visible('saveNotice'), true);
+    harness.action('challenge');
+    await harness.finishCircuitGame();
+    assert.equal(harness.visible('reportScreen'), true);
+    harness.action('continue');
+    assert.match(harness.element('leagueKicker').textContent, /GAME 2 OF 13/);
+    harness.action('challenge');
+    assert.equal(harness.element('rivalName').textContent, 'Misty');
+    assert.deepEqual(harness.errors, []);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('exhibition still plays from a fresh page and the mode switch returns to it', async () => {
+  const harness = await AppHarness.create({ kickoff: false });
+  try {
+    harness.element('modeLeague').click();
+    harness.element('modeExhibition').click();
+    assert.equal(harness.document.body.dataset.mode, 'exhibition');
+    assert.match(harness.element('kickoffButton').textContent, /Kick off/);
+    harness.element('kickoffButton').click();
+    assert.equal(harness.visible('gameScreen'), true);
+    assert.equal(harness.element('rivalName').textContent, 'The Cerulean Ace');
+    harness.choose('inside-zone');
+    await harness.app.requestSnap();
+    assert.ok(harness.playback.result.participants.carrier);
+    assert.deepEqual(harness.errors, []);
   } finally {
     await harness.close();
   }

@@ -81,6 +81,22 @@
       });
     }
 
+    // Runs the host's own drawing on the stage clock so pause, skip, cancel, and reduced motion apply to it like a play.
+    sequence({ duration, draw }) {
+      this.cancel();
+      this.reduced = this.motionPreference.matches;
+      const token = this.token;
+      return new Promise((resolve, reject) => {
+        const length = this.reduced ? Math.min(duration, BattleMotion.REDUCED_DURATION) : duration;
+        const frame = (progress) => draw(progress, this.reduced);
+        // Skip jumps to the end and reports progress 1 without a frame, so the last frame is drawn here.
+        const onProgress = (progress) => progress === 1 && frame(1);
+        this.active = { resolve, reject, onProgress, draw: frame, length, elapsed: 0, previous: null, hold: null };
+        frame(0);
+        this.frame = requestAnimationFrame((now) => this.tick(now, token));
+      });
+    }
+
     tick(now, token) {
       if (token !== this.token) return;
       try {
@@ -105,14 +121,15 @@
     // A pending clash stops the play clock at contact; the hold counts on the same frame clock.
     advance(active, step) {
       active.elapsed += step;
-      let progress = Math.min(1, active.elapsed / this.duration);
+      let progress = Math.min(1, active.elapsed / (active.length ?? this.duration));
       if (active.clash && active.motion.pending && progress >= BattleMotion.CONTACT) {
         active.elapsed = this.duration * BattleMotion.CONTACT;
         progress = BattleMotion.CONTACT;
         this.openClash(active);
       }
       if (!this.paused) {
-        this.render(active.motion.sample(progress, this.reduced));
+        if (active.draw) active.draw(progress);
+        else this.render(active.motion.sample(progress, this.reduced));
         if (progress < 1) active.onProgress(progress);
       }
       return progress;

@@ -25,16 +25,23 @@
     <section id="draftScreen" class="screen draft-screen">
       <div class="draft-intro">
         <div class="intro-copy">
-          <small class="eyebrow"><i aria-hidden="true"></i> KANTO + JOHTO EXHIBITION</small>
+          <small class="eyebrow"
+            ><i aria-hidden="true"></i> <span id="draftEyebrow">KANTO + JOHTO EXHIBITION</span></small
+          >
           <h1>Team builder</h1>
           <div class="intro-tags"><span>251 Pokémon</span><span>31 roster spots</span></div>
+          <div class="mode-switch" role="group" aria-label="Game mode">
+            <button id="modeExhibition" class="mode-button" type="button" aria-pressed="true">Exhibition</button>
+            <button id="modeLeague" class="mode-button" type="button" aria-pressed="false">Gym Challenge</button>
+          </div>
           <div class="venue-picker">
             <label for="stadiumSelect">STADIUM</label>
             <select id="stadiumSelect" aria-describedby="stadiumDescription"></select>
             <p id="stadiumDescription"></p>
           </div>
         </div>
-        <div class="rival-ticket">
+        <div id="circuitTicket" class="rival-ticket circuit-ticket hidden" data-modes="draft window"></div>
+        <div class="rival-ticket" data-modes="exhibition">
           <div class="rival-scene" aria-hidden="true"><img src="assets/trainer-ace.svg" alt="" /></div>
           <div class="rival-copy">
             <small>YOUR CHALLENGER</small>
@@ -61,7 +68,7 @@
               <div class="meter"><i id="homeMeter"></i></div>
               <button id="generateHome" class="button ghost" type="button">Generate your team</button>
             </div>
-            <div class="team-budget">
+            <div class="team-budget" data-modes="exhibition">
               <label for="awayCap">Rival credit cap <output id="awayCapValue" for="awayCap">26,000 CR</output></label>
               <input id="awayCap" type="range" value="26000" step="500" aria-describedby="budgetHelp" />
               <div class="budget-spend"><span>RIVAL TEAM</span><strong id="awaySalary">—</strong></div>
@@ -69,7 +76,9 @@
               <button id="generateAway" class="button ghost" type="button">Generate rival team</button>
             </div>
             <small id="budgetHelp">Set a budget, then generate. Your current picks stay until you do.</small>
-            <label class="free-play"><input id="noCap" type="checkbox" /> Free play · no credit caps</label>
+            <label class="free-play" data-modes="exhibition"
+              ><input id="noCap" type="checkbox" /> Free play · no credit caps</label
+            >
           </div>
         </aside>
         <section class="surface catalog-panel">
@@ -120,10 +129,39 @@
           ><span id="draftMessage" role="status">Ready for kickoff.</span>
         </div>
         <div class="footer-actions">
-          <button id="randomizeButton" class="button ghost" type="button">⚄ Shuffle teams</button
+          <button id="randomizeButton" class="button ghost" type="button" data-modes="exhibition">
+            ⚄ Shuffle teams</button
           ><button id="kickoffButton" class="button primary" type="button">Kick off <span>▶</span></button>
         </div>
       </div>
+    </section>
+
+    <p id="saveNotice" class="save-notice hidden" role="status">
+      Progress is not saved: this browser blocks storage. The circuit ends when you close the page.
+    </p>
+
+    <section id="leagueScreen" class="screen league-screen hidden">
+      <div class="page-title">
+        <div>
+          <small id="leagueKicker">KANTO CIRCUIT</small>
+          <h1>Gym Challenge</h1>
+        </div>
+        <div class="title-actions">
+          <button class="button ghost" type="button" data-action="exhibition">Exhibition</button>
+          <button class="button ghost" type="button" data-action="newCircuit">New circuit</button>
+        </div>
+      </div>
+      <div id="leagueBody"></div>
+    </section>
+
+    <section id="reportScreen" class="screen league-screen hidden">
+      <div class="page-title">
+        <div>
+          <small id="reportKicker">POST-GAME REPORT</small>
+          <h1 id="reportTitle">Report</h1>
+        </div>
+      </div>
+      <div id="reportBody"></div>
     </section>
 
     <section id="gameScreen" class="screen game-screen hidden">
@@ -149,8 +187,10 @@
                 </div>
               </div>
               <div class="score-team away">
-                <div><strong>CERULEAN SURF</strong><small>THE CERULEAN ACE · CPU</small></div>
-                <span class="team-crest away" aria-hidden="true">C</span>
+                <div>
+                  <strong id="awayTeamName">CERULEAN SURF</strong><small id="awayTeamTag">THE CERULEAN ACE · CPU</small>
+                </div>
+                <span id="awayCrest" class="team-crest away" aria-hidden="true">C</span>
               </div>
             </div>
             <div class="score-strip">
@@ -297,9 +337,11 @@
         </main>
         <aside class="game-side">
           <div class="surface rival-panel">
-            <div class="rival-portrait" aria-hidden="true"><img src="assets/trainer-ace.svg" alt="" /></div>
-            <small>YOUR RIVAL</small>
-            <h2>The Cerulean Ace</h2>
+            <div id="rivalPortrait" class="rival-portrait" aria-hidden="true">
+              <img src="assets/trainer-ace.svg" alt="" />
+            </div>
+            <small id="rivalKicker">YOUR RIVAL</small>
+            <h2 id="rivalName">The Cerulean Ace</h2>
             <p id="rivalReaction">“Your call.”</p>
             <div id="matchRivalParty" class="rival-party" aria-label="Rival's key players"></div>
           </div>
@@ -341,6 +383,24 @@
         <button id="resumeButton" class="button primary" type="button">Resume ▶</button>
       </div>
     </dialog>
+    <dialog id="confirmOverlay" class="overlay" aria-labelledby="confirmTitle">
+      <div class="overlay-card">
+        <span class="overlay-icon">⚠</span>
+        <h2 id="confirmTitle">Start a new circuit?</h2>
+        <p>This deletes your badges, levels, and roster. You cannot undo it.</p>
+        <div class="final-actions">
+          <button id="confirmDelete" class="button primary" type="button">Delete and start over</button
+          ><button id="confirmCancel" class="button ghost" type="button">Keep my circuit</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="evolveOverlay" class="overlay" aria-labelledby="evolveText">
+      <div class="overlay-card evolve-card">
+        <div id="evolveArt" class="evolve-art"></div>
+        <p id="evolveText" role="status"></p>
+        <button id="skipEvolve" class="button ghost" type="button">Skip ▶▶</button>
+      </div>
+    </dialog>
     <dialog id="finalOverlay" class="overlay" aria-labelledby="finalTitle" aria-describedby="finalScore">
       <div class="overlay-card">
         <span class="overlay-icon">🏆</span>
@@ -358,9 +418,11 @@
     <script src="src/game/roster.js?v=0.1.8"></script>
     <script src="src/game/matchup.js?v=0.1.8"></script>
     <script src="src/game/football.js?v=0.1.8"></script>
+    <script src="src/game/league.js?v=0.1.8"></script>
     <script src="src/ui/sprites.js?v=0.1.8"></script>
     <script src="src/ui/battle/motion.js?v=0.1.8"></script>
     <script src="src/ui/battle/stage.js?v=0.1.8"></script>
+    <script src="src/ui/league.js?v=0.1.8"></script>
     <script src="src/ui/diagram.js?v=0.1.8"></script>
     <script src="src/ui/field.js?v=0.1.8"></script>
     <script src="src/ui/play-clock.js?v=0.1.8"></script>
