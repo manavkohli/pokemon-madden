@@ -3,6 +3,7 @@ const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
 const { League } = require('../src/game/league.js');
 const { POSITIONS } = require('../src/game/playbook.js');
+const { seeded } = require('../tests/helpers.cjs');
 
 // Plays whole circuits with the CPU coaching both sides and a simple manager spending stones and transfers.
 class LeagueSim {
@@ -19,13 +20,8 @@ class LeagueSim {
 
   // `swaps` is how many transfers the manager makes per window; 0 keeps the drafted roster.
   constructor(seed, swaps = 0) {
-    this.seed = seed;
+    this.random = seeded(seed);
     this.swaps = swaps;
-  }
-
-  random() {
-    this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
-    return this.seed / 2 ** 32;
   }
 
   // The CPU rules coach the away side; this view swaps the sides so the same rules coach the home side.
@@ -52,7 +48,8 @@ class LeagueSim {
       const { offense, defense } = game.phase;
       const options = (home ? view : game).cpuOptions(offense, defense);
       game.fireCpuMove('home', home ? game.resolveOffense(offense, options) : defense);
-      game.snap(offense, defense, options);
+      // The human side takes its auto action in every clash, as clash-balance.cjs does.
+      if (game.snap(offense, defense, options).clash) game.autoResolveClash();
     }
     return game;
   }

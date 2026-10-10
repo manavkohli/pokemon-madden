@@ -282,11 +282,16 @@ test('the box score sums to the yards in the drive log', () => {
   const game = league.game();
   const yards = [];
   const snap = game.snap.bind(game);
-  game.snap = (...args) => {
-    const result = snap(...args);
+  const settle = (result) => {
     if (!DEAD_KINDS.includes(result.offense.kind) && result.outcome !== 'clock-expired') yards.push(result.yards);
     return result;
   };
+  game.snap = (...args) => {
+    const result = snap(...args);
+    return result.clash ? result : settle(result);
+  };
+  const clash = game.autoResolveClash.bind(game);
+  game.autoResolveClash = () => settle(clash());
   new LeagueSim(3).play(game);
   const boxed = ['home', 'away']
     .flatMap((side) => Object.values(game.stats[side]))
@@ -381,4 +386,27 @@ test('Giovanni awards the Sun Stone and it evolves Gloom into Bellossom', () => 
   const report = league.record(Fixture.finished({}));
   assert.equal(report.stone, 'sun-stone');
   assert.equal(league.evolve(named('Gloom').id, 'sun-stone').into.name, 'Bellossom');
+});
+
+test("a clash play's yards and tackle reach the box score", () => {
+  const league = Fixture.league(5);
+  const game = league.game();
+  const view = LeagueSim.mirror(game);
+  const total = (key) =>
+    ['home', 'away'].flatMap((side) => Object.values(game.stats[side])).reduce((sum, box) => sum + box[key], 0);
+  let checked = 0;
+  for (let snaps = 0; !game.over && snaps < 900 && checked < 5; snaps++) {
+    const home = game.possession === 'home';
+    game.prepareCall(home ? view.chooseCpuOffense() : view.chooseCpuDefense());
+    const { offense, defense } = game.phase;
+    const options = (home ? view : game).cpuOptions(offense, defense);
+    if (!game.snap(offense, defense, options).clash) continue;
+    const yardsBefore = total('yards');
+    const tacklesBefore = total('tackles');
+    const final = game.autoResolveClash();
+    assert.equal(total('yards') - yardsBefore, final.yards);
+    assert.equal(total('tackles') - tacklesBefore, FootballGame.TACKLE_OUTCOMES.includes(final.outcome) ? 1 : 0);
+    checked += 1;
+  }
+  assert.ok(checked > 0, 'the game reached at least one clash');
 });

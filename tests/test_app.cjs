@@ -621,6 +621,11 @@ test('an animation error during a clash resolves it and restores the controls', 
     assert.equal(app.locked, false);
     assert.equal(harness.element('coachControls').disabled, false);
     assert.match(harness.element('callHint').textContent, /drawing failed/);
+  } finally {
+    await harness.close();
+  }
+});
+
 test('a Gym Challenge circuit plays a game, saves, makes transfers, and resumes after a reload', async () => {
   const storage = new Map();
   const harness = await AppHarness.create({ kickoff: false, storage });
