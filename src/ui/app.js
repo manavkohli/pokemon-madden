@@ -473,6 +473,10 @@
         this.el(`${side}Meter`).style.width = `${Math.min(100, (salary / limit) * 100)}%`;
         this.el(`${side}Meter`).style.background = color;
       }
+      const payroll = this.home.salary;
+      this.el('payrollLine').textContent =
+        `Payroll ${payroll.toLocaleString()} of ${this.creditCap('home').toLocaleString()} CR`;
+      this.el('payrollLine').style.color = payroll > this.creditCap('home') ? 'var(--orange)' : 'var(--lime)';
       const over = this.overBudget;
       this.el('draftMessage').textContent = this.draftStatus(over);
       this.el('draftMessage').classList.toggle('error', over.length > 0);

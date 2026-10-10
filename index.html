@@ -62,9 +62,21 @@
           <div id="draftSlots" class="draft-slots"></div>
           <div class="budget-box">
             <div class="team-budget">
-              <label for="homeCap">Your credit cap <output id="homeCapValue" for="homeCap">26,000 CR</output></label>
-              <input id="homeCap" type="range" value="26000" step="500" aria-describedby="budgetHelp" />
-              <div class="budget-spend"><span>YOUR TEAM</span><strong id="homeSalary">—</strong></div>
+              <label for="homeCap" data-modes="exhibition"
+                >Your credit cap <output id="homeCapValue" for="homeCap">26,000 CR</output></label
+              >
+              <input
+                id="homeCap"
+                type="range"
+                value="26000"
+                step="500"
+                aria-describedby="budgetHelp"
+                data-modes="exhibition"
+              />
+              <div class="budget-spend" data-modes="exhibition">
+                <span>YOUR TEAM</span><strong id="homeSalary">—</strong>
+              </div>
+              <div class="budget-spend" data-modes="draft window"><strong id="payrollLine">—</strong></div>
               <div class="meter"><i id="homeMeter"></i></div>
               <button id="generateHome" class="button ghost" type="button" data-modes="exhibition draft">
                 Generate your team
@@ -77,7 +89,12 @@
               <div class="meter"><i id="awayMeter"></i></div>
               <button id="generateAway" class="button ghost" type="button">Generate rival team</button>
             </div>
-            <small id="budgetHelp">Set a budget, then generate. Your current picks stay until you do.</small>
+            <small id="draftHelp" data-modes="draft"
+              >Generate a team of Pokémon that can still evolve, then adjust picks.</small
+            >
+            <small id="budgetHelp" data-modes="exhibition"
+              >Set a budget, then generate. Your current picks stay until you do.</small
+            >
             <label class="free-play" data-modes="exhibition"
               ><input id="noCap" type="checkbox" /> Free play · no credit caps</label
             >

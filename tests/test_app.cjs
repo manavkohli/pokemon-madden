@@ -892,3 +892,34 @@ test('a report row follows a chain evolution and the team lists every evolution 
     await harness.close();
   }
 });
+
+test('the circuit draft and the transfer window show a payroll line, not the credit-cap slider', async () => {
+  const harness = await AppHarness.create({ kickoff: false });
+  try {
+    const app = harness.app;
+    assert.equal(harness.visible('homeCap'), true);
+    assert.equal(harness.visible('budgetHelp'), true);
+    harness.element('modeLeague').click();
+    assert.equal(harness.visible('homeCap'), false);
+    assert.equal(harness.visible('budgetHelp'), false);
+    assert.equal(harness.visible('draftHelp'), true);
+    assert.equal(harness.visible('generateHome'), true);
+    assert.equal(
+      harness.element('draftHelp').textContent,
+      'Generate a team of Pokémon that can still evolve, then adjust picks.',
+    );
+    const line = () => harness.element('payrollLine').textContent;
+    assert.equal(line(), `Payroll ${app.home.salary.toLocaleString()} of 13,000 CR`);
+    harness.element('kickoffButton').click();
+    harness.action('window');
+    assert.equal(harness.visible('homeCap'), false);
+    assert.equal(harness.visible('draftHelp'), false);
+    assert.equal(harness.visible('payrollLine'), true);
+    assert.equal(line(), `Payroll ${app.home.salary.toLocaleString()} of 13,000 CR`);
+    app.league.badges.push('Brock');
+    app.renderBudget();
+    assert.match(line(), / of 14,000 CR$/);
+  } finally {
+    await harness.close();
+  }
+});
