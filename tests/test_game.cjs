@@ -29,7 +29,7 @@ class RosterChecks {
     for (let seed = 1; seed <= 20; seed++) {
       for (const cap of [minimum, 9500, 12000, 18000, SALARY_CAP, 27000, Infinity]) {
         const rolls = new RosterChecks(seed);
-        const roster = Roster.random(data, cap, () => rolls.random());
+        const roster = Roster.random(data, cap, { random: () => rolls.random() });
         assert.equal(roster.players.length, POSITIONS.length);
         assert.equal(new Set(roster.players.map((mon) => mon.id)).size, POSITIONS.length);
         assert.ok(roster.salary <= cap, `${cap}: generated salary ${roster.salary}`);

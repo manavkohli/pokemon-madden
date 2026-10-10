@@ -87,16 +87,19 @@
       return `<svg class="portrait" viewBox="0 0 48 56" shape-rendering="crispEdges" role="img" aria-label="${leader.name}"><path fill="${hair}" d="M18 2h14v3h6v5h3v12h-4v8h-4v4h6v5h4v15H5V40h5v-6h8v-5h-4v-6h-3V11h4V6h3z"/><path fill="${main}" d="M18 5h14v3h5v7H15v-4h3z"/><path fill="${light}" d="M21 5h7v3h-7zm-6 10h25v4H15z"/><path fill="${skin}" d="M17 19h18v10h-5v5H20v-6h-3z"/><path fill="${glow}" d="M20 20h13v4H20zm3 5h7v4h-7z"/><path fill="${hair}" d="M20 21h3v3h-3zm10 0h3v3h-3zm-8 9h8v2h-8z"/><path fill="${main}" d="M11 37h8v7H9v7H7V42h4zm20-2h7v7h3v9H30V40z"/><path fill="${light}" d="M12 36h6v5h-6zm21 0h4v9h-4z"/><path fill="#ede8c8" d="M20 34h9v14h-9z"/><path fill="${skin}" d="M10 44h9v5h16v4H9v-4H6v-4h4z"/><path fill="${glow}" d="M11 44h7v3h-7zm13 5h10v2H24z"/><path fill="#b7443c" d="M30 40h6v3h-6z"/><path fill="#ede8c8" d="M30 43h6v3h-6z"/><path fill="${hair}" d="M32 42h2v2h-2z"/></svg>`;
     }
 
-    evolveNote(mon) {
-      const [step] = mon.evolutions;
-      if (!step) return '';
-      const notes = {
-        'level-up': () => `Evolves at Lv ${step.min_level}`,
-        'use-item': () => `Needs a ${LeagueView.itemName(step.item)}`,
-        trade: () => 'Evolves as game MVP',
-        friendship: () => `Evolves after ${League.FRIENDSHIP_GAMES} games`,
-      };
-      return notes[step.trigger]();
+    // Every path out of the species: each stone, trade, friendship, and level step with its target.
+    evolveNote(league, mon) {
+      return mon.evolutions
+        .map((step) => {
+          const notes = {
+            'level-up': () => `Lv ${step.min_level}`,
+            'use-item': () => LeagueView.itemName(step.item),
+            trade: () => 'game MVP',
+            friendship: () => `${League.FRIENDSHIP_GAMES} games`,
+          };
+          return `${notes[step.trigger]()} → ${league.catalog[step.into - 1].name}`;
+        })
+        .join('; ');
     }
 
     show(id) {
@@ -140,7 +143,7 @@
     teamHtml(league, title) {
       const cards = POSITIONS.map((position, index) => {
         const mon = league.roster.players[index];
-        const note = this.evolveNote(mon);
+        const note = this.evolveNote(league, mon);
         return `<div class="team-mon"><span class="position-tag">${position.code}${position.depth}</span>${SpriteArt.frame(mon)}<span><b>${mon.name}</b><small>Lv ${league.level(mon)}${note ? ` · ${note}` : ''}</small></span></div>`;
       }).join('');
       return `<div class="surface team-panel"><div class="panel-heading"><div><small>ROSTER</small><h2>${title}</h2></div><span class="badge">${league.roster.salary.toLocaleString()} CR</span></div><div class="team-grid">${cards}</div></div>`;
@@ -222,6 +225,8 @@
       const evolved = new Map(
         this.report.events.filter((event) => !event.waiting).map((event) => [event.from, event.into]),
       );
+      // A player may evolve several times in one report, so each row follows the chain to its last species.
+      const finalForm = (mon) => (evolved.has(mon) ? finalForm(evolved.get(mon)) : mon);
       const earned = this.report.gains.filter((entry) => entry.to > entry.from);
       if (!earned.length) return `<li class="waiting">No player earned experience.</li>`;
       return earned
@@ -230,7 +235,7 @@
         .map(({ mon, from, to }) => {
           const step = mon.evolutions.find((entry) => entry.trigger === 'level-up');
           const goal = step ? step.min_level : League.MAX_LEVEL;
-          const name = evolved.has(mon) ? `${mon.name} → ${evolved.get(mon).name}` : mon.name;
+          const name = evolved.has(mon) ? `${mon.name} → ${finalForm(mon).name}` : mon.name;
           const percent = (level) => Math.min(100, Math.round((level / goal) * 100));
           return `<li class="xp-row">${SpriteArt.frame(mon)}<span class="xp-name"><b>${name}</b><small>Lv ${from} → Lv ${to}${step ? ` · evolves at Lv ${goal}` : ''}</small></span><div class="xp-bar" style="--from:${percent(from)}%;--to:${percent(to)}%" aria-hidden="true"><i></i></div></li>`;
         })

@@ -412,8 +412,8 @@ describe('Strikes on the field', () => {
         seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
         return seed / 2 ** 32;
       };
-      const home = Roster.random(data, undefined, random);
-      const away = Roster.random(data, undefined, random);
+      const home = Roster.random(data, undefined, { random });
+      const away = Roster.random(data, undefined, { random });
       const game = new FootballGame(home, away, 120, random);
       let used = 0;
       for (let snaps = 0; !game.over && snaps < 600; snaps++) {

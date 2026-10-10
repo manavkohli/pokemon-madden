@@ -144,7 +144,7 @@
         this.resume();
       });
       this.el('finalOverlay').addEventListener('cancel', (event) => event.preventDefault());
-      this.el('editTeamButton').addEventListener('click', () => this.openDraft());
+      this.el('editTeamButton').addEventListener('click', () => (this.leader ? this.concede() : this.openDraft()));
       this.el('rematchButton').addEventListener('click', () => this.start());
       this.el('redraftButton').addEventListener('click', () => this.openDraft());
     }
@@ -418,7 +418,8 @@
 
     generateTeams(sides) {
       for (const side of sides)
-        this[side] = Roster.random(this.pokemon, this.creditCap(side), Math.random, new Map(), this.draftPool());
+        this[side] = Roster.random(this.pokemon, this.creditCap(side), { pool: this.draftPool() });
+      this.homes[this.mode] = this.home;
       this.selectedPokemon = this.home.players[this.selectedSlot];
       this.renderDraft();
       if (this.overBudget.length === 0)
@@ -522,6 +523,7 @@
       const mon = this.selectedPokemon;
       const chosen = this.home.moveset(mon);
       this.home.setMoveset(mon, chosen.includes(name) ? chosen.filter((entry) => entry !== name) : [...chosen, name]);
+      if (this.windowOpen) this.saveLeague();
       this.renderDetail();
     }
 
@@ -579,7 +581,7 @@
         this.el('draftMessage').classList.add('error');
         return;
       }
-      if (swap) this.saveLeague();
+      if (this.windowOpen) this.saveLeague();
       this.renderDraft();
       if (this.windowOpen)
         this.el('draftMessage').textContent = `${mon.name} joined at ${position.code}. ${this.windowStatus()}`;
@@ -621,7 +623,8 @@
       this.el('gameScreen').scrollIntoView({ block: 'start', behavior: 'auto' });
     }
 
-    openDraft() {
+    // Stops the play in progress: timers, playback, overlays, and the pending result.
+    stopPlay() {
       this.sequence += 1;
       clearTimeout(this.resultTimer);
       this.callClock.stop();
@@ -634,7 +637,16 @@
       this.el('pauseOverlay').close();
       this.paused = false;
       this.el('pauseButton').disabled = true;
-      if (this.leader) return this.showLeagueMap();
+    }
+
+    // Conceding a circuit game is a loss with the box score so far.
+    concede() {
+      this.stopPlay();
+      return this.finishLeagueGame(true);
+    }
+
+    openDraft() {
+      this.stopPlay();
       this.showScreen('draftScreen');
       this.renderDraft();
       this.el('draftScreen').scrollIntoView({ block: 'start', behavior: 'auto' });
@@ -696,7 +708,7 @@
       this.mode = mode === 'exhibition' ? 'exhibition' : 'league';
       this.windowOpen = mode === 'window';
       if (mode === 'draft')
-        this.homes.league ??= Roster.random(this.pokemon, League.DRAFT_CAP, Math.random, new Map(), this.draftPool());
+        this.homes.league ??= Roster.random(this.pokemon, League.DRAFT_CAP, { pool: this.draftPool() });
       this.home = this.windowOpen ? this.league.roster : this.homes[this.mode];
       this.selectedSlot = 0;
       this.selectedPokemon = this.home.players[0];
@@ -767,8 +779,8 @@
     }
 
     // The final whistle of a circuit game settles the league, saves it, and opens the report.
-    finishLeagueGame() {
-      const report = this.league.record(this.game);
+    finishLeagueGame(conceded = false) {
+      const report = this.league.record(this.game, conceded);
       this.leader = null;
       this.saveLeague();
       this.el('pauseButton').disabled = true;

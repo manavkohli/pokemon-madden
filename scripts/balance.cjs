@@ -11,8 +11,8 @@ class Balance {
   static play(seed, moves) {
     const random = seeded(seed);
     const game = new FootballGame(
-      Roster.random(data, undefined, random),
-      Roster.random(data, undefined, random),
+      Roster.random(data, undefined, { random }),
+      Roster.random(data, undefined, { random }),
       300,
       random,
     );

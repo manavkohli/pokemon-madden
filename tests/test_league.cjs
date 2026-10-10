@@ -5,7 +5,7 @@ const { Roster } = require('../src/game/roster.js');
 const { MoveBook } = require('../src/game/moves.js');
 const { League, SeededRandom } = require('../src/game/league.js');
 const { FootballGame } = require('../src/game/football.js');
-const { POSITIONS, DEAD_KINDS } = require('../src/game/playbook.js');
+const { POSITIONS, DEAD_KINDS, PASS_KINDS } = require('../src/game/playbook.js');
 const { LeagueSim } = require('../scripts/league-balance.cjs');
 
 const named = (name) => data.find((mon) => mon.name === name);
@@ -15,7 +15,7 @@ class Fixture {
     const random = new SeededRandom(seed);
     return League.start(
       data,
-      Roster.random(data, cap, () => random.next(), new Map(), League.startingPool(data)),
+      Roster.random(data, cap, { random: () => random.next(), pool: League.startingPool(data) }),
       () => random.next(),
     );
   }
@@ -94,7 +94,7 @@ test('Roster.random keeps fixed players in their slots and stays under the cap',
     [0, named('Mewtwo')],
     [30, named('Lugia')],
   ]);
-  const roster = Roster.random(data, 22000, () => random.next(), fixed);
+  const roster = Roster.random(data, 22000, { random: () => random.next(), fixed });
   assert.equal(roster.players[0].name, 'Mewtwo');
   assert.equal(roster.players[30].name, 'Lugia');
   assert.equal(new Set(roster.players.map((mon) => mon.id)).size, POSITIONS.length);
@@ -102,7 +102,7 @@ test('Roster.random keeps fixed players in their slots and stays under the cap',
 });
 
 test('Roster.evolve moves stamina, conditions, stages, and moves to the new id', () => {
-  const roster = Roster.random(data, 13000, () => 0.5);
+  const roster = Roster.random(data, 13000, { random: () => 0.5 });
   const charmander = named('Charmander');
   roster.assign(0, charmander);
   roster.setMoveset(charmander, ['ember', 'scratch', 'growl']);
@@ -276,13 +276,18 @@ test('a saved and reloaded league plays the next game with the same result', () 
   assert.throws(() => League.fromJSON(data, { ...saved, version: 99 }), RangeError);
 });
 
-test('the box score sums to the yards in the drive log', () => {
+test('the box score sums the gains in the drive log and credits passers', () => {
   const league = Fixture.league(2);
   const game = league.game();
-  const yards = [];
+  const gains = [];
+  const passes = [];
   const snap = game.snap.bind(game);
   const settle = (result) => {
-    if (!DEAD_KINDS.includes(result.offense.kind) && result.outcome !== 'clock-expired') yards.push(result.yards);
+    if (!DEAD_KINDS.includes(result.offense.kind) && result.outcome !== 'clock-expired') {
+      gains.push(Math.max(0, result.yards));
+      if (PASS_KINDS.includes(result.offense.kind) && FootballGame.COMPLETIONS.includes(result.outcome))
+        passes.push(Math.max(0, result.yards));
+    }
     return result;
   };
   game.snap = (...args) => {
@@ -292,17 +297,66 @@ test('the box score sums to the yards in the drive log', () => {
   const clash = game.autoResolveClash.bind(game);
   game.autoResolveClash = () => settle(clash());
   new LeagueSim(3).play(game);
-  const boxed = ['home', 'away']
-    .flatMap((side) => Object.values(game.stats[side]))
-    .reduce((sum, box) => sum + box.yards, 0);
-  assert.ok(yards.length > 20);
-  assert.equal(
-    boxed,
-    yards.reduce((sum, value) => sum + value, 0),
+  const boxes = ['home', 'away'].flatMap((side) => Object.values(game.stats[side]));
+  const total = (key) => boxes.reduce((sum, box) => sum + box[key], 0);
+  const sum = (list) => list.reduce((value, entry) => value + entry, 0);
+  assert.ok(gains.length > 20 && passes.length > 5);
+  assert.equal(total('yards'), sum(gains));
+  assert.equal(total('passingYards'), sum(passes));
+  assert.ok(
+    boxes.every((box) => box.yards >= 0),
+    'a sack never reduces a box score',
   );
-  const totals = (key) =>
-    ['home', 'away'].flatMap((side) => Object.values(game.stats[side])).reduce((sum, box) => sum + box[key], 0);
-  assert.ok(totals('tackles') > 0);
+  assert.ok(total('tackles') > 0);
+});
+
+test('a quarterback with 250 passing yards and 3 sacks earns 12 levels from passing', () => {
+  assert.equal(League.impact({ passingYards: 250 }), 12);
+  const league = Fixture.league();
+  const qb = league.roster.player('QB');
+  const before = league.level(qb);
+  league.record(Fixture.finished({ [qb.id]: { yards: 0, passingYards: 250, sacks: 0 } }, false));
+  assert.equal(league.level(qb), before + Math.round(12 * League.IMPACT_SCALE));
+});
+
+test('a conceded game is a loss that still settles levels and the window', () => {
+  const league = Fixture.league();
+  const mon = league.roster.players[3];
+  league.transfersLeft = 1;
+  const report = league.record(
+    { over: false, score: { home: 20, away: 0 }, stats: { home: { [mon.id]: { yards: 100 } }, away: {} } },
+    true,
+  );
+  assert.equal(report.win, false);
+  assert.equal(league.stage, 0);
+  assert.equal(league.transfersLeft, League.TRANSFERS);
+  assert.equal(league.games.get(mon.id), 1);
+  assert.throws(
+    () => league.record({ over: false, score: { home: 0, away: 0 }, stats: { home: {}, away: {} } }),
+    Error,
+  );
+});
+
+test('a leader roster is built once per stage and a reload rebuilds the same one', () => {
+  const league = Fixture.league(6);
+  league.stage = 2;
+  const original = Roster.random;
+  let builds = 0;
+  Roster.random = (...args) => {
+    builds += 1;
+    return original(...args);
+  };
+  try {
+    const first = league.leaderRoster(2);
+    assert.equal(league.leaderRoster(2), first);
+    league.game();
+    assert.equal(builds, 1);
+  } finally {
+    Roster.random = original;
+  }
+  const reloaded = League.fromJSON(data, JSON.parse(JSON.stringify(league.toJSON())));
+  const ids = (roster) => roster.players.map((mon) => mon.id).join();
+  assert.equal(ids(reloaded.leaderRoster(2)), ids(league.leaderRoster(2)));
 });
 
 test('a leader style lifts its call group on offense and pressure calls on defense', () => {
@@ -340,12 +394,12 @@ test('the circuit draft pool holds only Pokémon with an evolution left and fill
   assert.ok(!pool.includes(named('Dragonite')) && !pool.includes(named('Ditto')));
   for (let seed = 1; seed <= 50; seed++) {
     const random = new SeededRandom(seed);
-    const roster = Roster.random(data, League.DRAFT_CAP, () => random.next(), new Map(), pool);
+    const roster = Roster.random(data, League.DRAFT_CAP, { random: () => random.next(), pool });
     assert.equal(roster.players.length, POSITIONS.length);
     assert.equal(new Set(roster.players.map((mon) => mon.id)).size, POSITIONS.length);
     assert.ok(roster.salary <= League.DRAFT_CAP && roster.players.every((mon) => pool.includes(mon)));
   }
-  const outside = Roster.random(data, League.DRAFT_CAP, () => 0.5);
+  const outside = Roster.random(data, League.DRAFT_CAP, { random: () => 0.5 });
   assert.throws(() => League.start(data, outside), RangeError);
 });
 
@@ -403,7 +457,7 @@ test("a clash play's yards and tackle reach the box score", () => {
     const yardsBefore = total('yards');
     const tacklesBefore = total('tackles');
     const final = game.autoResolveClash();
-    assert.equal(total('yards') - yardsBefore, final.yards);
+    assert.equal(total('yards') - yardsBefore, Math.max(0, final.yards));
     assert.equal(total('tackles') - tacklesBefore, FootballGame.TACKLE_OUTCOMES.includes(final.outcome) ? 1 : 0);
     checked += 1;
   }

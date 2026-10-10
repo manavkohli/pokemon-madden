@@ -73,6 +73,23 @@ class PokedexChecks(unittest.TestCase):
         self.assertEqual(pokemon["Togetic"]["types"], ["Normal", "Flying"])
         self.assertEqual(pokemon["Magnemite"]["types"], ["Electric", "Steel"])
 
+    def test_gen_2_types_follow_the_earliest_past_types_entry_from_generation_ii(self):
+        def types(*names):
+            return [{"slot": slot, "type": {"name": name}} for slot, name in enumerate(names, start=1)]
+
+        def past(generation, *names):
+            return {"generation": {"name": generation}, "types": types(*names)}
+
+        current = types("fairy")
+        gen_5 = past("generation-v", "normal")
+        gen_2 = past("generation-ii", "water", "flying")
+        gen_1 = past("generation-i", "electric")
+        gen_of = scrape_pokedex.PokeApiScraper.gen2_types
+        self.assertEqual(gen_of({"types": current, "past_types": []}), ["Fairy"])
+        self.assertEqual(gen_of({"types": current, "past_types": [gen_5]}), ["Normal"])
+        self.assertEqual(gen_of({"types": current, "past_types": [gen_5, gen_2]}), ["Water", "Flying"])
+        self.assertEqual(gen_of({"types": current, "past_types": [gen_1, gen_5]}), ["Normal"])
+
     def test_gen_2_type_chart(self):
         types = self.data["types"]
         self.assertEqual(len(types), 17)

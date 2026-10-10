@@ -72,8 +72,9 @@
       counters: { juke: 'wrap', truck: 'hit', cover: 'wrap', wrap: 'truck', hit: 'juke', strip: 'cover' },
     };
     // A style lifts its call group in the CPU's score; the dice still decide between close calls.
-    static STYLE_BONUS = 4;
+    static STYLE_BONUS = 8;
     static STYLE_GROUPS = { run: 'run', pass: 'pass', pressure: 'trick' };
+    static COMPLETIONS = ['gain', 'stop', 'first-down', 'touchdown', 'turnover-downs'];
     static TACKLE_OUTCOMES = ['gain', 'stop', 'first-down', 'turnover-downs', 'stuff'];
     static ABILITIES = [
       {
@@ -756,6 +757,7 @@
     box(side, mon) {
       return (this.stats[side][mon.id] ??= {
         yards: 0,
+        passingYards: 0,
         touchdowns: 0,
         tackles: 0,
         sacks: 0,
@@ -768,14 +770,20 @@
     recordStats(side, offense, result) {
       for (const record of result.moves ?? []) if (record.hit) this.box(record.side, record.actor).moveHits += 1;
       if (DEAD_KINDS.includes(offense.kind)) return;
-      const { carrier, defender } = result.participants;
-      const attack = this.box(side, carrier);
-      const defend = this.box(this.opponent(side), defender);
-      attack.yards += result.yards;
-      if (result.outcome === 'touchdown') attack.touchdowns += 1;
+      this.recordOffense(side, offense, result);
+      const defend = this.box(this.opponent(side), result.participants.defender);
       if (result.outcome === 'sack') defend.sacks += 1;
       if (result.outcome === 'interception') defend.interceptions += 1;
       if (FootballGame.TACKLE_OUTCOMES.includes(result.outcome)) defend.tackles += 1;
+    }
+
+    // A sack never takes yards back from the passer: a play's yards count only when they are gains.
+    recordOffense(side, offense, result) {
+      const attack = this.box(side, result.participants.carrier);
+      attack.yards += Math.max(0, result.yards);
+      if (result.outcome === 'touchdown') attack.touchdowns += 1;
+      if (FootballGame.COMPLETIONS.includes(result.outcome) && PASS_KINDS.includes(offense.kind))
+        this.box(side, result.participants.support).passingYards += Math.max(0, result.yards);
     }
 
     // Offensive roles read the attacking roster and defensive roles the defending one; a Pokémon can sit on both teams.

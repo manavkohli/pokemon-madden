@@ -25,6 +25,8 @@
     static TRANSFERS = 3;
     static CORE_SIZE = 12;
     static CORE_SHARE = 0.6;
+    // How many of the best-fitting affordable players a leader's fill picks among; smaller means a stronger roster.
+    static LEADER_BREADTH = 3;
     static BASE_LEVEL = 5;
     static FINAL_LEVEL = 40;
     static NON_LEVEL_FLOOR = 20;
@@ -33,6 +35,7 @@
     // Scales the box-score gains so a circuit evolves about half of the starting roster.
     static IMPACT_SCALE = 0.4;
     static YARDS_PER_LEVEL = 10;
+    static PASSING_YARDS_PER_LEVEL = 20;
     static FRIENDSHIP_GAMES = 5;
     static LEADERS = [
       { name: 'Brock', title: 'Gym Leader', type: 'Rock', style: 'run', cap: 9800, stone: null },
@@ -44,10 +47,10 @@
       { name: 'Blaine', title: 'Gym Leader', type: 'Fire', style: 'balanced', cap: 12300, stone: 'fire-stone' },
       { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'run', cap: 13900, stone: 'sun-stone' },
       { name: 'Lorelei', title: 'Elite Four', type: 'Ice', style: 'balanced', cap: 13000, stone: null },
-      { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'balanced', cap: 15500, stone: null },
-      { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pressure', cap: 14200, stone: null },
+      { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'pass', cap: 15500, stone: null },
+      { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pass', cap: 14200, stone: null },
       { name: 'Lance', title: 'Elite Four', type: 'Dragon', style: 'balanced', cap: 15800, stone: null },
-      { name: 'Rival', title: 'Champion', type: null, style: 'balanced', cap: 17100, stone: null },
+      { name: 'Rival', title: 'Champion', type: null, style: 'pass', cap: 17100, stone: null },
     ];
 
     constructor(catalog, roster, seed) {
@@ -58,6 +61,7 @@
       this.roll = () => this.random.next();
       this.parents = new Map();
       for (const mon of catalog) for (const step of mon.evolutions) this.parents.set(step.into, { mon, step });
+      this.leaders = new Map();
       this.stage = 0;
       this.badges = [];
       this.stones = {};
@@ -105,11 +109,19 @@
       return this.levels.get(mon.id);
     }
 
-    // The same circuit seed and leader index always give the same roster, so a retry faces the same team.
+    // The seed and the leader index alone decide the roster, so a retry or a reload faces the same team; it is built once per leader.
     leaderRoster(index) {
-      const leader = League.LEADERS[index];
-      const random = new SeededRandom(this.seed + Math.imul(index + 1, 0x9e3779b1));
-      return Roster.random(this.catalog, leader.cap, () => random.next(), this.core(leader));
+      if (!this.leaders.has(index)) {
+        const leader = League.LEADERS[index];
+        const random = new SeededRandom(this.seed + Math.imul(index + 1, 0x9e3779b1));
+        const roster = Roster.random(this.catalog, leader.cap, {
+          random: () => random.next(),
+          fixed: this.core(leader),
+          breadth: League.LEADER_BREADTH,
+        });
+        this.leaders.set(index, roster);
+      }
+      return this.leaders.get(index);
     }
 
     // The leader's type stars, best first, each in the open slot where it rates highest.
@@ -148,16 +160,27 @@
     }
 
     static impact(box = {}) {
-      const { yards = 0, touchdowns = 0, tackles = 0, sacks = 0, interceptions = 0, moveHits = 0 } = box;
-      const gained = Math.floor(Math.max(0, yards) / League.YARDS_PER_LEVEL);
+      const {
+        yards = 0,
+        passingYards = 0,
+        touchdowns = 0,
+        tackles = 0,
+        sacks = 0,
+        interceptions = 0,
+        moveHits = 0,
+      } = box;
+      const gained =
+        Math.floor(Math.max(0, yards) / League.YARDS_PER_LEVEL) +
+        Math.floor(Math.max(0, passingYards) / League.PASSING_YARDS_PER_LEVEL);
       return gained + 3 * touchdowns + tackles + 2 * (sacks + interceptions) + moveHits;
     }
 
-    // Settles a finished game: levels, games played, the badge and stone on a win, evolutions, and a fresh transfer window.
-    record(game) {
-      if (!game.over) throw new Error('The game is not over');
+    // Settles a finished game, or a conceded one (a loss with the box score so far): levels, games played, the badge
+    // and stone on a win, evolutions, and a fresh transfer window.
+    record(game, conceded = false) {
+      if (!game.over && !conceded) throw new Error('The game is not over');
       const leader = this.leader;
-      const win = game.score.home > game.score.away;
+      const win = !conceded && game.score.home > game.score.away;
       const gains = this.roster.players.map((mon) => {
         const impact = League.impact(game.stats.home[mon.id]);
         const from = this.level(mon);

@@ -57,7 +57,7 @@ class LeagueSim {
     return game;
   }
 
-  // Spends every stone on the biggest stat jump, then upgrades the weakest starters that the cap leaves room for.
+  // Spends every stone on the biggest stat jump, then applies the transfer policy.
   manage(league) {
     const events = [];
     for (const stone of Object.keys(league.stones)) {
@@ -73,37 +73,48 @@ class LeagueSim {
         events.push(league.evolve(options[0].mon.id, stone));
       }
     }
-    if (!league.complete) this.upgrade(league);
+    this.traded = league.complete ? [] : this.upgrade(league);
     return events;
   }
 
+  // The transfer policy: up to `swaps` times, the lowest-rated starter goes for the best-rated free agent at its
+  // position that League.transfer accepts. Returns the ids of the players traded away.
   upgrade(league) {
+    const depths = new Map(LeagueSim.STARTERS);
     const starters = POSITIONS.map((position, index) => ({ position, index })).filter(
-      ({ position }) => position.depth === 1,
+      ({ position }) => position.depth <= depths.get(position.code),
     );
-    for (let swaps = 0; swaps < this.swaps; swaps++) {
-      const room = league.playerCap - league.roster.salary;
+    const out = [];
+    const tried = new Set();
+    while (out.length < this.swaps && tried.size < starters.length) {
       const weakest = starters
-        .map(({ position, index }) => ({ position, mon: league.roster.players[index] }))
+        .filter(({ index }) => !tried.has(index))
+        .map(({ position, index }) => ({ position, index, mon: league.roster.players[index] }))
         .sort((a, b) => Roster.rating(a.mon, a.position.code) - Roster.rating(b.mon, b.position.code))[0];
-      const budget = Roster.salary(weakest.mon) + Math.max(0, room);
+      tried.add(weakest.index);
+      const rate = (mon) => Roster.rating(mon, weakest.position.code);
       const better = data
-        .filter((mon) => !league.roster.players.includes(mon) && Roster.salary(mon) <= budget)
-        .sort((a, b) => Roster.rating(b, weakest.position.code) - Roster.rating(a, weakest.position.code))[0];
-      if (
-        !better ||
-        Roster.rating(better, weakest.position.code) < Roster.rating(weakest.mon, weakest.position.code) + 3
-      )
-        return;
-      league.transfer(weakest.mon.id, better.id);
+        .filter((mon) => !league.roster.players.includes(mon) && rate(mon) > rate(weakest.mon))
+        .sort((a, b) => rate(b) - rate(a));
+      for (const mon of better) {
+        try {
+          league.transfer(weakest.mon.id, mon.id);
+        } catch (error) {
+          if (!(error instanceof RangeError)) throw error;
+          continue;
+        }
+        out.push(weakest.mon.id);
+        break;
+      }
     }
+    return out;
   }
 
   // Plays one circuit with a fresh 13,000-credit roster; a leader gets up to MAX_TRIES attempts.
   circuit() {
     const league = League.start(
       data,
-      Roster.random(data, League.DRAFT_CAP, () => this.random(), new Map(), League.startingPool(data)),
+      Roster.random(data, League.DRAFT_CAP, { random: () => this.random(), pool: League.startingPool(data) }),
       () => this.random(),
     );
     const starting = new Set();
@@ -129,6 +140,11 @@ class LeagueSim {
             entry.evolved = true;
             lineage.set(event.into.id, entry);
           }
+        }
+        // A player traded away counts as neither evolved nor not evolved.
+        for (const id of this.traded) {
+          const entry = lineage.get(id);
+          for (const [key, value] of lineage) if (value === entry) lineage.delete(key);
         }
       }
       gyms.push(gym);
@@ -166,27 +182,30 @@ class LeagueSim {
 
 if (require.main === module) {
   const circuits = Number(process.argv[2] ?? 200);
-  const swaps = Number(process.argv[3] ?? 0);
-  const { stages, complete, share } = LeagueSim.run(circuits, swaps);
-  console.log(
-    `${circuits} circuits, ${League.DRAFT_CAP.toLocaleString()}-credit starting roster, ${swaps} transfers per window, ${LeagueSim.MAX_TRIES} tries per leader`,
-  );
-  console.log('leader      cap    reached  first-try%  win%/game  target  gap   score');
+  const results = [League.TRANSFERS, 0].map((swaps) => LeagueSim.run(circuits, swaps));
   const last = League.LEADERS.length - 1;
+  const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(0) : '-').padStart(4);
+  console.log(
+    `${circuits} circuits, ${League.DRAFT_CAP.toLocaleString()}-credit starting roster, ${LeagueSim.MAX_TRIES} tries per leader, clashes on`,
+  );
+  console.log('win % per game (first-try %); the target applies to the transfer policy');
+  console.log('leader      cap    target  3 transfers (gap)     no transfers');
   League.LEADERS.forEach((leader, index) => {
-    const row = stages[index];
+    const [policy, none] = results.map(({ stages }) => stages[index]);
     const target = LeagueSim.TARGET_START - ((LeagueSim.TARGET_START - LeagueSim.TARGET_END) * index) / last;
-    const rate = (100 * row.wins) / (row.tries || 1);
-    const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(0) : '-').padStart(5);
+    const rate = (100 * policy.wins) / (policy.tries || 1);
     console.log(
-      `${leader.name.padEnd(10)} ${String(leader.cap).padStart(6)} ${String(row.reached).padStart(8)} ${pct(row.first, row.reached)}%      ${pct(row.wins, row.tries)}%   ${target.toFixed(0).padStart(5)}%  ${(rate - target).toFixed(0).padStart(4)}  ${(row.points / (row.tries || 1)).toFixed(1)}-${(row.against / (row.tries || 1)).toFixed(1)}`,
+      `${leader.name.padEnd(10)} ${String(leader.cap).padStart(6)}  ${target.toFixed(0).padStart(5)}%  ${pct(policy.wins, policy.tries)}% (${pct(policy.first, policy.reached).trim()}%) ${(rate - target).toFixed(0).padStart(4)}      ${pct(none.wins, none.tries)}% (${pct(none.first, none.reached).trim()}%)`,
     );
   });
-  console.log(`circuits completed: ${((100 * complete) / circuits).toFixed(0)}%`);
   const percent = ([part, whole]) => `${((100 * part) / whole).toFixed(0)}% (${part} of ${whole})`;
-  console.log(
-    `starting players that evolve at least once: ${percent(share.all)}; the 22 starters: ${percent(share.starters)}`,
-  );
+  for (const [label, { complete, share }] of [
+    ['3 transfers', results[0]],
+    ['no transfers', results[1]],
+  ])
+    console.log(
+      `${label}: ${((100 * complete) / circuits).toFixed(0)}% of circuits finish; players who stayed that evolve at least once: ${percent(share.all)}; the 22 starters: ${percent(share.starters)}`,
+    );
 }
 
 module.exports = { LeagueSim };

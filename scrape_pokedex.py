@@ -17,12 +17,13 @@ TYPES = [
     "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground",
     "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel",
 ]
-# Before Gen 4 a move's damage class followed its type.
-# PokeAPI's `past_types` names the generation a type list stopped applying in; the earliest later entry holds the Gen 2 types.
+# PokeAPI's `past_types` names the LAST generation a type list applied in, so the earliest entry at generation-ii or
+# later holds the Gen 2 types.
 GENERATIONS = [
     "generation-i", "generation-ii", "generation-iii", "generation-iv", "generation-v", "generation-vi",
     "generation-vii", "generation-viii", "generation-ix",
 ]
+# Before Gen 4 a move's damage class followed its type.
 PHYSICAL_TYPES = {"Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel"}
 SPECIAL_TYPES = {"Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark"}
 ROOT = Path(__file__).resolve().parent
@@ -152,15 +153,23 @@ class PokeApiScraper:
         with ThreadPoolExecutor(max_workers=8) as pool:
             return list(pool.map(self.fetch, paths))
 
+    @staticmethod
+    def generation(entry: dict) -> int:
+        return GENERATIONS.index(entry["generation"]["name"])
+
+    @staticmethod
+    def gen2_types(mon: dict) -> list[str]:
+        """Reads the types a Pokémon had in Gen 2: the earliest `past_types` entry at generation-ii or later, else its current types."""
+        covering = [entry for entry in mon["past_types"] if PokeApiScraper.generation(entry) >= 1]
+        slots = min(covering, key=PokeApiScraper.generation)["types"] if covering else mon["types"]
+        return [slot["type"]["name"].capitalize() for slot in sorted(slots, key=lambda slot: slot["slot"])]
+
     def profiles(self) -> dict[int, dict]:
         """Maps each Pokémon id to its Gen 2 types and every move it learns in Crystal by any method."""
         profiles = {}
         for dex, mon in enumerate(self.fetch_all([f"pokemon/{dex}" for dex in range(1, 252)]), start=1):
-            later = [entry for entry in mon["past_types"] if GENERATIONS.index(entry["generation"]["name"]) > 1]
-            earliest = min(later, key=lambda entry: GENERATIONS.index(entry["generation"]["name"]), default=None)
-            slots = earliest["types"] if earliest else mon["types"]
             profiles[dex] = {
-                "types": [slot["type"]["name"].capitalize() for slot in sorted(slots, key=lambda slot: slot["slot"])],
+                "types": self.gen2_types(mon),
                 "moves": sorted(
                     {
                         entry["move"]["name"]

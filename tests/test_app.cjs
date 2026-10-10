@@ -756,3 +756,139 @@ test('exhibition still plays from a fresh page and the mode switch returns to it
     await harness.close();
   }
 });
+
+const circuitHarness = async (options = {}) => {
+  const harness = await AppHarness.create({ kickoff: false, ...options });
+  harness.element('modeLeague').click();
+  harness.element('kickoffButton').click();
+  return harness;
+};
+
+test('the transfer window has no generate control and the drafts keep theirs', async () => {
+  const harness = await AppHarness.create({ kickoff: false });
+  try {
+    assert.equal(harness.visible('generateHome'), true);
+    assert.equal(harness.visible('randomizeButton'), true);
+    harness.element('modeLeague').click();
+    assert.equal(harness.visible('generateHome'), true);
+    assert.equal(harness.visible('randomizeButton'), false);
+    harness.element('kickoffButton').click();
+    harness.action('window');
+    assert.equal(harness.visible('generateHome'), false);
+    assert.equal(harness.visible('randomizeButton'), false);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a generated exhibition team survives a trip through the circuit draft', async () => {
+  const harness = await AppHarness.create({ kickoff: false });
+  try {
+    const app = harness.app;
+    harness.element('generateHome').click();
+    const generated = app.home;
+    assert.equal(app.homes.exhibition, generated);
+    harness.element('modeLeague').click();
+    harness.element('generateHome').click();
+    const circuit = app.home;
+    assert.notEqual(circuit, generated);
+    harness.element('modeExhibition').click();
+    assert.equal(app.home, generated);
+    harness.element('modeLeague').click();
+    assert.equal(app.home, circuit);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('conceding a circuit game records a loss, saves, and opens the report', async () => {
+  const storage = new Map();
+  const harness = await circuitHarness({ storage });
+  try {
+    const app = harness.app;
+    harness.action('challenge');
+    harness.choose('inside-zone');
+    await app.requestSnap();
+    harness.element('editTeamButton').click();
+    assert.equal(harness.visible('reportScreen'), true);
+    assert.equal(harness.element('reportTitle').textContent, 'Defeat');
+    assert.equal(app.league.stage, 0);
+    assert.equal(app.league.transfersLeft, 3);
+    const saved = JSON.parse(storage.get('pokeballers.league.v1'));
+    assert.ok(saved.players.every((player) => player.games === 1));
+    assert.deepEqual(harness.errors, []);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('every transfer-window edit saves at once: a slot move and a moveset change', async () => {
+  const storage = new Map();
+  const harness = await circuitHarness({ storage });
+  try {
+    const app = harness.app;
+    harness.action('window');
+    const mover = app.home.players[5];
+    app.selectedSlot = 0;
+    app.selectedPokemon = mover;
+    app.renderDetail();
+    harness.element('assignButton').click();
+    const saved = () => JSON.parse(storage.get('pokeballers.league.v1'));
+    assert.equal(saved().players[0].id, mover.id);
+    const learner = app.home.players[0];
+    app.selectedPokemon = learner;
+    app.renderDetail();
+    const pick = harness.document.querySelector('[data-pick]:not([disabled])');
+    pick.click();
+    assert.equal(JSON.stringify(saved().players[0].moves), JSON.stringify(app.home.moveset(learner)));
+    const reloaded = await AppHarness.create({ kickoff: false, storage });
+    try {
+      assert.equal(reloaded.app.league.roster.players[0].id, mover.id);
+      assert.equal(
+        JSON.stringify(reloaded.app.league.roster.moveset(learner)),
+        JSON.stringify(app.home.moveset(learner)),
+      );
+    } finally {
+      await reloaded.close();
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a report row follows a chain evolution and the team lists every evolution path', async () => {
+  const harness = await circuitHarness();
+  try {
+    const app = harness.app;
+    const league = app.league;
+    const named = (name) => app.pokemon.find((mon) => mon.name === name);
+    for (const [index, name] of ['Charmander', 'Eevee', 'Slowpoke'].entries()) league.roster.assign(index, named(name));
+    for (const name of ['Charmeleon', 'Charizard']) {
+      const at = league.roster.players.indexOf(named(name));
+      if (at >= 0) league.roster.assign(at, app.pokemon[18]);
+    }
+    league.levels.set(named('Charmander').id, 5);
+    const report = league.record({
+      over: true,
+      score: { home: 7, away: 0 },
+      stats: { home: { [named('Charmander').id]: { yards: 900 } }, away: {} },
+    });
+    const chain = report.events.filter((event) => event.from.name.startsWith('Char')).map((event) => event.into.name);
+    assert.equal(chain.join(), 'Charmeleon,Charizard');
+    app.leagueView.report = report;
+    app.leagueView.renderReport(league);
+    assert.match(harness.element('reportBody').textContent, /Charmander → Charizard/);
+    const eevee = app.leagueView.evolveNote(league, named('Eevee'));
+    for (const path of [
+      'Water Stone → Vaporeon',
+      'Thunder Stone → Jolteon',
+      'Fire Stone → Flareon',
+      '5 games → Espeon',
+      '5 games → Umbreon',
+    ])
+      assert.ok(eevee.includes(path), path);
+    assert.equal(app.leagueView.evolveNote(league, named('Slowpoke')), 'Lv 37 → Slowbro; game MVP → Slowking');
+  } finally {
+    await harness.close();
+  }
+});

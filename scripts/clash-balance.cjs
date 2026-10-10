@@ -10,8 +10,8 @@ class ClashBalance {
   static play(seed, clashes) {
     const random = seeded(seed);
     const game = new FootballGame(
-      Roster.random(data, undefined, random),
-      Roster.random(data, undefined, random),
+      Roster.random(data, undefined, { random }),
+      Roster.random(data, undefined, { random }),
       300,
       random,
     );

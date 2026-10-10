@@ -65,8 +65,8 @@ class Clash {
   static trace(clashes) {
     const random = seeded(40);
     const game = new FootballGame(
-      Roster.random(data, undefined, random),
-      Roster.random(data, undefined, random),
+      Roster.random(data, undefined, { random }),
+      Roster.random(data, undefined, { random }),
       300,
       random,
     );
@@ -384,8 +384,8 @@ describe('A full game with clashes', () => {
   test('a seeded game with auto actions finishes with no pending clash', () => {
     const random = seeded(7);
     const game = new FootballGame(
-      Roster.random(data, undefined, random),
-      Roster.random(data, undefined, random),
+      Roster.random(data, undefined, { random }),
+      Roster.random(data, undefined, { random }),
       300,
       random,
     );
