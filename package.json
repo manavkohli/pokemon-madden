@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node tests/test_game.cjs && node tests/test_battle.cjs && node tests/test_field.cjs && node tests/test_play_clock.cjs && node tests/test_moves.cjs && node --test tests/test_clash.cjs && npm run test:mechanics",
+    "test": "node tests/test_game.cjs && node tests/test_battle.cjs && node tests/test_field.cjs && node tests/test_play_clock.cjs && node tests/test_moves.cjs && node --test tests/test_clash.cjs && node tests/test_league.cjs && npm run test:mechanics",
     "lint": "eslint src tests",
     "format": "prettier --write src tests index.html style.css",
     "format:check": "prettier --check src tests index.html style.css",

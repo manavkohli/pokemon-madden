@@ -71,6 +71,10 @@
       },
       counters: { juke: 'wrap', truck: 'hit', cover: 'wrap', wrap: 'truck', hit: 'juke', strip: 'cover' },
     };
+    // A style lifts its call group in the CPU's score; the dice still decide between close calls.
+    static STYLE_BONUS = 4;
+    static STYLE_GROUPS = { run: 'run', pass: 'pass', pressure: 'trick' };
+    static TACKLE_OUTCOMES = ['gain', 'stop', 'first-down', 'turnover-downs', 'stuff'];
     static ABILITIES = [
       {
         id: 'burst',
@@ -94,6 +98,8 @@
       this.charges = { home: FootballGame.ABILITY_CHARGES, away: FootballGame.ABILITY_CHARGES };
       this.pp = { home: new Map(), away: new Map() };
       this.cpuMoveChance = FootballGame.CPU_MOVE_CHANCE;
+      this.cpuStyle = 'balanced';
+      this.stats = { home: {}, away: {} };
       this.field = { home: {}, away: {}, weather: null };
       this.autoRotate = { home: false, away: true };
       this.quarterSeconds = quarterSeconds;
@@ -149,6 +155,7 @@
             this.offenseSituationScore(play) +
             this.offenseClockScore(play) +
             this.offenseHistoryScore(play) +
+            this.offenseStyleScore(play) +
             this.random() * 7,
         }))
         .sort((a, b) => b.score - a.score);
@@ -207,9 +214,18 @@
           this.defenseSituationScore(play) +
           this.defenseHistoryScore(play) +
           this.defenseClockScore(play) +
+          this.defenseStyleScore(play) +
           this.random() * 7,
       })).sort((a, b) => b.score - a.score);
       return ranked[0].play;
+    }
+
+    offenseStyleScore(play) {
+      return play.group === FootballGame.STYLE_GROUPS[this.cpuStyle] ? FootballGame.STYLE_BONUS : 0;
+    }
+
+    defenseStyleScore(play) {
+      return this.cpuStyle === 'pressure' && PlayMatchup.PRESSURE.includes(play.id) ? FootballGame.STYLE_BONUS : 0;
     }
 
     defenseSituationScore(play) {
@@ -722,6 +738,7 @@
       this.drainSand(offense, defense, attack, defend);
       this.countDownField();
       this.settleMoves(result.moves ?? [], { offense, defense });
+      this.recordStats(prior.side, offense, result);
       result.statuses = { before, after: this.badgeMap(result.participants, attack, defend) };
       this.history.push({ side: prior.side, id: offense.id, kind: offense.kind, defenseId: defense.id });
       this.clockRunning = this.isInBounds(offense, result, options) && this.drive === prior.drive;
@@ -734,6 +751,31 @@
       if (result.explanation) this.log.splice(1, 0, result.explanation);
       this.log.splice(1, 0, ...(result.moves ?? []).map((record) => this.moveLine(record)));
       this.phase = null;
+    }
+
+    box(side, mon) {
+      return (this.stats[side][mon.id] ??= {
+        yards: 0,
+        touchdowns: 0,
+        tackles: 0,
+        sacks: 0,
+        interceptions: 0,
+        moveHits: 0,
+      });
+    }
+
+    // Per-side box score keyed by Pokémon id: a Pokémon can sit on both teams.
+    recordStats(side, offense, result) {
+      for (const record of result.moves ?? []) if (record.hit) this.box(record.side, record.actor).moveHits += 1;
+      if (DEAD_KINDS.includes(offense.kind)) return;
+      const { carrier, defender } = result.participants;
+      const attack = this.box(side, carrier);
+      const defend = this.box(this.opponent(side), defender);
+      attack.yards += result.yards;
+      if (result.outcome === 'touchdown') attack.touchdowns += 1;
+      if (result.outcome === 'sack') defend.sacks += 1;
+      if (result.outcome === 'interception') defend.interceptions += 1;
+      if (FootballGame.TACKLE_OUTCOMES.includes(result.outcome)) defend.tackles += 1;
     }
 
     // Offensive roles read the attacking roster and defensive roles the defending one; a Pokémon can sit on both teams.

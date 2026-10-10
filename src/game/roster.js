@@ -250,30 +250,39 @@
       };
     }
 
-    static random(pokemon, cap = SALARY_CAP, random = Math.random) {
+    // `fixed` maps a slot index to a player placed there before the cap-aware draw fills the other slots.
+    static random(pokemon, cap = SALARY_CAP, random = Math.random, fixed = new Map()) {
       if (!(cap >= Roster.salaryRange(pokemon).min)) throw new RangeError('Cap cannot fund a full roster');
-      let available = [...pokemon].sort((a, b) => Roster.salary(a) - Roster.salary(b));
-      let budget = cap;
+      const kept = new Set([...fixed.values()].map((mon) => mon.id));
+      let available = pokemon.filter((mon) => !kept.has(mon.id)).sort((a, b) => Roster.salary(a) - Roster.salary(b));
+      let budget = cap - [...fixed.values()].reduce((sum, mon) => sum + Roster.salary(mon), 0);
+      let open = POSITIONS.length - fixed.size;
       const roster = new Roster(pokemon, []);
       for (const position of POSITIONS) {
-        const slots = POSITIONS.length - roster.players.length;
-        const minimum = available.slice(0, slots).reduce((sum, mon) => sum + Roster.salary(mon), 0);
-        const cutoff = Roster.salary(available[slots - 1]);
-        const allowance = Math.max(Roster.salary(available[0]), budget / slots);
-        // Reserve enough for every remaining slot, even at the lowest possible cap.
-        const candidates = available
-          .filter((mon) => {
-            const salary = Roster.salary(mon);
-            const reserve = minimum - Math.min(salary, cutoff);
-            return salary <= allowance && salary + reserve <= budget;
-          })
-          .sort((a, b) => Roster.rating(b, position.code) - Roster.rating(a, position.code));
-        const player = candidates[Math.floor(random() * Math.min(85, candidates.length))];
+        let player = fixed.get(roster.players.length);
+        if (!player) {
+          player = Roster.draw(available, budget, open--, position.code, random);
+          budget -= Roster.salary(player);
+          available = available.filter((mon) => mon.id !== player.id);
+        }
         roster.players.push(player);
-        budget -= Roster.salary(player);
-        available = available.filter((mon) => mon.id !== player.id);
       }
       return roster;
+    }
+
+    static draw(available, budget, slots, code, random) {
+      const minimum = available.slice(0, slots).reduce((sum, mon) => sum + Roster.salary(mon), 0);
+      const cutoff = Roster.salary(available[slots - 1]);
+      const allowance = Math.max(Roster.salary(available[0]), budget / slots);
+      // Reserve enough for every remaining slot, even at the lowest possible cap.
+      const candidates = available
+        .filter((mon) => {
+          const salary = Roster.salary(mon);
+          const reserve = minimum - Math.min(salary, cutoff);
+          return salary <= allowance && salary + reserve <= budget;
+        })
+        .sort((a, b) => Roster.rating(b, code) - Roster.rating(a, code));
+      return candidates[Math.floor(random() * Math.min(85, candidates.length))];
     }
 
     static salary(mon) {
@@ -387,6 +396,29 @@
         );
       }
       return slots.map(([role, depth]) => ({ mon: this.player(role, depth), role, depth: depth + 1 }));
+    }
+
+    // Every per-player record keys on the Pokémon id, so an evolution must move each one to the new id.
+    evolve(mon, into) {
+      const slot = this.players.indexOf(mon);
+      const target = this.pokemon[into - 1];
+      if (slot < 0) throw new RangeError(`${mon.name} is not on this roster`);
+      if (this.players.includes(target)) throw new RangeError(`${target.name} is already on this roster`);
+      this.players[slot] = target;
+      for (const records of [this.stamina, this.conditions, this.stages, this.movesets]) {
+        if (!records.has(mon.id)) continue;
+        records.set(target.id, records.get(mon.id));
+        records.delete(mon.id);
+      }
+      if (this.movesets.has(target.id)) this.setMoveset(target, this.evolvedMoveset(target));
+    }
+
+    // A moveset keeps every known move the new species learns; the default moveset fills the freed slots.
+    evolvedMoveset(target) {
+      const learnable = MoveBook.learnable(target);
+      const kept = this.movesets.get(target.id).filter((name) => learnable.includes(name));
+      const fill = MoveBook.defaultMoveset(target).filter((name) => !kept.includes(name));
+      return [...kept, ...fill].slice(0, MoveBook.MOVESET_SIZE);
     }
 
     assign(slotIndex, mon) {
