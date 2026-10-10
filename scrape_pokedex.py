@@ -18,6 +18,11 @@ TYPES = [
     "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel",
 ]
 # Before Gen 4 a move's damage class followed its type.
+# PokeAPI's `past_types` names the generation a type list stopped applying in; the earliest later entry holds the Gen 2 types.
+GENERATIONS = [
+    "generation-i", "generation-ii", "generation-iii", "generation-iv", "generation-v", "generation-vi",
+    "generation-vii", "generation-viii", "generation-ix",
+]
 PHYSICAL_TYPES = {"Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel"}
 SPECIAL_TYPES = {"Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark"}
 ROOT = Path(__file__).resolve().parent
@@ -136,7 +141,7 @@ class PokedexScraper:
 
 
 class PokeApiScraper:
-    """Reads Crystal learnsets, raw Gen 2 move mechanics, and the Gen 2 type chart from PokeAPI."""
+    """Reads Crystal learnsets, Gen 2 types, evolutions, raw Gen 2 move mechanics, and the Gen 2 type chart from PokeAPI."""
 
     def fetch(self, path: str) -> dict:
         request = Request(f"{POKEAPI}/{path}", headers={"User-Agent": "Mozilla/5.0"})
@@ -147,19 +152,60 @@ class PokeApiScraper:
         with ThreadPoolExecutor(max_workers=8) as pool:
             return list(pool.map(self.fetch, paths))
 
-    def learnsets(self) -> dict[int, list[str]]:
-        """Maps each Pokémon id to every move it learns in Crystal by any method."""
-        learned = {}
+    def profiles(self) -> dict[int, dict]:
+        """Maps each Pokémon id to its Gen 2 types and every move it learns in Crystal by any method."""
+        profiles = {}
         for dex, mon in enumerate(self.fetch_all([f"pokemon/{dex}" for dex in range(1, 252)]), start=1):
-            learned[dex] = sorted(
-                {
-                    entry["move"]["name"]
-                    for entry in mon["moves"]
-                    for detail in entry["version_group_details"]
-                    if detail["version_group"]["name"] == "crystal"
-                }
-            )
-        return learned
+            later = [entry for entry in mon["past_types"] if GENERATIONS.index(entry["generation"]["name"]) > 1]
+            earliest = min(later, key=lambda entry: GENERATIONS.index(entry["generation"]["name"]), default=None)
+            slots = earliest["types"] if earliest else mon["types"]
+            profiles[dex] = {
+                "types": [slot["type"]["name"].capitalize() for slot in sorted(slots, key=lambda slot: slot["slot"])],
+                "moves": sorted(
+                    {
+                        entry["move"]["name"]
+                        for entry in mon["moves"]
+                        for detail in entry["version_group_details"]
+                        if detail["version_group"]["name"] == "crystal"
+                    }
+                ),
+            }
+        return profiles
+
+    @staticmethod
+    def species_id(reference: dict) -> int:
+        return int(reference["url"].rstrip("/").split("/")[-1])
+
+    @staticmethod
+    def evolution(detail: dict, into: int) -> dict:
+        """Reduces a PokeAPI evolution detail to the trigger the game models: level-up, use-item, trade, or friendship."""
+        trigger = detail["trigger"]["name"]
+        if trigger == "level-up" and detail["min_happiness"] is not None:
+            trigger = "friendship"
+        item = detail["item"] or detail["held_item"]
+        return {
+            "into": into,
+            "trigger": trigger,
+            "min_level": detail["min_level"],
+            "item": item["name"] if item else None,
+        }
+
+    def evolutions(self) -> dict[int, list[dict]]:
+        """Maps each Pokémon id to the Gen 1-2 species it evolves into; later-generation targets are dropped."""
+        species = self.fetch_all([f"pokemon-species/{dex}" for dex in range(1, 252)])
+        chains = {self.species_id(mon["evolution_chain"]) for mon in species}
+        found: dict[int, list[dict]] = {dex: [] for dex in range(1, 252)}
+        for chain in self.fetch_all([f"evolution-chain/{number}" for number in sorted(chains)]):
+            pending = [chain["chain"]]
+            while pending:
+                node = pending.pop()
+                source = self.species_id(node["species"])
+                for child in node["evolves_to"]:
+                    into = self.species_id(child["species"])
+                    if max(source, into) <= 251:
+                        found[source].append(self.evolution(child["evolution_details"][0], into))
+                    pending.append(child)
+        return found
 
     def version_orders(self) -> dict[str, int]:
         names = [entry["name"] for entry in self.fetch("version-group?limit=100")["results"]]
@@ -232,8 +278,11 @@ if __name__ == "__main__":
     scraper = PokedexScraper()
     entries = scraper.parse(scraper.fetch())
     api = PokeApiScraper()
-    learned = api.learnsets()
+    profiles = api.profiles()
+    evolutions = api.evolutions()
     for entry in entries:
-        entry["moves"] = learned[entry["id"]]
+        entry["types"] = profiles[entry["id"]]["types"]
+        entry["moves"] = profiles[entry["id"]]["moves"]
+        entry["evolutions"] = sorted(evolutions[entry["id"]], key=lambda step: step["into"])
     scraper.save(entries, api.moves(), api.types())
     print(f"Saved {len(entries)} Pokémon to pokemon_gen1_2.json and pokemon_gen1_2.js")

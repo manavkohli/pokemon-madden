@@ -13,7 +13,7 @@ class PokedexChecks(unittest.TestCase):
         cls.data = json.loads((scrape_pokedex.ROOT / "pokemon_gen1_2.json").read_text(encoding="utf-8"))
 
     def test_reordered_rows_keep_canonical_ids(self):
-        entries = [{key: value for key, value in entry.items() if key != "moves"} for entry in self.data["pokemon"]]
+        entries = [{key: value for key, value in entry.items() if key not in ("moves", "evolutions")} for entry in self.data["pokemon"]]
         rows = []
         for entry in reversed(entries):
             cells = [
@@ -46,6 +46,32 @@ class PokedexChecks(unittest.TestCase):
         self.assertEqual(moves["thunderbolt"]["type"], "Electric")
         self.assertEqual(moves["thunderbolt"]["meta"]["ailment"], "paralysis")
         self.assertTrue(all(name in moves for entry in self.data["pokemon"] for name in entry["moves"]))
+
+    def evolution(self, name, target):
+        pokemon = {entry["id"]: entry for entry in self.data["pokemon"]}
+        source = next(entry for entry in self.data["pokemon"] if entry["name"] == name)
+        return next(step for step in source["evolutions"] if pokemon[step["into"]]["name"] == target)
+
+    def test_evolution_triggers(self):
+        bulbasaur = self.evolution("Bulbasaur", "Ivysaur")
+        self.assertEqual((bulbasaur["trigger"], bulbasaur["min_level"]), ("level-up", 16))
+        self.assertEqual(self.evolution("Pikachu", "Raichu")["item"], "thunder-stone")
+        self.assertEqual(self.evolution("Kadabra", "Alakazam")["trigger"], "trade")
+        self.assertEqual(self.evolution("Golbat", "Crobat")["trigger"], "friendship")
+        self.assertEqual(self.evolution("Eevee", "Flareon")["item"], "fire-stone")
+
+    def test_evolutions_stay_in_the_catalog(self):
+        steps = [step for entry in self.data["pokemon"] for step in entry["evolutions"]]
+        self.assertTrue(steps)
+        self.assertTrue(all(1 <= step["into"] <= 251 for step in steps))
+        self.assertTrue(all(step["min_level"] for step in steps if step["trigger"] == "level-up"))
+
+    def test_roster_uses_gen_2_types(self):
+        pokemon = {entry["name"]: entry for entry in self.data["pokemon"]}
+        self.assertNotIn("Fairy", {kind for entry in self.data["pokemon"] for kind in entry["types"]})
+        self.assertEqual(pokemon["Clefairy"]["types"], ["Normal"])
+        self.assertEqual(pokemon["Togetic"]["types"], ["Normal", "Flying"])
+        self.assertEqual(pokemon["Magnemite"]["types"], ["Electric", "Steel"])
 
     def test_gen_2_type_chart(self):
         types = self.data["types"]

@@ -55,6 +55,14 @@
         "tackle",
         "toxic",
         "vine-whip"
+      ],
+      "evolutions": [
+        {
+          "into": 2,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -106,6 +114,14 @@
         "tackle",
         "toxic",
         "vine-whip"
+      ],
+      "evolutions": [
+        {
+          "into": 3,
+          "trigger": "level-up",
+          "min_level": 32,
+          "item": null
+        }
       ]
     },
     {
@@ -159,7 +175,8 @@
         "tackle",
         "toxic",
         "vine-whip"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 4,
@@ -221,6 +238,14 @@
         "swagger",
         "swift",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 5,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -277,6 +302,14 @@
         "swagger",
         "swift",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 6,
+          "trigger": "level-up",
+          "min_level": 36,
+          "item": null
+        }
       ]
     },
     {
@@ -341,7 +374,8 @@
         "swift",
         "toxic",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 7,
@@ -404,6 +438,14 @@
         "waterfall",
         "whirlpool",
         "withdraw"
+      ],
+      "evolutions": [
+        {
+          "into": 8,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -461,6 +503,14 @@
         "waterfall",
         "whirlpool",
         "withdraw"
+      ],
+      "evolutions": [
+        {
+          "into": 9,
+          "trigger": "level-up",
+          "min_level": 36,
+          "item": null
+        }
       ]
     },
     {
@@ -521,7 +571,8 @@
         "waterfall",
         "whirlpool",
         "withdraw"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 10,
@@ -541,6 +592,14 @@
       "moves": [
         "string-shot",
         "tackle"
+      ],
+      "evolutions": [
+        {
+          "into": 11,
+          "trigger": "level-up",
+          "min_level": 7,
+          "item": null
+        }
       ]
     },
     {
@@ -560,6 +619,14 @@
       },
       "moves": [
         "harden"
+      ],
+      "evolutions": [
+        {
+          "into": 12,
+          "trigger": "level-up",
+          "min_level": 10,
+          "item": null
+        }
       ]
     },
     {
@@ -610,7 +677,8 @@
         "swift",
         "toxic",
         "whirlwind"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 13,
@@ -631,6 +699,14 @@
       "moves": [
         "poison-sting",
         "string-shot"
+      ],
+      "evolutions": [
+        {
+          "into": 14,
+          "trigger": "level-up",
+          "min_level": 7,
+          "item": null
+        }
       ]
     },
     {
@@ -651,6 +727,14 @@
       },
       "moves": [
         "harden"
+      ],
+      "evolutions": [
+        {
+          "into": 15,
+          "trigger": "level-up",
+          "min_level": 10,
+          "item": null
+        }
       ]
     },
     {
@@ -698,7 +782,8 @@
         "swift",
         "toxic",
         "twineedle"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 16,
@@ -748,6 +833,14 @@
         "toxic",
         "whirlwind",
         "wing-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 17,
+          "trigger": "level-up",
+          "min_level": 18,
+          "item": null
+        }
       ]
     },
     {
@@ -795,6 +888,14 @@
         "toxic",
         "whirlwind",
         "wing-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 18,
+          "trigger": "level-up",
+          "min_level": 36,
+          "item": null
+        }
       ]
     },
     {
@@ -843,7 +944,8 @@
         "toxic",
         "whirlwind",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 19,
@@ -900,6 +1002,14 @@
         "thief",
         "thunder",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 20,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        }
       ]
     },
     {
@@ -957,7 +1067,8 @@
         "thunder",
         "thunderbolt",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 21,
@@ -1009,6 +1120,14 @@
         "thief",
         "toxic",
         "tri-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 22,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        }
       ]
     },
     {
@@ -1057,7 +1176,8 @@
         "swift",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 23,
@@ -1109,6 +1229,14 @@
         "thief",
         "toxic",
         "wrap"
+      ],
+      "evolutions": [
+        {
+          "into": 24,
+          "trigger": "level-up",
+          "min_level": 22,
+          "item": null
+        }
       ]
     },
     {
@@ -1157,7 +1285,8 @@
         "thief",
         "toxic",
         "wrap"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 25,
@@ -1211,6 +1340,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 26,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "thunder-stone"
+        }
       ]
     },
     {
@@ -1262,7 +1399,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 27,
@@ -1320,6 +1458,14 @@
         "swift",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 28,
+          "trigger": "level-up",
+          "min_level": 22,
+          "item": null
+        }
       ]
     },
     {
@@ -1374,7 +1520,8 @@
         "swift",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 29,
@@ -1431,6 +1578,14 @@
         "thunder",
         "thunderbolt",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 30,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -1484,6 +1639,14 @@
         "thunder",
         "thunderbolt",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 31,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "moon-stone"
+        }
       ]
     },
     {
@@ -1549,7 +1712,8 @@
         "thunder-punch",
         "thunderbolt",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 32,
@@ -1606,6 +1770,14 @@
         "thunder",
         "thunderbolt",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 33,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -1659,6 +1831,14 @@
         "thunder",
         "thunderbolt",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 34,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "moon-stone"
+        }
       ]
     },
     {
@@ -1724,13 +1904,14 @@
         "thunder-punch",
         "thunderbolt",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 35,
       "name": "Clefairy",
       "types": [
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 323,
@@ -1791,13 +1972,21 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 36,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "moon-stone"
+        }
       ]
     },
     {
       "id": 36,
       "name": "Clefable",
       "types": [
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 483,
@@ -1854,7 +2043,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 37,
@@ -1904,6 +2094,14 @@
         "swift",
         "tail-whip",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 38,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "fire-stone"
+        }
       ]
     },
     {
@@ -1949,14 +2147,14 @@
         "swagger",
         "swift",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 39,
       "name": "Jigglypuff",
       "types": [
-        "Normal",
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 270,
@@ -2013,14 +2211,21 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 40,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "moon-stone"
+        }
       ]
     },
     {
       "id": 40,
       "name": "Wigglytuff",
       "types": [
-        "Normal",
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 435,
@@ -2075,7 +2280,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 41,
@@ -2125,6 +2331,14 @@
         "toxic",
         "whirlwind",
         "wing-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 42,
+          "trigger": "level-up",
+          "min_level": 22,
+          "item": null
+        }
       ]
     },
     {
@@ -2172,6 +2386,14 @@
         "thief",
         "toxic",
         "wing-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 169,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -2222,6 +2444,14 @@
         "swords-dance",
         "synthesis",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 44,
+          "trigger": "level-up",
+          "min_level": 21,
+          "item": null
+        }
       ]
     },
     {
@@ -2268,6 +2498,20 @@
         "swagger",
         "sweet-scent",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 45,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "leaf-stone"
+        },
+        {
+          "into": 182,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "sun-stone"
+        }
       ]
     },
     {
@@ -2311,7 +2555,8 @@
         "swagger",
         "sweet-scent",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 46,
@@ -2368,6 +2613,14 @@
         "sweet-scent",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 47,
+          "trigger": "level-up",
+          "min_level": 24,
+          "item": null
+        }
       ]
     },
     {
@@ -2419,7 +2672,8 @@
         "sweet-scent",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 48,
@@ -2471,6 +2725,14 @@
         "tackle",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 49,
+          "trigger": "level-up",
+          "min_level": 31,
+          "item": null
+        }
       ]
     },
     {
@@ -2524,7 +2786,8 @@
         "tackle",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 50,
@@ -2574,6 +2837,14 @@
         "swagger",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 51,
+          "trigger": "level-up",
+          "min_level": 26,
+          "item": null
+        }
       ]
     },
     {
@@ -2621,7 +2892,8 @@
         "thief",
         "toxic",
         "tri-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 52,
@@ -2680,6 +2952,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 53,
+          "trigger": "level-up",
+          "min_level": 28,
+          "item": null
+        }
       ]
     },
     {
@@ -2737,7 +3017,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 54,
@@ -2800,6 +3081,14 @@
         "toxic",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 55,
+          "trigger": "level-up",
+          "min_level": 33,
+          "item": null
+        }
       ]
     },
     {
@@ -2858,7 +3147,8 @@
         "toxic",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 56,
@@ -2923,6 +3213,14 @@
         "thunder-punch",
         "thunderbolt",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 57,
+          "trigger": "level-up",
+          "min_level": 28,
+          "item": null
+        }
       ]
     },
     {
@@ -2984,7 +3282,8 @@
         "thunder-punch",
         "thunderbolt",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 58,
@@ -3036,6 +3335,14 @@
         "take-down",
         "thrash",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 59,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "fire-stone"
+        }
       ]
     },
     {
@@ -3082,7 +3389,8 @@
         "swift",
         "take-down",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 60,
@@ -3136,6 +3444,14 @@
         "water-gun",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 61,
+          "trigger": "level-up",
+          "min_level": 25,
+          "item": null
+        }
       ]
     },
     {
@@ -3191,6 +3507,20 @@
         "water-gun",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 62,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "water-stone"
+        },
+        {
+          "into": 186,
+          "trigger": "trade",
+          "min_level": null,
+          "item": "kings-rock"
+        }
       ]
     },
     {
@@ -3247,7 +3577,8 @@
         "water-gun",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 63,
@@ -3297,6 +3628,14 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 64,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -3352,6 +3691,14 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 65,
+          "trigger": "trade",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -3408,7 +3755,8 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 66,
@@ -3468,6 +3816,14 @@
         "thunder-punch",
         "toxic",
         "vital-throw"
+      ],
+      "evolutions": [
+        {
+          "into": 67,
+          "trigger": "level-up",
+          "min_level": 28,
+          "item": null
+        }
       ]
     },
     {
@@ -3524,6 +3880,14 @@
         "thunder-punch",
         "toxic",
         "vital-throw"
+      ],
+      "evolutions": [
+        {
+          "into": 68,
+          "trigger": "trade",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -3581,7 +3945,8 @@
         "thunder-punch",
         "toxic",
         "vital-throw"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 69,
@@ -3634,6 +3999,14 @@
         "toxic",
         "vine-whip",
         "wrap"
+      ],
+      "evolutions": [
+        {
+          "into": 70,
+          "trigger": "level-up",
+          "min_level": 21,
+          "item": null
+        }
       ]
     },
     {
@@ -3682,6 +4055,14 @@
         "toxic",
         "vine-whip",
         "wrap"
+      ],
+      "evolutions": [
+        {
+          "into": 71,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "leaf-stone"
+        }
       ]
     },
     {
@@ -3725,7 +4106,8 @@
         "sweet-scent",
         "toxic",
         "vine-whip"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 72,
@@ -3780,6 +4162,14 @@
         "toxic",
         "whirlpool",
         "wrap"
+      ],
+      "evolutions": [
+        {
+          "into": 73,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -3831,7 +4221,8 @@
         "toxic",
         "whirlpool",
         "wrap"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 74,
@@ -3885,6 +4276,14 @@
         "swagger",
         "tackle",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 75,
+          "trigger": "level-up",
+          "min_level": 25,
+          "item": null
+        }
       ]
     },
     {
@@ -3937,6 +4336,14 @@
         "swagger",
         "tackle",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 76,
+          "trigger": "trade",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -3992,7 +4399,8 @@
         "swagger",
         "tackle",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 77,
@@ -4043,6 +4451,14 @@
         "take-down",
         "thrash",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 78,
+          "trigger": "level-up",
+          "min_level": 40,
+          "item": null
+        }
       ]
     },
     {
@@ -4090,7 +4506,8 @@
         "tail-whip",
         "take-down",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 79,
@@ -4154,6 +4571,20 @@
         "toxic",
         "water-gun",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 80,
+          "trigger": "level-up",
+          "min_level": 37,
+          "item": null
+        },
+        {
+          "into": 199,
+          "trigger": "trade",
+          "min_level": null,
+          "item": "kings-rock"
+        }
       ]
     },
     {
@@ -4220,7 +4651,8 @@
         "water-gun",
         "withdraw",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 81,
@@ -4265,6 +4697,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 82,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -4312,7 +4752,8 @@
         "toxic",
         "tri-attack",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 83,
@@ -4368,7 +4809,8 @@
         "swords-dance",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 84,
@@ -4419,6 +4861,14 @@
         "thief",
         "toxic",
         "tri-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 85,
+          "trigger": "level-up",
+          "min_level": 31,
+          "item": null
+        }
       ]
     },
     {
@@ -4466,7 +4916,8 @@
         "thief",
         "toxic",
         "tri-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 86,
@@ -4515,6 +4966,14 @@
         "toxic",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 87,
+          "trigger": "level-up",
+          "min_level": 34,
+          "item": null
+        }
       ]
     },
     {
@@ -4560,7 +5019,8 @@
         "toxic",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 88,
@@ -4616,6 +5076,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 89,
+          "trigger": "level-up",
+          "min_level": 38,
+          "item": null
+        }
       ]
     },
     {
@@ -4670,7 +5138,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 90,
@@ -4719,6 +5188,14 @@
         "toxic",
         "whirlpool",
         "withdraw"
+      ],
+      "evolutions": [
+        {
+          "into": 91,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "water-stone"
+        }
       ]
     },
     {
@@ -4764,7 +5241,8 @@
         "toxic",
         "whirlpool",
         "withdraw"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 92,
@@ -4818,6 +5296,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 93,
+          "trigger": "level-up",
+          "min_level": 25,
+          "item": null
+        }
       ]
     },
     {
@@ -4869,6 +5355,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 94,
+          "trigger": "trade",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -4928,7 +5422,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 95,
@@ -4979,6 +5474,14 @@
         "swagger",
         "tackle",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 208,
+          "trigger": "trade",
+          "min_level": null,
+          "item": "metal-coat"
+        }
       ]
     },
     {
@@ -5033,6 +5536,14 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 97,
+          "trigger": "level-up",
+          "min_level": 26,
+          "item": null
+        }
       ]
     },
     {
@@ -5086,7 +5597,8 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 98,
@@ -5141,6 +5653,14 @@
         "toxic",
         "vice-grip",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 99,
+          "trigger": "level-up",
+          "min_level": 28,
+          "item": null
+        }
       ]
     },
     {
@@ -5192,7 +5712,8 @@
         "toxic",
         "vice-grip",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 100,
@@ -5237,6 +5758,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 101,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -5283,7 +5812,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 102,
@@ -5339,6 +5869,14 @@
         "synthesis",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 103,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "leaf-stone"
+        }
       ]
     },
     {
@@ -5390,7 +5928,8 @@
         "swagger",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 104,
@@ -5457,6 +5996,14 @@
         "thrash",
         "thunder-punch",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 105,
+          "trigger": "level-up",
+          "min_level": 28,
+          "item": null
+        }
       ]
     },
     {
@@ -5518,7 +6065,8 @@
         "thrash",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 106,
@@ -5568,7 +6116,8 @@
         "swift",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 107,
@@ -5617,7 +6166,8 @@
         "thief",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 108,
@@ -5688,7 +6238,8 @@
         "thunderbolt",
         "toxic",
         "wrap"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 109,
@@ -5741,6 +6292,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 110,
+          "trigger": "level-up",
+          "min_level": 35,
+          "item": null
+        }
       ]
     },
     {
@@ -5791,7 +6350,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 111,
@@ -5856,6 +6416,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 112,
+          "trigger": "level-up",
+          "min_level": 42,
+          "item": null
+        }
       ]
     },
     {
@@ -5920,7 +6488,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 113,
@@ -5990,6 +6559,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 242,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -6046,7 +6623,8 @@
         "thief",
         "toxic",
         "vine-whip"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 115,
@@ -6116,7 +6694,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 116,
@@ -6170,6 +6749,14 @@
         "water-gun",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 117,
+          "trigger": "level-up",
+          "min_level": 32,
+          "item": null
+        }
       ]
     },
     {
@@ -6219,6 +6806,14 @@
         "water-gun",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 230,
+          "trigger": "trade",
+          "min_level": null,
+          "item": "dragon-scale"
+        }
       ]
     },
     {
@@ -6268,6 +6863,14 @@
         "tail-whip",
         "toxic",
         "waterfall"
+      ],
+      "evolutions": [
+        {
+          "into": 119,
+          "trigger": "level-up",
+          "min_level": 33,
+          "item": null
+        }
       ]
     },
     {
@@ -6315,7 +6918,8 @@
         "tail-whip",
         "toxic",
         "waterfall"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 120,
@@ -6369,6 +6973,14 @@
         "waterfall",
         "whirlpool",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 121,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "water-stone"
+        }
       ]
     },
     {
@@ -6423,14 +7035,14 @@
         "waterfall",
         "whirlpool",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 122,
       "name": "Mr. Mime",
       "types": [
-        "Psychic",
-        "Fairy"
+        "Psychic"
       ],
       "base_stats": {
         "total": 460,
@@ -6488,7 +7100,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 123,
@@ -6545,6 +7158,14 @@
         "thief",
         "toxic",
         "wing-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 212,
+          "trigger": "trade",
+          "min_level": null,
+          "item": "metal-coat"
+        }
       ]
     },
     {
@@ -6601,7 +7222,8 @@
         "sweet-scent",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 125,
@@ -6655,7 +7277,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 126,
@@ -6706,7 +7329,8 @@
         "thief",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 127,
@@ -6755,7 +7379,8 @@
         "thief",
         "toxic",
         "vice-grip"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 128,
@@ -6810,7 +7435,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 129,
@@ -6831,6 +7457,14 @@
         "flail",
         "splash",
         "tackle"
+      ],
+      "evolutions": [
+        {
+          "into": 130,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        }
       ]
     },
     {
@@ -6888,7 +7522,8 @@
         "waterfall",
         "whirlpool",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 131,
@@ -6949,7 +7584,8 @@
         "water-gun",
         "whirlpool",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 132,
@@ -6968,7 +7604,8 @@
       },
       "moves": [
         "transform"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 133,
@@ -7017,6 +7654,38 @@
         "tail-whip",
         "take-down",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 134,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "water-stone"
+        },
+        {
+          "into": 135,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "thunder-stone"
+        },
+        {
+          "into": 136,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "fire-stone"
+        },
+        {
+          "into": 196,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        },
+        {
+          "into": 197,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
@@ -7074,7 +7743,8 @@
         "water-gun",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 135,
@@ -7128,7 +7798,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 136,
@@ -7181,7 +7852,8 @@
         "tail-whip",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 137,
@@ -7237,6 +7909,14 @@
         "toxic",
         "tri-attack",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 233,
+          "trigger": "trade",
+          "min_level": null,
+          "item": "up-grade"
+        }
       ]
     },
     {
@@ -7292,6 +7972,14 @@
         "water-gun",
         "whirlpool",
         "withdraw"
+      ],
+      "evolutions": [
+        {
+          "into": 139,
+          "trigger": "level-up",
+          "min_level": 40,
+          "item": null
+        }
       ]
     },
     {
@@ -7344,7 +8032,8 @@
         "water-gun",
         "whirlpool",
         "withdraw"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 140,
@@ -7397,6 +8086,14 @@
         "swagger",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 141,
+          "trigger": "level-up",
+          "min_level": 40,
+          "item": null
+        }
       ]
     },
     {
@@ -7452,7 +8149,8 @@
         "thief",
         "toxic",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 142,
@@ -7509,7 +8207,8 @@
         "toxic",
         "whirlwind",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 143,
@@ -7573,7 +8272,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 144,
@@ -7624,7 +8324,8 @@
         "swagger",
         "swift",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 145,
@@ -7676,7 +8377,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 146,
@@ -7726,7 +8428,8 @@
         "swift",
         "toxic",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 147,
@@ -7787,6 +8490,14 @@
         "waterfall",
         "wrap",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 148,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -7844,6 +8555,14 @@
         "waterfall",
         "wrap",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 149,
+          "trigger": "level-up",
+          "min_level": 55,
+          "item": null
+        }
       ]
     },
     {
@@ -7915,7 +8634,8 @@
         "wing-attack",
         "wrap",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 150,
@@ -7982,7 +8702,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 151,
@@ -8065,7 +8786,8 @@
         "waterfall",
         "whirlpool",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 152,
@@ -8121,6 +8843,14 @@
         "tackle",
         "toxic",
         "vine-whip"
+      ],
+      "evolutions": [
+        {
+          "into": 153,
+          "trigger": "level-up",
+          "min_level": 16,
+          "item": null
+        }
       ]
     },
     {
@@ -8174,6 +8904,14 @@
         "synthesis",
         "tackle",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 154,
+          "trigger": "level-up",
+          "min_level": 32,
+          "item": null
+        }
       ]
     },
     {
@@ -8229,7 +8967,8 @@
         "synthesis",
         "tackle",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 155,
@@ -8283,6 +9022,14 @@
         "tackle",
         "thrash",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 156,
+          "trigger": "level-up",
+          "min_level": 14,
+          "item": null
+        }
       ]
     },
     {
@@ -8336,6 +9083,14 @@
         "swift",
         "tackle",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 157,
+          "trigger": "level-up",
+          "min_level": 36,
+          "item": null
+        }
       ]
     },
     {
@@ -8394,7 +9149,8 @@
         "tackle",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 158,
@@ -8453,6 +9209,14 @@
         "toxic",
         "water-gun",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 159,
+          "trigger": "level-up",
+          "min_level": 18,
+          "item": null
+        }
       ]
     },
     {
@@ -8511,6 +9275,14 @@
         "toxic",
         "water-gun",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 160,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -8571,7 +9343,8 @@
         "toxic",
         "water-gun",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 161,
@@ -8630,6 +9403,14 @@
         "thief",
         "thunder-punch",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 162,
+          "trigger": "level-up",
+          "min_level": 15,
+          "item": null
+        }
       ]
     },
     {
@@ -8686,7 +9467,8 @@
         "thief",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 163,
@@ -8742,6 +9524,14 @@
         "toxic",
         "whirlwind",
         "wing-attack"
+      ],
+      "evolutions": [
+        {
+          "into": 164,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        }
       ]
     },
     {
@@ -8793,7 +9583,8 @@
         "take-down",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 165,
@@ -8849,6 +9640,14 @@
         "thief",
         "thunder-punch",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 166,
+          "trigger": "level-up",
+          "min_level": 18,
+          "item": null
+        }
       ]
     },
     {
@@ -8904,7 +9703,8 @@
         "thief",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 167,
@@ -8958,6 +9758,14 @@
         "swagger",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 168,
+          "trigger": "level-up",
+          "min_level": 22,
+          "item": null
+        }
       ]
     },
     {
@@ -9008,7 +9816,8 @@
         "swagger",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 169,
@@ -9056,7 +9865,8 @@
         "thief",
         "toxic",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 170,
@@ -9107,6 +9917,14 @@
         "waterfall",
         "whirlpool",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 171,
+          "trigger": "level-up",
+          "min_level": 27,
+          "item": null
+        }
       ]
     },
     {
@@ -9158,7 +9976,8 @@
         "waterfall",
         "whirlpool",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 172,
@@ -9211,13 +10030,21 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 25,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
       "id": 173,
       "name": "Cleffa",
       "types": [
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 218,
@@ -9272,14 +10099,21 @@
         "sweet-kiss",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 35,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
       "id": 174,
       "name": "Igglybuff",
       "types": [
-        "Normal",
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 210,
@@ -9329,13 +10163,21 @@
         "sweet-kiss",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 39,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
       "id": 175,
       "name": "Togepi",
       "types": [
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 245,
@@ -9390,13 +10232,21 @@
         "swift",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 176,
+          "trigger": "friendship",
+          "min_level": null,
+          "item": null
+        }
       ]
     },
     {
       "id": 176,
       "name": "Togetic",
       "types": [
-        "Fairy",
+        "Normal",
         "Flying"
       ],
       "base_stats": {
@@ -9450,7 +10300,8 @@
         "swift",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 177,
@@ -9504,6 +10355,14 @@
         "teleport",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 178,
+          "trigger": "level-up",
+          "min_level": 25,
+          "item": null
+        }
       ]
     },
     {
@@ -9555,7 +10414,8 @@
         "teleport",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 179,
@@ -9606,6 +10466,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 180,
+          "trigger": "level-up",
+          "min_level": 15,
+          "item": null
+        }
       ]
     },
     {
@@ -9657,6 +10525,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 181,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -9709,7 +10585,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 182,
@@ -9750,14 +10627,14 @@
         "swagger",
         "sweet-scent",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 183,
       "name": "Marill",
       "types": [
-        "Water",
-        "Fairy"
+        "Water"
       ],
       "base_stats": {
         "total": 250,
@@ -9810,14 +10687,21 @@
         "water-gun",
         "waterfall",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 184,
+          "trigger": "level-up",
+          "min_level": 18,
+          "item": null
+        }
       ]
     },
     {
       "id": 184,
       "name": "Azumarill",
       "types": [
-        "Water",
-        "Fairy"
+        "Water"
       ],
       "base_stats": {
         "total": 420,
@@ -9865,7 +10749,8 @@
         "water-gun",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 185,
@@ -9920,7 +10805,8 @@
         "thief",
         "thunder-punch",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 186,
@@ -9974,7 +10860,8 @@
         "water-gun",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 187,
@@ -10030,6 +10917,14 @@
         "tackle",
         "tail-whip",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 188,
+          "trigger": "level-up",
+          "min_level": 18,
+          "item": null
+        }
       ]
     },
     {
@@ -10079,6 +10974,14 @@
         "tackle",
         "tail-whip",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 189,
+          "trigger": "level-up",
+          "min_level": 27,
+          "item": null
+        }
       ]
     },
     {
@@ -10129,7 +11032,8 @@
         "tackle",
         "tail-whip",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 190,
@@ -10195,7 +11099,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 191,
@@ -10237,6 +11142,14 @@
         "sweet-scent",
         "synthesis",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 192,
+          "trigger": "use-item",
+          "min_level": null,
+          "item": "sun-stone"
+        }
       ]
     },
     {
@@ -10281,7 +11194,8 @@
         "swagger",
         "sweet-scent",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 193,
@@ -10331,7 +11245,8 @@
         "toxic",
         "whirlwind",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 194,
@@ -10389,6 +11304,14 @@
         "toxic",
         "water-gun",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 195,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        }
       ]
     },
     {
@@ -10446,7 +11369,8 @@
         "toxic",
         "water-gun",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 196,
@@ -10500,7 +11424,8 @@
         "tail-whip",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 197,
@@ -10557,7 +11482,8 @@
         "tail-whip",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 198,
@@ -10613,7 +11539,8 @@
         "toxic",
         "whirlwind",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 199,
@@ -10678,7 +11605,8 @@
         "water-gun",
         "whirlpool",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 200,
@@ -10734,7 +11662,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 201,
@@ -10753,7 +11682,8 @@
       },
       "moves": [
         "hidden-power"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 202,
@@ -10775,7 +11705,8 @@
         "destiny-bond",
         "mirror-coat",
         "safeguard"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 203,
@@ -10837,7 +11768,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 204,
@@ -10889,6 +11821,14 @@
         "tackle",
         "take-down",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 205,
+          "trigger": "level-up",
+          "min_level": 31,
+          "item": null
+        }
       ]
     },
     {
@@ -10940,7 +11880,8 @@
         "tackle",
         "take-down",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 206,
@@ -11000,7 +11941,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 207,
@@ -11056,7 +11998,8 @@
         "thief",
         "toxic",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 208,
@@ -11111,13 +12054,14 @@
         "swagger",
         "tackle",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 209,
       "name": "Snubbull",
       "types": [
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 300,
@@ -11176,13 +12120,21 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 210,
+          "trigger": "level-up",
+          "min_level": 23,
+          "item": null
+        }
       ]
     },
     {
       "id": 210,
       "name": "Granbull",
       "types": [
-        "Fairy"
+        "Normal"
       ],
       "base_stats": {
         "total": 450,
@@ -11235,7 +12187,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 211,
@@ -11292,7 +12245,8 @@
         "water-gun",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 212,
@@ -11345,7 +12299,8 @@
         "swords-dance",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 213,
@@ -11396,7 +12351,8 @@
         "toxic",
         "withdraw",
         "wrap"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 214,
@@ -11448,7 +12404,8 @@
         "take-down",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 215,
@@ -11518,7 +12475,8 @@
         "swift",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 216,
@@ -11581,6 +12539,14 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 217,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -11639,7 +12605,8 @@
         "thunder-punch",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 218,
@@ -11685,6 +12652,14 @@
         "sunny-day",
         "swagger",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 219,
+          "trigger": "level-up",
+          "min_level": 38,
+          "item": null
+        }
       ]
     },
     {
@@ -11734,7 +12709,8 @@
         "sunny-day",
         "swagger",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 220,
@@ -11787,6 +12763,14 @@
         "tackle",
         "take-down",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 221,
+          "trigger": "level-up",
+          "min_level": 33,
+          "item": null
+        }
       ]
     },
     {
@@ -11838,7 +12822,8 @@
         "swagger",
         "take-down",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 222,
@@ -11897,7 +12882,8 @@
         "tackle",
         "toxic",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 223,
@@ -11948,6 +12934,14 @@
         "toxic",
         "water-gun",
         "whirlpool"
+      ],
+      "evolutions": [
+        {
+          "into": 224,
+          "trigger": "level-up",
+          "min_level": 25,
+          "item": null
+        }
       ]
     },
     {
@@ -11996,7 +12990,8 @@
         "toxic",
         "water-gun",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 225,
@@ -12044,7 +13039,8 @@
         "swift",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 226,
@@ -12098,7 +13094,8 @@
         "waterfall",
         "whirlpool",
         "wing-attack"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 227,
@@ -12148,7 +13145,8 @@
         "thief",
         "toxic",
         "whirlwind"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 228,
@@ -12209,6 +13207,14 @@
         "swift",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 229,
+          "trigger": "level-up",
+          "min_level": 24,
+          "item": null
+        }
       ]
     },
     {
@@ -12265,7 +13271,8 @@
         "swift",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 230,
@@ -12315,7 +13322,8 @@
         "water-gun",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 231,
@@ -12365,6 +13373,14 @@
         "take-down",
         "toxic",
         "water-gun"
+      ],
+      "evolutions": [
+        {
+          "into": 232,
+          "trigger": "level-up",
+          "min_level": 25,
+          "item": null
+        }
       ]
     },
     {
@@ -12412,7 +13428,8 @@
         "sunny-day",
         "swagger",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 233,
@@ -12468,7 +13485,8 @@
         "toxic",
         "tri-attack",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 234,
@@ -12525,7 +13543,8 @@
         "take-down",
         "thief",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 235,
@@ -12544,7 +13563,8 @@
       },
       "moves": [
         "sketch"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 236,
@@ -12588,6 +13608,26 @@
         "tackle",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 106,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        },
+        {
+          "into": 107,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        },
+        {
+          "into": 237,
+          "trigger": "level-up",
+          "min_level": 20,
+          "item": null
+        }
       ]
     },
     {
@@ -12636,7 +13676,8 @@
         "thief",
         "toxic",
         "triple-kick"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 238,
@@ -12691,6 +13732,14 @@
         "sweet-scent",
         "thief",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 124,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -12746,6 +13795,14 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
+      ],
+      "evolutions": [
+        {
+          "into": 125,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -12799,6 +13856,14 @@
         "thief",
         "thunder-punch",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 126,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -12866,7 +13931,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 242,
@@ -12931,7 +13997,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 243,
@@ -12987,7 +14054,8 @@
         "thunderbolt",
         "toxic",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 244,
@@ -13041,7 +14109,8 @@
         "swagger",
         "swift",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 245,
@@ -13099,7 +14168,8 @@
         "toxic",
         "waterfall",
         "whirlpool"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 246,
@@ -13152,6 +14222,14 @@
         "swagger",
         "thrash",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 247,
+          "trigger": "level-up",
+          "min_level": 30,
+          "item": null
+        }
       ]
     },
     {
@@ -13200,6 +14278,14 @@
         "swagger",
         "thrash",
         "toxic"
+      ],
+      "evolutions": [
+        {
+          "into": 248,
+          "trigger": "level-up",
+          "min_level": 55,
+          "item": null
+        }
       ]
     },
     {
@@ -13263,7 +14349,8 @@
         "thrash",
         "thunderbolt",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 249,
@@ -13333,7 +14420,8 @@
         "whirlpool",
         "whirlwind",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 250,
@@ -13398,7 +14486,8 @@
         "toxic",
         "whirlwind",
         "zap-cannon"
-      ]
+      ],
+      "evolutions": []
     },
     {
       "id": 251,
@@ -13455,7 +14544,8 @@
         "sweet-scent",
         "swift",
         "toxic"
-      ]
+      ],
+      "evolutions": []
     }
   ],
   "moves": {

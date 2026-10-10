@@ -1,6 +1,6 @@
 {
   "name": "pokeballers",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "A turn-based pocket football fan game with a dependency-free browser runtime.",
   "license": "MIT",
