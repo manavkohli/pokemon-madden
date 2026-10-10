@@ -122,6 +122,16 @@ Ditto and Smeargle have no usable moves, and a few Pokémon (Magikarp, Caterpie,
 
 The CPU calls plays from down, distance, field position, score, clock, roster ratings, and your recent tendencies. It kicks and punts on fourth down by field position, calls timeouts late in the half when behind, rotates tired players automatically, fires an ability on about a third of calls, and fires a move on 40% of calls: it draws a move kind (strikes twice as often as each other kind), then uses its best move of that kind.
 
+### Gym Challenge
+
+Choose **Gym Challenge** on the start screen to play a 13-game Kanto circuit: Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine, Giovanni, the Elite Four (Lorelei, Bruno, Agatha, Lance), and your rival. Draft once under 20,000 credits. Each leader fields a team built around their type (up to 12 stars) under a credit cap that rises from 15,500 to 28,000, and favors a style: run-heavy, pass-heavy, or blitz and tricks. A win earns the badge and opens the next leader; a loss lets you rematch.
+
+![The Gym Challenge map with the badge case and roster levels](docs/screenshots/png/league-map-save-1280.png)
+
+Your roster carries from game to game. Every player starts at the lowest level of its evolution stage and gains levels from its box score (1 per 10 yards, 3 per touchdown, 1 per tackle, 2 per sack or interception, 1 per move hit) plus 2 for everyone after a win. A player evolves when it reaches its evolution level. Trade evolutions (Kadabra, Machoke, Graveler, Haunter, and others) need that player to be the game MVP, and friendship evolutions (Pichu, Cleffa, Igglybuff, Togepi, Golbat, Chansey) need 5 games played. Misty, Lt. Surge, Erika, Sabrina, and Blaine award the Water, Thunder, Leaf, Moon, and Fire Stones; use a stone on the post-game screen to evolve a player of your choice. An evolution keeps the moves the new species can learn and takes the new species' stats, types, and salary.
+
+Between games the **transfer window** lets you swap up to three players with the free-agent pool. A swap cannot lift your payroll above the next leader's cap, so a strong evolved core leaves little room for depth. The circuit saves in your browser (`localStorage`) after every game, and **New circuit** asks before it deletes the save. If the browser blocks storage, the circuit still plays and a notice says progress is not saved. Winning the rival's game opens the Hall of Fame.
+
 ### Game flow
 
 The game plays four quarters. Halftime resets timeouts, ability charges, and Spikes, restores stamina, and gives the rival the second-half kickoff. A tie after four quarters goes to overtime, where the next score wins. **Pause** freezes the play clock and playback; **Skip** finishes the current animation. With the system's reduced-motion setting, plays use fixed poses, shorter playback, and captions without projectiles, weather layers, or particles.
@@ -130,7 +140,7 @@ The stadium themes are based on [Indigo Stadium in Kanto](https://bulbapedia.bul
 
 ## Development
 
-Refresh the Pokémon Database stats and the PokeAPI Crystal moves and type chart with `python3 scrape_pokedex.py`. Commit both `pokemon_gen1_2.json` and `pokemon_gen1_2.js`. Salaries, position ratings, and football outcomes are game rules.
+Refresh the Pokémon Database stats and the PokeAPI Crystal moves, Gen 2 types, evolutions, and type chart with `python3 scrape_pokedex.py`. Commit both `pokemon_gen1_2.json` and `pokemon_gen1_2.js`. Salaries, position ratings, and football outcomes are game rules.
 
 Use Node.js 24 or newer for the development tools:
 
@@ -140,6 +150,7 @@ npm run lint
 npm run format:check
 npm test
 node scripts/balance.cjs 500  # points per game with moves off and on
+node scripts/league-balance.cjs 200  # win rate per leader and evolution share over seeded circuits
 # Gameplay and UI regressions alone:
 npm run test:mechanics
 python3 -m unittest discover -s tests -p 'test_pokedex.py'

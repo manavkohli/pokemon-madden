@@ -1,6 +1,6 @@
 # ERD: Gym Challenge and Contact Clash
 
-**Date:** 2026-10-09 · **Status:** Contact Clash (Feature 2) built with `CLASH_BAND` = 2 (27.6% of scrimmage plays, 500 games; points per game 28.69 off, 30.14 on; fumbles 0.55 off, 0.78 on); Gym Challenge scoped, unbuilt · **Scope:** a new DOM-free `League` class in `src/game/`, evolution data in `scrape_pokedex.py`, a two-step snap in `FootballGame`, a contact pause in `BattleMotion`/`BattleStage`, and new league and clash screens in `GameApp`.
+**Date:** 2026-10-09 · **Status:** Contact Clash (Feature 2) built with `CLASH_BAND` = 2 (27.6% of scrimmage plays, 500 games; points per game 28.69 off, 30.14 on; fumbles 0.55 off, 0.78 on); Gym Challenge (Feature 1) built · **Scope:** a new DOM-free `League` class in `src/game/`, evolution data in `scrape_pokedex.py`, a two-step snap in `FootballGame`, a contact pause in `BattleMotion`/`BattleStage`, and new league and clash screens in `GameApp`.
 
 ## Goal
 

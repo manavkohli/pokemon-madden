@@ -21,8 +21,10 @@ The animation never computes a football result. Changing animation duration ther
 | `src/game/moves.js` | `MoveBook`: move families, strike values, secondary effects, PP, stamina cost, ranking, and default movesets |
 | `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, personnel packages, stamina, substitutions, movesets, conditions, and stat stages |
 | `src/game/matchup.js` | Individual contests, bounded probabilities, ability and move modifiers, the actor override, and the actual participants |
+| `src/game/league.js` | `League`: the 13-game Gym Challenge circuit, leader rosters, levels, evolutions, stones, the transfer window, and the save format; `SeededRandom` |
 | `src/game/football.js` | The clash split (`contact`, `resolveClash`, the CPU and auto clash actions), committed calls, scouting/audibles, ability charges, move activation and PP, field conditions, CPU decisions, play resolution, possession, scoring, and simulated clock management |
 | `src/ui/app.js` | Drafting, move picking, independent team budgets, stadium theme selection, play and move selection, status badges, scoreboard, and application lifecycle |
+| `src/ui/league.js` | `LeagueView`: the league map, post-game report, Hall of Fame, and evolution scene (drawn on the `BattleStage` clock through `BattleStage.sequence`) |
 | `src/ui/play-clock.js` | Call deadlines, pause/resume, and stale timer cancellation |
 | `src/ui/diagram.js` | Route and coverage SVGs |
 | `src/ui/field.js` | One yardage projection for field markings, ball position, and first-down markers |
@@ -64,6 +66,12 @@ Before the snap a coach picks one actor and one move from the MOVES list; the CP
 `BattleMotion` samples a cue (Beam, Lunge, Aura, Arrows, Sparkle, Bubble, Field, or Flash) between 0.22 and 0.5 of the play and colors it by move type; `BattleStage` draws it on its single clock. Active weather stays drawn on later plays through `data-weather` on the field and the battle stage. Reduced motion hides the cue and overlay animation and keeps the type tint and captions.
 
 `node scripts/clash-balance.cjs 500` plays seeded games with clashes off and on, the human side on its auto action and the CPU on its memory rule, and prints the clash rate, the cell distribution, and points and fumbles per game, and fails when clash scoring drifts more than 8% or fumbles exceed 0.9 per game. `node scripts/balance.cjs 500` plays seeded computer-controlled games with moves off and on and prints average points per game; it is a tuning tool, not a test.
+
+## How a circuit works
+
+`League.start()` copies your drafted roster and draws a circuit seed. `League.game()` builds a `FootballGame` against the next leader: the leader roster comes from the seed and the leader index, so a rematch faces the same team, and the game uses the league's own saved `SeededRandom`. `FootballGame.stats` is a per-side box score keyed by Pokémon id; `League.record()` turns it into levels, awards the badge and stone on a win, and fires level, trade (game MVP), and friendship evolutions through `Roster.evolve`, which moves stamina, conditions, stages, and the moveset to the new id. A target already on the roster waits. `League.transfer()` swaps a player with the free-agent pool, at most three per window, and refuses a swap that lifts payroll above the next leader's cap.
+
+`GameApp` owns the screens' lifecycle and the save: it writes `League.toJSON()` to `localStorage` under `pokeballers.league.v1` after every game, stone, and transfer, inside `try/catch`. A failed read starts a fresh circuit and a failed write shows a notice. `LeagueView` draws the screens; the evolution sequence runs on the single `BattleStage` clock, so pause, skip, cancellation, and reduced motion apply to it.
 
 ## Playback guarantees
 
