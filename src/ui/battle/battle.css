@@ -469,6 +469,76 @@
   padding-right: 14px;
   font: 11px/1.4 var(--mono);
 }
+.battle-clash {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.6fr) 3fr;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 5px double #334b36;
+  color: #304831;
+  background: #f3efd4;
+  box-shadow: 3px 3px #233c30;
+}
+.battle-clash.hidden {
+  display: none;
+}
+.battle-clash:not(.hidden) ~ .battle-caption {
+  visibility: hidden;
+}
+.battle-clash-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font: 9px/1.5 var(--pixel);
+}
+.battle-clash-timer {
+  min-width: 2.2em;
+  padding: 4px 6px;
+  border: 2px solid #263d30;
+  background: #e1e8b9;
+  text-align: center;
+}
+.battle-clash-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.battle-clash-actions button {
+  display: grid;
+  gap: 4px;
+  min-height: 56px;
+  padding: 8px 4px;
+  border: 2px solid #263d30;
+  color: #263d30;
+  background: #e1e8b9;
+  box-shadow: 2px 2px #182e28;
+  cursor: pointer;
+  text-align: center;
+}
+.battle-clash-actions button:hover {
+  background: #f3f0d5;
+}
+.battle-clash-actions button:focus-visible {
+  outline: 3px solid #b3443e;
+  outline-offset: 2px;
+}
+.battle-clash-actions kbd {
+  font: 7px var(--pixel);
+  color: #6a7853;
+}
+.battle-clash-actions strong {
+  font: 8px/1.4 var(--pixel);
+}
+.battle-clash-actions small {
+  font: 10px var(--mono);
+}
 .battle-track {
   position: absolute;
   bottom: 0;
@@ -536,6 +606,33 @@
   }
   .battle-caption strong {
     font-size: 7px;
+  }
+  .battle-clash {
+    left: 9px;
+    right: 9px;
+    bottom: 9px;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 7px 8px 8px;
+  }
+  .battle-clash-head {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 7px;
+  }
+  .battle-clash-actions {
+    gap: 5px;
+  }
+  .battle-clash-actions button {
+    min-height: 50px;
+    padding: 6px 2px;
+  }
+  .battle-clash-actions strong {
+    font-size: 6px;
+  }
+  .battle-clash-actions small {
+    font-size: 9px;
   }
   .battle-caption span {
     font-size: 9px;

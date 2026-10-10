@@ -37,6 +37,16 @@ class Element {
     return this.nodes.get(selector);
   }
 
+  querySelectorAll(selector) {
+    const key = `all:${selector}`;
+    if (!this.nodes.has(key)) this.nodes.set(key, [new Element(), new Element(), new Element()]);
+    return this.nodes.get(key);
+  }
+
+  focus() {
+    this.focused = true;
+  }
+
   addEventListener() {}
   setAttribute() {}
   removeAttribute() {}
@@ -142,6 +152,140 @@ class BattleChecks {
     assert.equal(loaded.hidden, true, 'failed sprite reveals fallback even after a prior load');
   }
 
+  // A clash game: every margin is zero, so the first run reaches contact and waits for both picks.
+  static pendingClash() {
+    const roster = new Roster(
+      data,
+      Array.from({ length: POSITIONS.length }, (_, i) => i + 1),
+    );
+    const offense = OFFENSE.find((play) => play.id === 'inside-zone');
+    const defense = DEFENSE.find((play) => play.id === 'run-stuff');
+    const game = new FootballGame(roster, roster, 300, () => 0.5);
+    const result = game.snap(offense, defense);
+    return { game, result, offense, defense };
+  }
+
+  static async clash() {
+    FootballGame.CLASHES = true;
+    try {
+      const clock = new FrameClock();
+      const root = new Element();
+      const stage = new BattleStage(root);
+      const box = root.querySelector('#battleClash');
+      const shown = () => !box.classList.contains('hidden');
+      const start = (clash) => {
+        const setup = this.pendingClash();
+        const ticks = [];
+        const picks = [];
+        const playing = stage.play({
+          offense: setup.offense,
+          defense: setup.defense,
+          result: setup.result,
+          clash: (choice) => {
+            picks.push(choice);
+            return setup.game.resolveClash(choice, 'wrap');
+          },
+          onProgress: (progress) => ticks.push(progress),
+          ...clash,
+        });
+        return { ...setup, ticks, picks, playing };
+      };
+
+      // The stage continues from a clash pick on the next microtask, so a test settles before it advances frames.
+      const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+      const first = start();
+      assert.equal(first.result.outcome, undefined, 'the snap holds the play');
+      clock.advance(30);
+      assert.equal(shown(), false, 'the box stays closed before contact');
+      clock.advance(15);
+      const hold = stage.active.hold;
+      assert.ok(hold && shown(), 'the stage holds at contact and shows the box');
+      const held = first.ticks.at(-1);
+      assert.ok(Math.abs(held - BattleMotion.CONTACT) < 0.02, 'the hold sits at the contact progress');
+      assert.match(stage.clashButtons[0].innerHTML, /Juke/);
+      assert.match(stage.clashButtons[2].innerHTML, /Cover Up/);
+      assert.equal(stage.callout.textContent, 'CONTACT!');
+      clock.advance(20);
+      assert.equal(first.ticks.at(-1), held, 'the play clock stops during the hold');
+      assert.ok(hold.remaining < 3200, 'the countdown runs on the stage clock');
+      const frozen = hold.remaining;
+      stage.setPaused(true);
+      clock.advance(40);
+      assert.equal(hold.remaining, frozen, 'pause freezes the countdown');
+      stage.skip();
+      stage.setPaused(false);
+      clock.advance(2);
+      stage.skip();
+      assert.ok(stage.active.hold && shown(), 'skip does nothing during the clash');
+      assert.ok(hold.remaining < frozen, 'the countdown resumes after pause');
+      clock.advance(70);
+      assert.deepEqual(first.picks, [first.result.clash.auto], 'the countdown picks the auto action at zero');
+      assert.equal(shown(), false, 'the box closes after the pick');
+      await settle();
+      clock.advance(3);
+      assert.match(stage.callout.textContent, /^[A-Z ]+ vs [A-Z ]+!$/, 'the contact callout names both actions');
+      clock.advance(80);
+      assert.deepEqual(await first.playing, { cancelled: false });
+      assert.equal(first.game.pending, null);
+      assert.equal(first.ticks.at(-1), 1);
+      assert.equal(clock.frames.size, 0);
+
+      const skipped = start();
+      clock.advance(3);
+      stage.skip();
+      clock.advance(1);
+      assert.ok(stage.active.hold && shown(), 'skip before contact jumps to the clash');
+      assert.ok(Math.abs(skipped.ticks.at(-1) - BattleMotion.CONTACT) < 0.02);
+      stage.onKey({ key: '9', preventDefault() {} });
+      assert.equal(skipped.picks.length, 0, 'a key outside 1-3 does nothing');
+      let prevented = false;
+      stage.onKey({
+        key: '2',
+        preventDefault: () => (prevented = true),
+      });
+      assert.equal(prevented, true);
+      assert.deepEqual(skipped.picks, ['truck'], 'key 2 picks the second action');
+      stage.onKey({ key: '3', preventDefault() {} });
+      assert.deepEqual(skipped.picks, ['truck'], 'a second pick is ignored');
+      await settle();
+      clock.advance(80);
+      assert.deepEqual(await skipped.playing, { cancelled: false });
+      assert.equal(skipped.game.pending, null);
+
+      const clicked = start();
+      clock.advance(3);
+      stage.skip();
+      clock.advance(1);
+      stage.choose(2);
+      await settle();
+      clock.advance(80);
+      await clicked.playing;
+      assert.deepEqual(clicked.picks, ['cover'], 'a button picks its own action');
+
+      stage.motionPreference = { matches: true };
+      const reduced = start();
+      clock.advance(20);
+      assert.ok(stage.active.hold && shown(), 'reduced motion keeps the box and the countdown');
+      stage.cancel();
+      assert.deepEqual(await reduced.playing, { cancelled: true });
+      assert.equal(shown(), false, 'cancel closes the box');
+      const failing = start({
+        clash: () => {
+          throw new Error('clash failed');
+        },
+      });
+      const rejection = assert.rejects(failing.playing, /clash failed/);
+      clock.advance(60);
+      stage.choose(0);
+      await settle();
+      clock.advance(2);
+      await rejection;
+      assert.equal(clock.frames.size, 0, 'a failed clash releases the scheduler');
+    } finally {
+      FootballGame.CLASHES = false;
+    }
+  }
+
   static async run() {
     const clock = new FrameClock();
     const root = new Element();
@@ -203,7 +347,10 @@ class BattleChecks {
     assert.equal(stage.effectsNode.style.opacity, 0);
     assert.equal(root.style['--light-sweep'], '0deg', 'reduced motion holds stadium lighting');
     assert.equal(root.style['--drift'], '0px', 'reduced motion holds weather still');
-    console.log('Battle motion, casting, pause, skip, cancellation, reduced motion, and error propagation passed.');
+    await this.clash();
+    console.log(
+      'Battle motion, casting, pause, skip, cancellation, reduced motion, error propagation, and the clash hold passed.',
+    );
   }
 }
 

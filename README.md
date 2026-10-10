@@ -52,9 +52,27 @@ Every scrimmage play becomes three contests between the players on the field:
 
 - **Protection**: an offensive lineman against the rusher across the line. It sets sack and stuff odds.
 - **Separation**: the receiver or carrier against the cover man. It sets completion and interception odds.
-- **Tackle**: the carrier against the tackler. It sets yards after contact and fumble odds.
+- **Tackle**: the carrier against the tackler. It sets yards after contact and fumble odds; a close tackle contest becomes a Contact Clash.
 
 Ratings, stamina, the scheme matchup between the two calls, abilities, and moves all feed these margins. The battle scene then shows the featured players: the carrier, a supporting player, the defender who made the play, and the safety help. The animation never decides a result.
+
+### Contact Clash
+
+About one scrimmage play in four stops at contact. A run or completed pass clashes when the tackle contest is within 2 points (`FootballGame.CLASH_BAND`), and any third or fourth down play that reaches contact clashes. A sack, stuff, interception, incompletion, or one-hit move resolves as usual. The battle scene holds the contact pose and shows three buttons (keys 1 to 3) with a 4-second countdown that pauses with the game. At zero, your player takes the action of its highest relevant stat. Skip before contact jumps to the clash and does nothing during it.
+
+The carrier picks one action and the tackler picks one:
+
+| Carrier / Tackler | Wrap Up (defense) | Big Hit (attack) | Strip (speed) |
+| --- | --- | --- | --- |
+| **Juke** (speed) | tackler wins: -2 yards | carrier wins big: double yards, 20% breakaway | carrier wins, +8 points of fumble odds |
+| **Truck** (attack) | carrier wins | tackler wins big: -4 yards, +5 points of fumble odds | carrier wins, +8 points of fumble odds |
+| **Cover Up** (HP) | even | even | tackler loses 2 yards of position, no fumble |
+
+A carrier win adds `max(2, round(4 + 0.3 × edge))` yards, where the edge is the carrier's skill in its action's stat minus the tackler's skill in its action's stat. Paralysis halves Juke's yards, and a confused player swaps the pick for a random action one time in three. A defensive Protect still holds the gain to 5 yards.
+
+The CPU weighs each action by the stat it uses, then adds extra weight to the counter of your most frequent action in your last 5 clashes. A coach who always jukes gets wrapped up. The memory lasts for one game.
+
+![A Contact Clash with the three action buttons over the held contact pose](docs/screenshots/png/clash-desktop-box.png)
 
 ### Stamina, substitutions, and timeouts
 

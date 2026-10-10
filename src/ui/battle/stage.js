@@ -3,6 +3,9 @@
   const { BattleMotion } = typeof module !== 'undefined' ? require('./motion.js') : window.Pokeballers;
 
   class BattleStage {
+    static CLASH_MS = 4000;
+    static STAT_LABELS = { speed: 'SPD', attack: 'ATK', defense: 'DEF', hp: 'HP' };
+
     constructor(element) {
       this.element = element;
       this.actionNode = element.querySelector('#battleAction');
@@ -21,12 +24,18 @@
       this.cueNode = element.querySelector('#battleCue');
       this.shieldNode = element.querySelector('#battleShield');
       this.progressNode = element.querySelector('#battleProgress');
+      this.clashNode = element.querySelector('#battleClash');
+      this.clashTitle = element.querySelector('#battleClashTitle');
+      this.clashTimer = element.querySelector('#battleClashTimer');
+      this.clashButtons = Array.from(element.querySelectorAll('#battleClash button'));
       this.motionPreference =
         typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
       this.paused = false;
       this.token = 0;
       this.active = null;
       element.querySelector('#skipBattle').addEventListener('click', () => this.skip());
+      this.clashButtons.forEach((button, index) => button.addEventListener('click', () => this.choose(index)));
+      (element.ownerDocument ?? element).addEventListener('keydown', (event) => this.onKey(event));
     }
 
     featured(result) {
@@ -34,7 +43,7 @@
       return { lead: carrier, support, stopper: defender, help };
     }
 
-    play({ offense, defense, result, onProgress = () => {} }) {
+    play({ offense, defense, result, clash = null, onProgress = () => {} }) {
       this.cancel();
       const featured = this.featured(result);
       const motion = new BattleMotion(offense, result, featured);
@@ -49,6 +58,7 @@
       this.badgeNodes = this.fighters.map((node) => node.querySelector('.status-badge'));
       this.statuses = result.statuses ?? null;
       this.badgePhase = null;
+      this.clashNode.classList.add('hidden');
       this.shadows = this.fighters.map((node) => node.querySelector('.battle-shadow'));
       this.impactNode.textContent = motion.impact;
       this.element.setAttribute('data-move-type', motion.moveType);
@@ -59,7 +69,7 @@
       this.element.classList.toggle('reduced-motion', this.reduced);
       const token = this.token;
       return new Promise((resolve, reject) => {
-        this.active = { resolve, reject, onProgress, motion, elapsed: 0, previous: null };
+        this.active = { resolve, reject, onProgress, motion, offense, clash, elapsed: 0, previous: null, hold: null };
         this.render(motion.sample(0, this.reduced));
         this.frame = requestAnimationFrame((now) => this.tick(now, token));
       });
@@ -69,14 +79,9 @@
       if (token !== this.token) return;
       try {
         const active = this.active;
-        if (active.previous !== null && !this.paused) active.elapsed += Math.min(50, now - active.previous);
+        const step = active.previous !== null && !this.paused ? Math.min(50, now - active.previous) : 0;
         active.previous = now;
-        const duration = this.reduced ? BattleMotion.REDUCED_DURATION : BattleMotion.DURATION;
-        const progress = Math.min(1, active.elapsed / duration);
-        if (!this.paused) {
-          this.render(active.motion.sample(progress, this.reduced));
-          if (progress < 1) active.onProgress(progress);
-        }
+        const progress = active.hold ? this.countDown(active, step) : this.advance(active, step);
         if (token !== this.token) return;
         if (progress === 1) this.complete();
         else this.frame = requestAnimationFrame((time) => this.tick(time, token));
@@ -85,6 +90,95 @@
         reject(error);
         this.complete(false);
       }
+    }
+
+    get duration() {
+      return this.reduced ? BattleMotion.REDUCED_DURATION : BattleMotion.DURATION;
+    }
+
+    // A pending clash stops the play clock at contact; the hold counts on the same frame clock.
+    advance(active, step) {
+      active.elapsed += step;
+      let progress = Math.min(1, active.elapsed / this.duration);
+      if (active.clash && active.motion.pending && progress >= BattleMotion.CONTACT) {
+        active.elapsed = this.duration * BattleMotion.CONTACT;
+        progress = BattleMotion.CONTACT;
+        this.openClash(active);
+      }
+      if (!this.paused) {
+        this.render(active.motion.sample(progress, this.reduced));
+        if (progress < 1) active.onProgress(progress);
+      }
+      return progress;
+    }
+
+    openClash(active) {
+      const { carrier, tackler, role, actions, auto } = active.motion.result.clash;
+      active.hold = { remaining: BattleStage.CLASH_MS, locked: false, auto };
+      this.clashTitle.textContent = `${(role === 'offense' ? carrier : tackler).name}: pick a move`;
+      this.clashTimer.textContent = String(BattleStage.CLASH_MS / 1000);
+      this.clashButtons.forEach((button, index) => {
+        const action = actions[index];
+        button.setAttribute('data-action', action.id);
+        button.innerHTML = `<kbd>${index + 1}</kbd><strong>${action.name}</strong><small>${BattleStage.STAT_LABELS[action.stat]} ${action.skill}</small>`;
+      });
+      this.clashNode.classList.remove('hidden');
+      this.clashButtons[0].focus();
+    }
+
+    countDown(active, step) {
+      const hold = active.hold;
+      if (!hold.locked && !this.paused) {
+        hold.remaining = Math.max(0, hold.remaining - step);
+        this.clashTimer.textContent = String(Math.ceil(hold.remaining / 1000));
+        if (hold.remaining === 0) this.commit(hold.auto);
+      }
+      return active.elapsed / this.duration;
+    }
+
+    choose(index) {
+      const hold = this.active?.hold;
+      if (!hold || hold.locked || this.paused) return;
+      this.commit(this.active.motion.result.clash.actions[index].id);
+    }
+
+    onKey(event) {
+      const index = Number(event.key) - 1;
+      if (!this.active?.hold || !Number.isInteger(index) || index < 0 || index >= this.clashButtons.length) return;
+      event.preventDefault();
+      this.choose(index);
+    }
+
+    // Both picks go to the engine together; the stage then plays the final result from contact.
+    commit(action) {
+      const active = this.active;
+      const token = this.token;
+      active.hold.locked = true;
+      this.clashNode.classList.add('hidden');
+      new Promise((resolve) => resolve(active.clash(action))).then(
+        (final) => this.resume(active, final, token),
+        (error) => this.fail(active, error, token),
+      );
+    }
+
+    resume(active, final, token) {
+      if (token !== this.token) return;
+      try {
+        active.motion = new BattleMotion(active.offense, final, this.featured(final));
+        active.hold = null;
+        this.statuses = final.statuses ?? null;
+        this.badgePhase = null;
+        this.impactNode.textContent = active.motion.impact;
+        this.element.classList.toggle('scoring', active.motion.scoring);
+      } catch (error) {
+        this.fail(active, error, token);
+      }
+    }
+
+    fail(active, error, token) {
+      if (token !== this.token) return;
+      active.reject(error);
+      this.complete(false);
     }
 
     render(state) {
@@ -167,14 +261,20 @@
       if (this.active) this.active.previous = null;
     }
 
+    // Skip jumps to contact on a pending clash and does nothing while the clash is open.
     skip() {
-      if (this.active && !this.paused) this.complete();
+      const active = this.active;
+      if (!active || this.paused || active.hold) return;
+      if (active.clash && active.motion.pending)
+        active.elapsed = Math.max(active.elapsed, this.duration * BattleMotion.CONTACT);
+      else this.complete();
     }
 
     complete(finished = true) {
       this.token += 1;
       cancelAnimationFrame(this.frame);
       this.element.classList.add('hidden');
+      this.clashNode.classList.add('hidden');
       this.paused = false;
       const active = this.active;
       this.active = null;

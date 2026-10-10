@@ -495,3 +495,72 @@ test('a trapped substitution shows its message instead of throwing', async () =>
     await harness.close();
   }
 });
+
+class ClashHarness {
+  // A third-down run always reaches contact, so the snap returns a pending clash.
+  static async start() {
+    const harness = await AppHarness.create();
+    harness.choose('inside-zone');
+    harness.app.game.down = 3;
+    harness.app.game.random = () => 0.5;
+    return harness;
+  }
+}
+
+test('a clash pick reaches the engine with the CPU pick and the final result fills the banner', async () => {
+  const harness = await ClashHarness.start();
+  try {
+    const app = harness.app;
+    app.battle.play = async (playback) => {
+      harness.playback = playback;
+      harness.final = await playback.clash('truck');
+      playback.onProgress(1);
+      return { cancelled: false };
+    };
+    await app.requestSnap();
+    assert.equal(harness.playback.result.clash.role, 'offense');
+    assert.equal(harness.playback.result.outcome, undefined, 'the stage receives the held play');
+    assert.equal(harness.final.clash.offense, 'truck');
+    assert.ok(['wrap', 'hit', 'strip'].includes(harness.final.clash.defense));
+    assert.equal(app.game.pending, null);
+    assert.deepEqual([...app.game.clashMemory.offense], ['truck']);
+    assert.ok(harness.element('resultBanner').textContent.includes(harness.final.message));
+    assert.match(harness.element('playLog').textContent, /after contact/);
+    harness.finishResult();
+    harness.assertReady(app.game.possession);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('a play that ends without a pick resolves the clash on auto actions', async () => {
+  const harness = await ClashHarness.start();
+  try {
+    const app = harness.app;
+    await app.requestSnap();
+    assert.ok(harness.playback.result.clash);
+    assert.equal(app.game.pending, null);
+    assert.equal(harness.element('resultBanner').classList.contains('hidden'), false);
+    harness.finishResult();
+    harness.assertReady(app.game.possession);
+  } finally {
+    await harness.close();
+  }
+});
+
+test('an animation error during a clash resolves it and restores the controls', async () => {
+  const harness = await ClashHarness.start();
+  try {
+    const app = harness.app;
+    app.battle.play = async () => {
+      throw new Error('drawing failed');
+    };
+    await app.requestSnap();
+    assert.equal(app.game.pending, null);
+    assert.equal(app.locked, false);
+    assert.equal(harness.element('coachControls').disabled, false);
+    assert.match(harness.element('callHint').textContent, /drawing failed/);
+  } finally {
+    await harness.close();
+  }
+});

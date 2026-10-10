@@ -6,9 +6,10 @@ Consider an Inside Zone run:
 
 1. `FootballGame.prepareCall()` commits the CPU call once. `GameApp` reads player choices; scouting reveals a partial formation tell and permits one audible without rerolling the CPU.
 2. Each offensive call declares its carrier or receiver and passer; an option decision or a selected target can change the carrier. `Roster` supplies the active players and their fatigue-adjusted ratings. `PlayMatchup` pairs blockers with rushers, the selected receiver with a coverage defender, and the carrier with a tackler. `FootballGame` rolls the resulting bounded probabilities. `FootballGame.snap()` updates possession, down, spot, score, clock, and drive log, returning the yards, duration, outcome, message, and participants. A sack features the passer rather than the intended receiver.
+   A close play splits `snap()` in two. After the yards before contact are rolled, `FootballGame.contact()` either continues as above or holds the play: `snap()` returns a pending result with `result.clash` and no `outcome`, and `FootballGame.resolveClash(offenseAction, defenseAction)` finishes it through the same tail. A play with no clash draws the same random numbers in the same order as before the split.
 3. `BattleStage` displays the participants returned by the engine. `SpriteArt` supplies the same sprite sources and fallback behavior used elsewhere in the UI; symbols stay visible until each image loads successfully.
 4. `BattleMotion.sample()` produces poses, ball position, contact effects, and captions from normalized progress. A stuffed run recoils; a successful run advances past the defender. Passes, interceptions, incomplete passes, sacks, fumbles, and kicks have distinct ball paths.
-5. `BattleStage` draws those poses from one `requestAnimationFrame` loop. `GameApp` displays the elapsed football time through `onProgress`. Once playback finishes, the UI renders the authoritative game state and unlocks the next call after the result banner.
+5. `BattleStage` draws those poses from one `requestAnimationFrame` loop. For a pending clash it stops the play clock at `BattleMotion.CONTACT`, counts the 4-second clash on that same loop, and calls the `clash(action)` callback that `GameApp` supplies; the final result then builds a new `BattleMotion` that continues from contact. `GameApp` displays the elapsed football time through `onProgress`. Once playback finishes, the UI renders the authoritative game state and unlocks the next call after the result banner.
 
 The animation never computes a football result. Changing animation duration therefore changes presentation speed without changing yards or elapsed football time.
 
@@ -20,14 +21,14 @@ The animation never computes a football result. Changing animation duration ther
 | `src/game/moves.js` | `MoveBook`: move families, strike values, secondary effects, PP, stamina cost, ranking, and default movesets |
 | `src/game/roster.js` | Position ratings, salaries, cap-aware roster generation, assignments, personnel packages, stamina, substitutions, movesets, conditions, and stat stages |
 | `src/game/matchup.js` | Individual contests, bounded probabilities, ability and move modifiers, the actor override, and the actual participants |
-| `src/game/football.js` | Committed calls, scouting/audibles, ability charges, move activation and PP, field conditions, CPU decisions, play resolution, possession, scoring, and simulated clock management |
+| `src/game/football.js` | The clash split (`contact`, `resolveClash`, the CPU and auto clash actions), committed calls, scouting/audibles, ability charges, move activation and PP, field conditions, CPU decisions, play resolution, possession, scoring, and simulated clock management |
 | `src/ui/app.js` | Drafting, move picking, independent team budgets, stadium theme selection, play and move selection, status badges, scoreboard, and application lifecycle |
 | `src/ui/play-clock.js` | Call deadlines, pause/resume, and stale timer cancellation |
 | `src/ui/diagram.js` | Route and coverage SVGs |
 | `src/ui/field.js` | One yardage projection for field markings, ball position, and first-down markers |
 | `src/ui/sprites.js` | Sprite URLs, markup, and missing-image handling |
 | `src/ui/battle/motion.js` | Pure choreography, move cues, and captions |
-| `src/ui/battle/stage.js` | Battle DOM, scheduling, move cue and badge drawing, and playback lifecycle |
+| `src/ui/battle/stage.js` | Battle DOM, scheduling, the clash box and countdown, move cue and badge drawing, and playback lifecycle |
 | `src/ui/battle/battle.css` | Arena, sprites, and effects styling |
 
 ## Team generation and stadiums
@@ -62,11 +63,11 @@ Before the snap a coach picks one actor and one move from the MOVES list; the CP
 
 `BattleMotion` samples a cue (Beam, Lunge, Aura, Arrows, Sparkle, Bubble, Field, or Flash) between 0.22 and 0.5 of the play and colors it by move type; `BattleStage` draws it on its single clock. Active weather stays drawn on later plays through `data-weather` on the field and the battle stage. Reduced motion hides the cue and overlay animation and keeps the type tint and captions.
 
-`node scripts/balance.cjs 500` plays seeded computer-controlled games with moves off and on and prints average points per game; it is a tuning tool, not a test.
+`node scripts/clash-balance.cjs 500` plays seeded games with clashes off and on, both sides on auto actions, and prints the clash rate and points per game; it tunes `CLASH_BAND`. `node scripts/balance.cjs 500` plays seeded computer-controlled games with moves off and on and prints average points per game; it is a tuning tool, not a test.
 
 ## Playback guarantees
 
-Pause freezes both poses and progress callbacks. Stadium lighting uses the same sampled progress in `BattleStage.render()`, with fixed lighting for reduced motion. Resume starts from the held position. Skip completes progress exactly once and releases the scheduler. Cancellation resolves the old playback without completing its clock; a token prevents an already queued frame from touching a replacement play. Returning to drafting or starting a rematch also clears the pending result timer.
+Pause freezes both poses and progress callbacks. A Contact Clash holds the play at contact: pause freezes its countdown, skip before contact jumps to the clash, skip during the clash does nothing until both actions are in, and the countdown picks the human's auto action at zero. Cancelling during a clash leaves the engine pending, so `GameApp` resolves it with auto actions before the next call. Stadium lighting uses the same sampled progress in `BattleStage.render()`, with fixed lighting for reduced motion. Resume starts from the held position. Skip completes progress exactly once and releases the scheduler. Cancellation resolves the old playback without completing its clock; a token prevents an already queued frame from touching a replacement play. Returning to drafting or starting a rematch also clears the pending result timer.
 
 The OS/browser `prefers-reduced-motion` setting is read when each play begins. Reduced playback uses fixed poses, a shorter readable timeline, and captions without projectiles, shake, or particles. Missing sprite images reveal a local symbol; no image failure changes the game result. Drawing errors reject playback, and the application displays an error while retaining the resolved result in the drive log.
 
@@ -80,10 +81,11 @@ Use `python3 -m http.server 8000 --bind 127.0.0.1` for a local preview, or open 
 - Watch contact, ball flight, and the result. Confirm the clock finishes at the engine's resolved time and the next call unlocks.
 - Pause while choosing a call and confirm the remaining play-clock seconds hold, then resume without a reset. Check automatic snapping with and without a selected call on both sides.
 - Pause during a play, verify the quarter clock and poses hold, then resume. Skip another play.
+- Play until a Contact Clash appears. Pick one action by click and one by key 1 to 3, let one count down, and pause during one to confirm the countdown holds. Check the box at 390px and with reduced motion.
 - Return to drafting during playback and kick off again; the prior play must not update the new game.
 - Enable reduced motion and confirm fixed poses with captions. Disable networking and confirm missing sprites have visible fallbacks and play still resolves.
 - Check fourth-down kicks/punts, a turnover, and the final whistle when changing football rules.
 
 ## Verification
 
-`node tests/test_moves.cjs` covers move families, strike values, movesets, conditions, field conditions, and move cues. `npm run test:mechanics` runs deterministic contests, scouting/audibles, abilities, stamina, clock boundaries, and 25 seeded complete games, plus DOM integration tests that load the real classic scripts and drive the actual controls. The UI regressions include Read Option → turnover → defensive call → rival touchdown, both scoring directions, special-team filters, pause at the result banner, animation failures, stale rematch callbacks, and halftime transitions. `happy-dom` is a development-only DOM environment; the browser runtime has no npm dependency. Existing battle and play-clock checks still cover the one-clock playback lifecycle.
+`node --test tests/test_clash.cjs` covers the action table, the no-clash fixture (`tests/fixtures/seeded-game.json`), the CPU memory, and confusion; `tests/test_battle.cjs` covers the clash hold. `node tests/test_moves.cjs` covers move families, strike values, movesets, conditions, field conditions, and move cues. `npm run test:mechanics` runs deterministic contests, scouting/audibles, abilities, stamina, clock boundaries, and 25 seeded complete games, plus DOM integration tests that load the real classic scripts and drive the actual controls. The UI regressions include Read Option → turnover → defensive call → rival touchdown, both scoring directions, special-team filters, pause at the result banner, animation failures, stale rematch callbacks, and halftime transitions. `happy-dom` is a development-only DOM environment; the browser runtime has no npm dependency. Existing battle and play-clock checks still cover the one-clock playback lifecycle.

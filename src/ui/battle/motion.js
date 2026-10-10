@@ -39,6 +39,7 @@
       this.fumbled = result.outcome === 'fumble';
       this.scoring = ['touchdown', 'field-goal-good'].includes(result.outcome);
       this.moves = result.moves ?? [];
+      this.pending = Boolean(result.clash) && result.outcome === undefined;
     }
 
     get moveType() {
@@ -58,6 +59,7 @@
     }
 
     get impact() {
+      if (this.pending) return 'CLASH!';
       const labels = {
         stuff: 'STUFFED!',
         stop: 'TACKLE!',
@@ -187,6 +189,15 @@
       };
     }
 
+    // A resolved clash names both actions at contact; a pending one waits for the picks.
+    clashCaption() {
+      const { clash } = this.result;
+      const title = this.pending
+        ? 'CONTACT!'
+        : `${clash.names.offense.toUpperCase()} vs ${clash.names.defense.toUpperCase()}!`;
+      return { round: 'CLASH', title, detail: `${this.featured.lead.name} vs ${this.featured.stopper.name}` };
+    }
+
     caption(progress) {
       if (progress >= 0.79)
         return {
@@ -194,6 +205,7 @@
           title: this.result.message,
           detail: `${this.offense.name} · ${this.featured.lead.name}`,
         };
+      if (progress >= BattleMotion.CONTACT && this.result.clash) return this.clashCaption();
       const move = this.moveCaption(progress);
       if (move) return move;
       if (progress >= BattleMotion.CONTACT)

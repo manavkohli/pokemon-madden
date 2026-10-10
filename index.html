@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pokéballers — Pocket Gridiron</title>
     <link rel="stylesheet" href="style.css?v=0.1.7" />
-    <link rel="stylesheet" href="src/ui/battle/battle.css?v=0.1.7" />
+    <link rel="stylesheet" href="src/ui/battle/battle.css?v=0.1.8" />
   </head>
   <body>
     <header class="topbar">
@@ -185,6 +185,15 @@
                   <div id="battleShield" class="battle-cue bubble" aria-hidden="true"></div>
                 </div>
                 <div id="battleImpact" class="battle-impact" aria-hidden="true"></div>
+                <div id="battleClash" class="battle-clash hidden" role="group" aria-labelledby="battleClashTitle">
+                  <div class="battle-clash-head">
+                    <strong id="battleClashTitle">Pick a move</strong>
+                    <span id="battleClashTimer" class="battle-clash-timer" role="timer">4</span>
+                  </div>
+                  <div class="battle-clash-actions">
+                    <button type="button"></button><button type="button"></button><button type="button"></button>
+                  </div>
+                </div>
                 <div class="battle-caption"><strong id="battleCallout"></strong><span id="battleSubline"></span></div>
                 <div class="battle-track" aria-hidden="true"><i id="battleProgress"></i></div>
                 <button id="skipBattle" class="battle-skip" type="button">Skip ▶▶</button>
@@ -350,8 +359,8 @@
     <script src="src/game/matchup.js?v=0.1.7"></script>
     <script src="src/game/football.js?v=0.1.8"></script>
     <script src="src/ui/sprites.js"></script>
-    <script src="src/ui/battle/motion.js?v=0.1.7"></script>
-    <script src="src/ui/battle/stage.js?v=0.1.7"></script>
+    <script src="src/ui/battle/motion.js?v=0.1.8"></script>
+    <script src="src/ui/battle/stage.js?v=0.1.8"></script>
     <script src="src/ui/diagram.js?v=0.1.7"></script>
     <script src="src/ui/field.js"></script>
     <script src="src/ui/play-clock.js?v=0.1.7"></script>

@@ -1,6 +1,6 @@
 # ERD: Gym Challenge and Contact Clash
 
-**Date:** 2026-10-09 · **Status:** Scoped, unbuilt · **Scope:** a new DOM-free `League` class in `src/game/`, evolution data in `scrape_pokedex.py`, a two-step snap in `FootballGame`, a contact pause in `BattleMotion`/`BattleStage`, and new league and clash screens in `GameApp`.
+**Date:** 2026-10-09 · **Status:** Contact Clash (Feature 2) built with `CLASH_BAND` = 2 (27.1% of scrimmage plays, 500 games); Gym Challenge scoped, unbuilt · **Scope:** a new DOM-free `League` class in `src/game/`, evolution data in `scrape_pokedex.py`, a two-step snap in `FootballGame`, a contact pause in `BattleMotion`/`BattleStage`, and new league and clash screens in `GameApp`.
 
 ## Goal
 
@@ -63,7 +63,7 @@ The scraper adds each Gen 1–2 species' evolution: the target species, trigger,
 
 ### When a clash happens
 
-A clash happens on a run or a completed pass that reaches contact with a close tackle contest: the tackle margin is within ±8 points. Third and fourth down conversion attempts that reach contact always clash. Every other play resolves exactly as today. The target rate is one clash in four scrimmage plays; track 5's simulation measures the rate and sets the margin band to hit it.
+A clash happens on a run or a completed pass that reaches contact with a close tackle contest: the tackle margin is within ±2 points (`FootballGame.CLASH_BAND`, tuned in track 5). Third and fourth down conversion attempts that reach contact always clash. Every other play resolves exactly as today. The target rate is one clash in four scrimmage plays; track 5's simulation measures the rate and sets the margin band to hit it.
 
 ### The two-step snap
 

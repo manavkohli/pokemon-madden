@@ -721,22 +721,24 @@
       const options = game.possession === 'home' ? this.callOptions : game.cpuOptions(call, defense);
       const beforeSeconds = game.seconds;
       this.el('coachControls').disabled = true;
-      const snapped = game.snap(call, defense, options);
-      const result = snapped.clash ? game.autoResolveClash() : snapped;
+      const result = game.snap(call, defense, options);
       const offense = result.offense;
+      let played = result;
       await this.battle.play({
         offense,
         defense,
         result,
+        clash: (choice) => (played = this.resolveClash(result.clash, choice)),
         onProgress: (progress) => {
           if (sequence !== this.sequence) return;
-          const shown = Math.max(0, beforeSeconds - Math.round(result.seconds * progress));
+          const shown = Math.max(0, beforeSeconds - Math.round(played.seconds * progress));
           this.el('clockLabel').textContent = `${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`;
         },
       });
       if (sequence !== this.sequence) return;
+      if (game.pending) played = game.autoResolveClash();
       const banner = this.el('resultBanner');
-      banner.innerHTML = `<strong>${offense.name} VS ${defense.name}</strong><span>${result.message}</span>`;
+      banner.innerHTML = `<strong>${offense.name} VS ${defense.name}</strong><span>${played.message}</span>`;
       banner.classList.remove('hidden');
       this.resetOffenseOptions();
       this.renderGame();
@@ -750,10 +752,18 @@
       this.resultTimer = setTimeout(() => (this.paused ? (this.pendingSnap = finish) : finish()), 900);
     }
 
+    // The human picks one side of the clash and the CPU, which remembers the human's recent picks, picks the other.
+    resolveClash({ role }, choice) {
+      const rival = role === 'offense' ? 'defense' : 'offense';
+      const picks = { [role]: choice, [rival]: this.game.cpuClashAction(rival) };
+      return this.game.resolveClash(picks.offense, picks.defense);
+    }
+
     showError(error, sequence) {
       console.error(error);
       if (sequence !== this.sequence) return;
       this.battle.cancel();
+      if (this.game.pending) this.game.autoResolveClash();
       this.locked = false;
       this.el('snapButton').disabled = false;
       this.resetOffenseOptions();
