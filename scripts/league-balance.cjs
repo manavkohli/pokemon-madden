@@ -1,4 +1,4 @@
-// Usage: node scripts/league-balance.cjs [circuits] [transfers per window]. Plays seeded Gym Challenge circuits and prints win rates and evolutions.
+// Usage: node scripts/league-balance.cjs [circuits]. Plays seeded Gym Challenge circuits with and without the transfer policy and prints win rates and evolutions.
 const data = require('../pokemon_gen1_2.json').pokemon;
 const { Roster } = require('../src/game/roster.js');
 const { League } = require('../src/game/league.js');

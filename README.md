@@ -124,11 +124,11 @@ The CPU calls plays from down, distance, field position, score, clock, roster ra
 
 ### Gym Challenge
 
-Choose **Gym Challenge** on the start screen to play a 13-game Kanto circuit: Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine, Giovanni, the Elite Four (Lorelei, Bruno, Agatha, Lance), and your rival. Draft once under 13,000 credits from the Pokémon that still have an evolution left (base and middle forms). Each leader fields a team built around their type (up to 12 stars) under a credit cap from 9,500 (Lt. Surge) to 17,100 (the rival) that the balance simulation sets per leader, and favors a style: run-heavy, pass-heavy, or blitz and tricks. A win earns the badge and opens the next leader; a loss lets you rematch.
+Choose **Gym Challenge** on the start screen to play a 13-game Kanto circuit: Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine, Giovanni, the Elite Four (Lorelei, Bruno, Agatha, Lance), and your rival. Draft once under 13,000 credits from the Pokémon that still have an evolution left (base and middle forms). Each leader fields a team built around their type (up to 12 stars) under a credit cap from 10,200 (Brock) to 45,000 (the late Elite Four and the rival) that the balance simulation sets per leader, and favors a style: run-heavy, pass-heavy, or blitz and tricks. A win earns the badge and opens the next leader; a loss lets you rematch.
 
 ![The Gym Challenge map with the badge case and roster levels](docs/screenshots/png/league-map-save-1280.png)
 
-Your roster carries from game to game. Every player starts at the lowest level of its evolution stage and gains levels from its box score (1 per 10 yards, 3 per touchdown, 1 per tackle, 2 per sack or interception, 1 per move hit, all scaled by 0.4 and rounded) plus 1 for everyone after a win. A player evolves when it reaches its evolution level. Trade evolutions (Kadabra, Machoke, Graveler, Haunter, and others) need that player to be the game MVP, and friendship evolutions (Pichu, Cleffa, Igglybuff, Togepi, Golbat, Chansey) need 5 games played. Misty, Lt. Surge, Erika, Sabrina, Blaine, and Giovanni award the Water, Thunder, Leaf, Moon, Fire, and Sun Stones; use a stone on the post-game screen to evolve a player of your choice. An evolution keeps the moves the new species can learn and takes the new species' stats, types, and salary.
+Your roster carries from game to game. Every player starts at the lowest level of its evolution stage and gains levels from its box score (1 per 10 yards gained, 1 per 20 passing yards, 3 per touchdown, 1 per tackle, 2 per sack or interception, 1 per move hit, all scaled by 0.4 and rounded) plus 1 for everyone after a win. A player evolves when it reaches its evolution level. Trade evolutions (Kadabra, Machoke, Graveler, Haunter, and others) need that player to be the game MVP, and friendship evolutions (Pichu, Cleffa, Igglybuff, Togepi, Golbat, Chansey) need 5 games played. Misty, Lt. Surge, Erika, Sabrina, Blaine, and Giovanni award the Water, Thunder, Leaf, Moon, Fire, and Sun Stones; use a stone on the post-game screen to evolve a player of your choice. An evolution keeps the moves the new species can learn and takes the new species' stats, types, and salary.
 
 Between games the **transfer window** lets you swap up to three players with the free-agent pool. Your payroll cap starts at 13,000 credits and rises 1,000 per badge. A swap cannot raise payroll above that cap, but evolution can push payroll over it, so a strong evolved core leaves little room for depth. Swaps can bring in any Pokémon. The circuit saves in your browser (`localStorage`) after every game, and **New circuit** asks before it deletes the save. If the browser blocks storage, the circuit still plays and a notice says progress is not saved. Winning the rival's game opens the Hall of Fame.
 
@@ -150,7 +150,7 @@ npm run lint
 npm run format:check
 npm test
 node scripts/balance.cjs 500  # points per game with moves off and on
-node scripts/league-balance.cjs 200  # win rate per leader and evolution share over seeded circuits
+node scripts/league-balance.cjs 200  # win rate per leader with and without transfers, and the evolution share
 # Gameplay and UI regressions alone:
 npm run test:mechanics
 python3 -m unittest discover -s tests -p 'test_pokedex.py'

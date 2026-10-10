@@ -38,19 +38,19 @@
     static PASSING_YARDS_PER_LEVEL = 20;
     static FRIENDSHIP_GAMES = 5;
     static LEADERS = [
-      { name: 'Brock', title: 'Gym Leader', type: 'Rock', style: 'run', cap: 9800, stone: null },
-      { name: 'Misty', title: 'Gym Leader', type: 'Water', style: 'pass', cap: 9600, stone: 'water-stone' },
-      { name: 'Lt. Surge', title: 'Gym Leader', type: 'Electric', style: 'pass', cap: 9500, stone: 'thunder-stone' },
-      { name: 'Erika', title: 'Gym Leader', type: 'Grass', style: 'run', cap: 10075, stone: 'leaf-stone' },
-      { name: 'Koga', title: 'Gym Leader', type: 'Poison', style: 'pressure', cap: 9800, stone: null },
-      { name: 'Sabrina', title: 'Gym Leader', type: 'Psychic', style: 'balanced', cap: 9900, stone: 'moon-stone' },
-      { name: 'Blaine', title: 'Gym Leader', type: 'Fire', style: 'balanced', cap: 12300, stone: 'fire-stone' },
-      { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'run', cap: 13900, stone: 'sun-stone' },
-      { name: 'Lorelei', title: 'Elite Four', type: 'Ice', style: 'balanced', cap: 13000, stone: null },
-      { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'pass', cap: 15500, stone: null },
-      { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pass', cap: 14200, stone: null },
-      { name: 'Lance', title: 'Elite Four', type: 'Dragon', style: 'balanced', cap: 15800, stone: null },
-      { name: 'Rival', title: 'Champion', type: null, style: 'pass', cap: 17100, stone: null },
+      { name: 'Brock', title: 'Gym Leader', type: 'Rock', style: 'run', cap: 10200, stone: null },
+      { name: 'Misty', title: 'Gym Leader', type: 'Water', style: 'pass', cap: 10400, stone: 'water-stone' },
+      { name: 'Lt. Surge', title: 'Gym Leader', type: 'Electric', style: 'pass', cap: 11400, stone: 'thunder-stone' },
+      { name: 'Erika', title: 'Gym Leader', type: 'Grass', style: 'run', cap: 17700, stone: 'leaf-stone' },
+      { name: 'Koga', title: 'Gym Leader', type: 'Poison', style: 'pressure', cap: 17700, stone: null },
+      { name: 'Sabrina', title: 'Gym Leader', type: 'Psychic', style: 'balanced', cap: 19700, stone: 'moon-stone' },
+      { name: 'Blaine', title: 'Gym Leader', type: 'Fire', style: 'balanced', cap: 20400, stone: 'fire-stone' },
+      { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'pass', cap: 18600, stone: 'sun-stone' },
+      { name: 'Lorelei', title: 'Elite Four', type: 'Ice', style: 'balanced', cap: 35200, stone: null },
+      { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'pass', core: 6, cap: 33400, stone: null },
+      { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pass', cap: 45000, stone: null },
+      { name: 'Lance', title: 'Elite Four', type: 'Dragon', style: 'pass', cap: 45000, stone: null },
+      { name: 'Rival', title: 'Champion', type: null, style: 'pass', cap: 45000, stone: null },
     ];
 
     constructor(catalog, roster, seed) {
@@ -136,7 +136,7 @@
       const picked = [];
       const cheapest = this.catalog.map((mon) => Roster.salary(mon)).sort((a, b) => a - b);
       for (const mon of stars) {
-        if (picked.length === League.CORE_SIZE) break;
+        if (picked.length === (leader.core ?? League.CORE_SIZE)) break;
         // The cheapest possible fill for the other slots must still fit under the cap.
         const fill = cheapest.slice(0, POSITIONS.length - picked.length - 1).reduce((sum, value) => sum + value, 0);
         if (spent + Roster.salary(mon) > leader.cap * League.CORE_SHARE) continue;

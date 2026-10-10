@@ -61,25 +61,27 @@ The scraper adds each Gen 1–2 species' evolution: the target species, trigger,
 
 ### Tuned values
 
-Source: `node scripts/league-balance.cjs 200 0` with clashes on, CPU coaching both sides, the human side on its auto clash action, a 13,000-credit starting roster drafted from the evolvable pool, no transfers, 12 tries per leader. The player's payroll cap is 13,000 plus 1,000 per badge. Gain formula: box-score impact scaled by `IMPACT_SCALE` 0.4 and rounded, plus `WIN_BONUS` 1.
+Source: `node scripts/league-balance.cjs 200` with clashes on, CPU coaching both sides, the human side on its auto clash action, a 13,000-credit starting roster drafted from the evolvable pool, 12 tries per leader. The player's payroll cap is 13,000 plus 1,000 per badge. Gain formula: box-score impact (floor of gained yards / 10, passing yards / 20, 3 per touchdown, 1 per tackle, 2 per sack or interception, 1 per move hit) scaled by `IMPACT_SCALE` 0.4 and rounded, plus `WIN_BONUS` 1. A leader's fill picks among the best 3 affordable players, and `STYLE_BONUS` is 8.
 
-| Leader | Cap | Style | Target win % | Win % per game | First-try win % |
+The target curve applies to the transfer policy: after every game the player makes up to 3 transfers, each swapping the lowest-rated starter for the best-rated free agent at that position that `League.transfer` accepts. The no-transfer curve is reported without a target.
+
+| Leader | Cap | Style | Target % | 3 transfers: win % per game (first try) | No transfers: win % per game (first try) |
 | --- | --- | --- | --- | --- | --- |
-| Brock | 9,800 | run | 80 | 81 | 84 |
-| Misty | 9,600 | pass | 76 | 77 | 80 |
-| Lt. Surge | 9,500 | pass | 73 | 77 | 78 |
-| Erika | 10,075 | run | 69 | 63 | 62 |
-| Koga | 9,800 | pressure | 65 | 67 | 72 |
-| Sabrina | 9,900 | balanced | 61 | 57 | 63 |
-| Blaine | 12,300 | balanced | 58 | 54 | 58 |
-| Giovanni | 13,900 | run | 54 | 51 | 53 |
-| Lorelei | 13,000 | balanced | 50 | 48 | 57 |
-| Bruno | 15,500 | balanced | 46 | 44 | 48 |
-| Agatha | 14,200 | pressure | 43 | 37 | 37 |
-| Lance | 15,800 | balanced | 39 | 35 | 43 |
-| Rival | 17,100 | balanced | 35 | 35 | 44 |
+| Brock | 10,200 | run | 80 | 80 (76) | 75 (76) |
+| Misty | 10,400 | pass | 76 | 74 (73) | 28 (27) |
+| Lt. Surge | 11,400 | pass | 73 | 77 (74) | 20 (14) |
+| Erika | 17,700 | run | 69 | 68 (69) | 16 (17) |
+| Koga | 17,700 | pressure | 65 | 64 (65) | 6 (2) |
+| Sabrina | 19,700 | balanced | 61 | 63 (66) | 2 (2) |
+| Blaine | 20,400 | balanced | 58 | 59 (62) | 3 (5) |
+| Giovanni | 18,600 | pass | 54 | 55 (61) | 0 (0) |
+| Lorelei | 35,200 | balanced | 50 | 49 (56) | no circuit reaches her |
+| Bruno | 33,400 | pass | 46 | 45 (48) | no circuit reaches him |
+| Agatha | 45,000 | pass | 43 | 41 (50) | no circuit reaches her |
+| Lance | 45,000 | pass | 39 | 38 (45) | no circuit reaches him |
+| Rival | 45,000 | pass | 35 | 35 (36) | no circuit reaches the Rival |
 
-Every leader sits within 6 points of its linear target. Erika's win rate jumps from 87% to 51% between caps of 10,072 and 10,075 (one star leaves her core), so her style is `run` to land at 63%. 93% of circuits finish. 64% of the 31 starting players evolve at least once (68% of the 22 starters). With 3 upgrade transfers per window, win rates reach 85% at Brock and 96-100% from Misty on, so transfers decide the circuit.
+Every leader sits within 4 points of its target under the transfer policy, and 93% of circuits finish. 50% of the players who stayed on the roster evolve at least once (903 of 1,821; traded players are not counted). With no transfers 45% of the 31 drafted players evolve, no circuit finishes, and the roster stalls at the middle gyms, so transfers decide the circuit. Leader caps above about 27,000 add little because the fill saturates; the late leaders get their strength from the 3-wide fill, the pass style, and, for Bruno, a 6-star core. Erika's rate jumps between caps of 10,072 and 10,075 under the earlier tuning, so the cap table is a simulation output, not a formula.
 
 ## Feature 2: Contact Clash
 
