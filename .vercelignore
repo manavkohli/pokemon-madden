@@ -1,0 +1,8 @@
+# Serve only the browser runtime. Without package.json, Vercel runs no install or build.
+/*
+!index.html
+!style.css
+!pokemon_gen1_2.js
+!src
+!assets
+!vercel.json

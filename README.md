@@ -158,6 +158,10 @@ python3 -m unittest discover -s tests -p 'test_pokedex.py'
 
 No build step is needed. For a local preview, run `python3 -m http.server 8000 --bind 127.0.0.1` and visit `http://127.0.0.1:8000`.
 
+### Deploy
+
+The site deploys to Vercel as static files with no build. `.vercelignore` uploads only `index.html`, `style.css`, `pokemon_gen1_2.js`, `src/`, `assets/`, and `vercel.json`, so Vercel runs no install and serves about 100 KB gzipped. Import the repo in Vercel with the framework preset **Other**, deploy, and add the domain under **Settings → Domains**. After a change to a script or stylesheet, bump `?v=` in `index.html` so browsers fetch the new file.
+
 Football rules and roster logic live in `src/game/`; drafting, diagrams, sprites, and animation live in `src/ui/`. See the [architecture walkthrough](docs/ARCHITECTURE.md) for ownership and the browser checklist, and [CONTRIBUTING.md](CONTRIBUTING.md) for checks and contribution guidance.
 
 ## Credits and inspiration
