@@ -34,7 +34,7 @@ The circuit is 13 games in a fixed order: Brock (Rock), Misty (Water), Lt. Surge
 
 ### Leader rosters
 
-A leader's roster starts from a type core: up to 12 Pokémon of the leader's type, the highest-rated at their best positions, within 60% of the leader's credit cap. The existing `Roster.random()` rule fills the remaining slots with the rest of the cap. The core keeps the identity (Agatha's 4 Ghost types are her stars) and the fill keeps a full, legal 31-player team. Caps rise from 14,000 credits for Brock to 27,000 for the Champion in even steps, so early gyms are winnable with a starter roster.
+A leader's roster starts from a type core: up to 12 Pokémon of the leader's type, the highest-rated at their best positions, within 60% of the leader's credit cap. The existing `Roster.random()` rule fills the remaining slots with the rest of the cap. The core keeps the identity (Agatha's 4 Ghost types are her stars) and the fill keeps a full, legal 31-player team. Each leader's cap comes from the balance simulation (Tuned values), so early gyms are winnable with a starter roster.
 
 Each leader has a play style: Brock and Giovanni favor runs, Misty and Lt. Surge favor passes, Koga and Agatha favor blitzes and trick plays, and the rest stay balanced. The style adds a fixed bonus to its group in the CPU call score, so the CPU still reacts to down, distance, and clock.
 
@@ -42,7 +42,7 @@ Each leader has a play style: Brock and Giovanni favor runs, Misty and Lt. Surge
 
 You draft once at the start, under 13,000 credits. Your roster carries forward: players, movesets, and levels.
 
-- **Levels.** Every drafted player starts at the lowest level of its evolution stage (a base form at 5, a middle form at the level it evolved, a final form at 40). After each game, each player gains levels from its impact: 1 level per 10 yards gained, 3 per touchdown, 1 per tackle, 2 per sack or interception, and 1 per move hit, plus 2 for every player on the winning team. Impact comes from the drive log and `result.participants`, which the engine already records.
+- **Levels.** Every drafted player starts at the lowest level of its evolution stage (a base form at 5, a middle form at the level it evolved, a final form at 40). After each game, each player gains levels from its impact: 1 level per 10 yards gained, 3 per touchdown, 1 per tackle, 2 per sack or interception, and 1 per move hit, scaled by 0.4 and rounded, plus 1 for every player on the winning team. Impact comes from the drive log and `result.participants`, which the engine already records.
 - **Evolution.** A player evolves when its level reaches the PokeAPI `min_level`. Badges award evolution stones: Misty the Water Stone, Lt. Surge the Thunder Stone, Erika the Leaf Stone, Blaine the Fire Stone, Sabrina the Moon Stone. A stone evolves one player of your choice on the post-game screen. Trade evolutions (Kadabra, Machoke, Graveler, Haunter, and others) evolve when that player is the game MVP. Friendship evolutions (Pichu, Cleffa, Igglybuff, Togepi, Golbat, Chansey) evolve after 5 games played. Eevee takes the stone you give it.
 - **What an evolution changes.** The player takes the evolved species' base stats, types, sprite, and learnset. It keeps every known move that the new species still learns; the freed slots fill by the default-moveset rule. Its salary rises to the new species' salary.
 - **The transfer window.** Between games you swap up to 3 players with the free-agent pool, and the full roster must fit the next game's cap. Evolution raises salaries, so a strong evolved core forces you to trade depth for stars. That decision is the strategy layer of the circuit.
@@ -58,6 +58,28 @@ The scraper adds each Gen 1–2 species' evolution: the target species, trigger,
 - **League map:** the badge case, the next leader card with an original trainer portrait in the existing art style, the leader's type and style, and **Challenge**.
 - **Post-game report:** per-player experience bars, level-ups, and the evolution sequence ("What? Pikachu is evolving!") drawn on the `BattleStage` clock and skippable.
 - **Transfer window:** the existing draft screen with a 3-swap counter and the next leader's cap.
+
+### Tuned values
+
+Source: `node scripts/league-balance.cjs 200 0` with clashes on, CPU coaching both sides, the human side on its auto clash action, a 13,000-credit starting roster drafted from the evolvable pool, no transfers, 12 tries per leader. The player's payroll cap is 13,000 plus 1,000 per badge. Gain formula: box-score impact scaled by `IMPACT_SCALE` 0.4 and rounded, plus `WIN_BONUS` 1.
+
+| Leader | Cap | Style | Target win % | Win % per game | First-try win % |
+| --- | --- | --- | --- | --- | --- |
+| Brock | 9,800 | run | 80 | 81 | 84 |
+| Misty | 9,600 | pass | 76 | 77 | 80 |
+| Lt. Surge | 9,500 | pass | 73 | 77 | 78 |
+| Erika | 10,075 | run | 69 | 63 | 62 |
+| Koga | 9,800 | pressure | 65 | 67 | 72 |
+| Sabrina | 9,900 | balanced | 61 | 57 | 63 |
+| Blaine | 12,300 | balanced | 58 | 54 | 58 |
+| Giovanni | 13,900 | run | 54 | 51 | 53 |
+| Lorelei | 13,000 | balanced | 50 | 48 | 57 |
+| Bruno | 15,500 | balanced | 46 | 44 | 48 |
+| Agatha | 14,200 | pressure | 43 | 37 | 37 |
+| Lance | 15,800 | balanced | 39 | 35 | 43 |
+| Rival | 17,100 | balanced | 35 | 35 | 44 |
+
+Every leader sits within 6 points of its linear target. Erika's win rate jumps from 87% to 51% between caps of 10,072 and 10,075 (one star leaves her core), so her style is `run` to land at 63%. 93% of circuits finish. 64% of the 31 starting players evolve at least once (68% of the 22 starters). With 3 upgrade transfers per window, win rates reach 85% at Brock and 96-100% from Misty on, so transfers decide the circuit.
 
 ## Feature 2: Contact Clash
 

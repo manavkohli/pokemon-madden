@@ -29,23 +29,25 @@
     static FINAL_LEVEL = 40;
     static NON_LEVEL_FLOOR = 20;
     static MAX_LEVEL = 100;
-    static WIN_BONUS = 2;
+    static WIN_BONUS = 1;
+    // Scales the box-score gains so a circuit evolves about half of the starting roster.
+    static IMPACT_SCALE = 0.4;
     static YARDS_PER_LEVEL = 10;
     static FRIENDSHIP_GAMES = 5;
     static LEADERS = [
-      { name: 'Brock', title: 'Gym Leader', type: 'Rock', style: 'run', cap: 15500, stone: null },
-      { name: 'Misty', title: 'Gym Leader', type: 'Water', style: 'pass', cap: 16500, stone: 'water-stone' },
-      { name: 'Lt. Surge', title: 'Gym Leader', type: 'Electric', style: 'pass', cap: 17500, stone: 'thunder-stone' },
-      { name: 'Erika', title: 'Gym Leader', type: 'Grass', style: 'balanced', cap: 18500, stone: 'leaf-stone' },
-      { name: 'Koga', title: 'Gym Leader', type: 'Poison', style: 'pressure', cap: 19500, stone: null },
-      { name: 'Sabrina', title: 'Gym Leader', type: 'Psychic', style: 'balanced', cap: 20500, stone: 'moon-stone' },
-      { name: 'Blaine', title: 'Gym Leader', type: 'Fire', style: 'balanced', cap: 22000, stone: 'fire-stone' },
-      { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'run', cap: 23000, stone: 'sun-stone' },
-      { name: 'Lorelei', title: 'Elite Four', type: 'Ice', style: 'balanced', cap: 24000, stone: null },
-      { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'balanced', cap: 25000, stone: null },
-      { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pressure', cap: 26000, stone: null },
-      { name: 'Lance', title: 'Elite Four', type: 'Dragon', style: 'balanced', cap: 27000, stone: null },
-      { name: 'Rival', title: 'Champion', type: null, style: 'balanced', cap: 28000, stone: null },
+      { name: 'Brock', title: 'Gym Leader', type: 'Rock', style: 'run', cap: 9800, stone: null },
+      { name: 'Misty', title: 'Gym Leader', type: 'Water', style: 'pass', cap: 9600, stone: 'water-stone' },
+      { name: 'Lt. Surge', title: 'Gym Leader', type: 'Electric', style: 'pass', cap: 9500, stone: 'thunder-stone' },
+      { name: 'Erika', title: 'Gym Leader', type: 'Grass', style: 'run', cap: 10075, stone: 'leaf-stone' },
+      { name: 'Koga', title: 'Gym Leader', type: 'Poison', style: 'pressure', cap: 9800, stone: null },
+      { name: 'Sabrina', title: 'Gym Leader', type: 'Psychic', style: 'balanced', cap: 9900, stone: 'moon-stone' },
+      { name: 'Blaine', title: 'Gym Leader', type: 'Fire', style: 'balanced', cap: 12300, stone: 'fire-stone' },
+      { name: 'Giovanni', title: 'Gym Leader', type: 'Ground', style: 'run', cap: 13900, stone: 'sun-stone' },
+      { name: 'Lorelei', title: 'Elite Four', type: 'Ice', style: 'balanced', cap: 13000, stone: null },
+      { name: 'Bruno', title: 'Elite Four', type: 'Fighting', style: 'balanced', cap: 15500, stone: null },
+      { name: 'Agatha', title: 'Elite Four', type: 'Ghost', style: 'pressure', cap: 14200, stone: null },
+      { name: 'Lance', title: 'Elite Four', type: 'Dragon', style: 'balanced', cap: 15800, stone: null },
+      { name: 'Rival', title: 'Champion', type: null, style: 'balanced', cap: 17100, stone: null },
     ];
 
     constructor(catalog, roster, seed) {
@@ -120,9 +122,13 @@
         .sort((a, b) => best(b) - best(a) || a.id - b.id);
       let spent = 0;
       const picked = [];
+      const cheapest = this.catalog.map((mon) => Roster.salary(mon)).sort((a, b) => a - b);
       for (const mon of stars) {
         if (picked.length === League.CORE_SIZE) break;
+        // The cheapest possible fill for the other slots must still fit under the cap.
+        const fill = cheapest.slice(0, POSITIONS.length - picked.length - 1).reduce((sum, value) => sum + value, 0);
         if (spent + Roster.salary(mon) > leader.cap * League.CORE_SHARE) continue;
+        if (spent + Roster.salary(mon) + fill > leader.cap) continue;
         spent += Roster.salary(mon);
         picked.push(mon);
       }
@@ -155,7 +161,8 @@
       const gains = this.roster.players.map((mon) => {
         const impact = League.impact(game.stats.home[mon.id]);
         const from = this.level(mon);
-        const to = Math.min(League.MAX_LEVEL, from + impact + (win ? League.WIN_BONUS : 0));
+        const earned = Math.round(impact * League.IMPACT_SCALE) + (win ? League.WIN_BONUS : 0);
+        const to = Math.min(League.MAX_LEVEL, from + earned);
         return { mon, impact, from, to };
       });
       const mvp = win ? gains.reduce((top, entry) => (entry.impact > top.impact ? entry : top)).mon : null;

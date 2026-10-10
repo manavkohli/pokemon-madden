@@ -8,6 +8,9 @@ const { seeded } = require('../tests/helpers.cjs');
 // Plays whole circuits with the CPU coaching both sides and a simple manager spending stones and transfers.
 class LeagueSim {
   static MAX_TRIES = 12;
+  // The no-transfer win rate falls linearly from the first leader to the Champion.
+  static TARGET_START = 80;
+  static TARGET_END = 35;
   static STARTERS = [
     ...['QB', 'RB', 'TE'].map((code) => [code, 1]),
     ['WR', 3],
@@ -103,12 +106,12 @@ class LeagueSim {
       Roster.random(data, League.DRAFT_CAP, () => this.random(), new Map(), League.startingPool(data)),
       () => this.random(),
     );
-    const lineage = new Map();
+    const starting = new Set();
     for (const [code, count] of LeagueSim.STARTERS)
-      for (let depth = 0; depth < count; depth++) {
-        const mon = league.roster.player(code, depth);
-        lineage.set(mon.id, { origin: mon.id, evolvable: mon.evolutions.length > 0, evolved: false });
-      }
+      for (let depth = 0; depth < count; depth++) starting.add(league.roster.player(code, depth).id);
+    const lineage = new Map(
+      league.roster.players.map((mon) => [mon.id, { starter: starting.has(mon.id), evolved: false }]),
+    );
     const gyms = [];
     while (!league.complete) {
       const gym = { index: league.stage, tries: 0, won: false, firstTry: false, points: 0, against: 0 };
@@ -131,16 +134,14 @@ class LeagueSim {
       gyms.push(gym);
       if (!gym.won) break;
     }
-    return { gyms, complete: league.complete, starters: new Set(lineage.values()) };
+    return { gyms, complete: league.complete, players: new Set(lineage.values()) };
   }
 
-  static run(circuits, swaps) {
+  static run(circuits, swaps, first = 1) {
     const stages = League.LEADERS.map(() => ({ reached: 0, first: 0, wins: 0, tries: 0, points: 0, against: 0 }));
     let complete = 0;
-    let evolved = 0;
-    let evolvable = 0;
-    let starters = 0;
-    for (let seed = 1; seed <= circuits; seed++) {
+    const share = { all: [0, 0], starters: [0, 0] };
+    for (let seed = first; seed < first + circuits; seed++) {
       const result = new LeagueSim(seed, swaps).circuit();
       complete += result.complete ? 1 : 0;
       for (const gym of result.gyms) {
@@ -152,34 +153,39 @@ class LeagueSim {
         stage.points += gym.points;
         stage.against += gym.against;
       }
-      for (const entry of result.starters) {
-        starters += 1;
-        evolved += entry.evolved ? 1 : 0;
-        evolvable += entry.evolvable ? 1 : 0;
+      for (const entry of result.players) {
+        for (const key of entry.starter ? ['all', 'starters'] : ['all']) {
+          share[key][0] += entry.evolved ? 1 : 0;
+          share[key][1] += 1;
+        }
       }
     }
-    return { stages, complete, evolved, evolvable, starters };
+    return { stages, complete, share };
   }
 }
 
 if (require.main === module) {
   const circuits = Number(process.argv[2] ?? 200);
   const swaps = Number(process.argv[3] ?? 0);
-  const { stages, complete, evolved, evolvable, starters } = LeagueSim.run(circuits, swaps);
+  const { stages, complete, share } = LeagueSim.run(circuits, swaps);
   console.log(
-    `${circuits} circuits, 13,000-credit starting roster, ${swaps} transfers per window, ${LeagueSim.MAX_TRIES} tries per leader`,
+    `${circuits} circuits, ${League.DRAFT_CAP.toLocaleString()}-credit starting roster, ${swaps} transfers per window, ${LeagueSim.MAX_TRIES} tries per leader`,
   );
-  console.log('leader      cap    reached  first-try win%  win%/game  score');
+  console.log('leader      cap    reached  first-try%  win%/game  target  gap   score');
+  const last = League.LEADERS.length - 1;
   League.LEADERS.forEach((leader, index) => {
     const row = stages[index];
+    const target = LeagueSim.TARGET_START - ((LeagueSim.TARGET_START - LeagueSim.TARGET_END) * index) / last;
+    const rate = (100 * row.wins) / (row.tries || 1);
     const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(0) : '-').padStart(5);
     console.log(
-      `${leader.name.padEnd(10)} ${String(leader.cap).padStart(6)} ${String(row.reached).padStart(8)} ${pct(row.first, row.reached)}%         ${pct(row.wins, row.tries)}%   ${(row.points / (row.tries || 1)).toFixed(1)}-${(row.against / (row.tries || 1)).toFixed(1)}`,
+      `${leader.name.padEnd(10)} ${String(leader.cap).padStart(6)} ${String(row.reached).padStart(8)} ${pct(row.first, row.reached)}%      ${pct(row.wins, row.tries)}%   ${target.toFixed(0).padStart(5)}%  ${(rate - target).toFixed(0).padStart(4)}  ${(row.points / (row.tries || 1)).toFixed(1)}-${(row.against / (row.tries || 1)).toFixed(1)}`,
     );
   });
   console.log(`circuits completed: ${((100 * complete) / circuits).toFixed(0)}%`);
+  const percent = ([part, whole]) => `${((100 * part) / whole).toFixed(0)}% (${part} of ${whole})`;
   console.log(
-    `starters that evolve at least once: ${((100 * evolved) / starters).toFixed(0)}% of all starters, ${((100 * evolved) / evolvable).toFixed(0)}% of starters that have an evolution (${starters} starters, ${evolvable} with an evolution)`,
+    `starting players that evolve at least once: ${percent(share.all)}; the 22 starters: ${percent(share.starters)}`,
   );
 }
 
